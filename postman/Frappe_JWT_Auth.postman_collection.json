@@ -1,0 +1,192 @@
+{
+  "info": {
+    "name": "Frappe JWT Auth API",
+    "description": "JWT-based authentication for Frappe/ERPNext — works on any client (mobile, web, API).\n\nToken lifecycle:\n- POST login        -> access token (15 min) + refresh token (7 days)\n- POST refresh      -> rotated access + refresh tokens (old refresh revoked)\n- POST logout       -> revoke a refresh token, or all tokens for the Bearer user\n- GET  me           -> current user info from the Bearer token\n\nPrerequisites (site-level):\n1. site_config.json must contain `encryption_key` or `secret_key` (used as the JWT signing secret).\n   bench --site <site> set-config encryption_key \"$(openssl rand -base64 32)\"\n2. Restart bench after installing the app so the editable install is picked up.\n\nSetup:\n1. Import this collection.\n2. Set collection variables: base_url (default http://frappe-dev.autopilotstore.co.id), usr, pwd.\n3. Send Login first — its test script stores access_token / refresh_token as collection variables automatically.\n4. Me / Get List use Authorization: Bearer {{access_token}}.\n\nNotes:\n- Frappe wraps returned dicts under a \"message\" envelope, e.g. {\"message\": {...}}.\n- Missing required arguments return HTTP 417 (FrappeTypeError).\n- An invalid/expired JWT on a protected endpoint returns HTTP 401 (AuthenticationError from Frappe core).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://frappe-dev.autopilotstore.co.id" },
+    { "key": "usr", "value": "Administrator" },
+    { "key": "pwd", "value": "Admin@APS" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login",
+      "description": "Authenticate with email + password. Returns an access token (15 min) and a refresh token (7 days). The test script stores both tokens as collection variables for the other requests.\n\nErrors: 401 {\"message\": {\"message\": \"Invalid credentials\"}}",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/method/frappe_jwt_auth.api.login",
+          "host": ["{{base_url}}"],
+          "path": ["api", "method", "frappe_jwt_auth.api.login"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"usr\": \"{{usr}}\",\n    \"pwd\": \"{{pwd}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "const data = (body.message && typeof body.message === 'object' && body.message.access_token) ? body.message : body;",
+              "",
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"access_token present\", () => pm.expect(data.access_token).to.be.a('string'));",
+              "pm.test(\"refresh_token present\", () => pm.expect(data.refresh_token).to.be.a('string'));",
+              "pm.test(\"token_type = Bearer\", () => pm.expect(data.token_type).to.eql('Bearer'));",
+              "pm.test(\"expires_in = 900 (15 min)\", () => pm.expect(data.expires_in).to.eql(900));",
+              "",
+              "if (data.access_token) pm.collectionVariables.set(\"access_token\", data.access_token);",
+              "if (data.refresh_token) pm.collectionVariables.set(\"refresh_token\", data.refresh_token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Refresh",
+      "description": "Exchange a refresh token for a new access + refresh pair. The old refresh token is revoked (rotation); reusing a revoked token revokes ALL tokens for that user.\n\nErrors: 401 {\"message\": {\"message\": \"Invalid or expired refresh token\" | \"Invalid token type\" | \"Malformed token\" | \"Token not found\" | \"Token has been revoked\"}}\nMissing refresh_token -> 417 FrappeTypeError.",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/method/frappe_jwt_auth.api.refresh",
+          "host": ["{{base_url}}"],
+          "path": ["api", "method", "frappe_jwt_auth.api.refresh"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "pre-request",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"old_refresh\", pm.collectionVariables.get(\"refresh_token\"));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "const data = (body.message && typeof body.message === 'object' && body.message.access_token) ? body.message : body;",
+              "",
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"new access_token present\", () => pm.expect(data.access_token).to.be.a('string'));",
+              "pm.test(\"refresh rotated (new != old)\", () => pm.expect(data.refresh_token).to.not.eql(pm.collectionVariables.get(\"old_refresh\")));",
+              "",
+              "if (data.access_token) pm.collectionVariables.set(\"access_token\", data.access_token);",
+              "if (data.refresh_token) pm.collectionVariables.set(\"refresh_token\", data.refresh_token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Me",
+      "description": "Return the current user's info from the Bearer token — no session cookie required.\n\nSuccess 200: {\"message\": {\"user\": \"...\", \"full_name\": \"...\", \"roles\": [...]}}\nErrors: 401 missing/invalid token.",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+        "url": {
+          "raw": "{{base_url}}/api/method/frappe_jwt_auth.api.me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "method", "frappe_jwt_auth.api.me"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "const data = body.message && typeof body.message === 'object' ? body.message : body;",
+              "",
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"user present\", () => pm.expect(data.user).to.be.a('string'));",
+              "pm.test(\"roles is an array\", () => pm.expect(data.roles).to.be.an('array'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Logout",
+      "description": "Two modes:\n1. Revoke a specific refresh token: send {\"refresh_token\": \"...\"} (shown here).\n2. Revoke ALL refresh tokens for the Bearer-authenticated user: send the Bearer header and an empty body {}.\n\nAlways returns 200 {\"message\": {\"message\": \"ok\"}}.",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{access_token}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/method/frappe_jwt_auth.api.logout",
+          "host": ["{{base_url}}"],
+          "path": ["api", "method", "frappe_jwt_auth.api.logout"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "const data = body.message && typeof body.message === 'object' ? body.message : body;",
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"message ok\", () => pm.expect(data.message).to.eql('ok'));",
+              "pm.collectionVariables.set(\"refresh_token\", \"\");"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Get List (standard endpoint via JWT)",
+      "description": "Proof that the JWT middleware unlocks ALL standard Frappe endpoints — the same Bearer token works for frappe.client.get_list, frappe.client.get, frappe.client.insert, etc. No api_key/secret, no session cookie.\n\nRun this after Login.",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+        "url": {
+          "raw": "{{base_url}}/api/method/frappe.client.get_list?doctype=User&limit_page_length=5",
+          "host": ["{{base_url}}"],
+          "path": ["api", "method", "frappe.client.get_list"],
+          "query": [
+            { "key": "doctype", "value": "User" },
+            { "key": "limit_page_length", "value": "5" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"returns a list\", () => pm.expect(pm.response.json().message).to.be.an('array'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
