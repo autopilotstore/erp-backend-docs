@@ -2,7 +2,7 @@
   "info": {
     "name": "ERPNext REST API",
     "_postman_id": "a1b2c3d4-e5f6-4a5b-8c7d-9e0f1a2b3c4d",
-    "description": "Koleksi REST API ERPNext (Frappe) - satu file untuk SEMUA modul.\nSaat ini berisi: OAuth 2.0 + Supplier + Customer + Contact + Address + Lead + Employee + User + Warehouse + POS Profile + Item Group + Stock Reconciliation. Modul lain (Buying, Selling, dst.) ditambahkan sebagai folder baru.\n\nAutentikasi: OAuth 2.0 (Authorization Code + Refresh Token) - dikonfigurasi di level collection, otomatis dipakai semua folder.\n\nVariabel yang perlu diisi:\n- base_url        : alamat site, mis. https://erpnext.localhost\n- client_id       : dari Integrations > OAuth Client\n- client_secret   : dari Integrations > OAuth Client\n- callback_url    : redirect URI OAuth\n- supplier_id     : name Supplier hasil CREATE (mis. SUP-00001)\n- customer_id     : name Customer hasil CREATE (mis. CUST-00001)\n- lead_id         : name Lead hasil CREATE (mis. CRM-LEAD-00001)\n- employee_id     : name Employee hasil CREATE (mis. HR-EMP-00001)\n- contact_name    : name Contact hasil CREATE (mis. Markus)\n- address_id      : name Address hasil CREATE (mis. PT Maju Jaya-Billing)\n- user_id         : name User hasil CREATE (= email, mis. budi@perusahaan.co.id)\n- warehouse_id    : name Warehouse hasil CREATE (mis. Gudang Raw Material - PTMJ)\n- warehouse_name  : warehouse_name utk pre-check duplikat\n- warehouse_type_name : name Warehouse Type (mis. Store)\n- pos_profile_id    : name POS Profile hasil CREATE (mis. POS Toko Cikarang)\n- pos_profile_name  : label POS Profile utk pre-check duplikat\n- tax_servis_template     : title template pajak servis saja (title = 'Servis 10%'; name otomatis = 'Servis 10% - APS')\n- tax_servis_ppn_template : title template pajak servis + PPN (title = 'Servis + PPN 11% (dasar termasuk servis)'; name otomatis = '... - APS')\n- item_group_id     : name Item Group hasil CREATE (mis. Minuman)\n- item_group_name   : item_group_name utk pre-check duplikat\n- item_group_parent : parent group node (mis. Food & Beverage)\n- item_group_child  : leaf baru di bawah group (mis. Air Mineral)\n- item_code         : Item yg dipindah ke leaf baru (mis. Air Mineral 600ml)\n- item_tax_template : template pajak utk child taxes (mis. PPN 11% - PTMJ)\n- stock_reco_id        : name Stock Reconciliation hasil CREATE (mis. MAT-RECO-00001-2026)\n- stock_reco_company   : company utk SR (mis. PT Maju Jaya)\n- stock_reco_warehouse : warehouse utk baris items SR (mis. Toko Cikarang - PTMJ)\n- stock_reco_item      : item_code yg disesuaikan (mis. Air Mineral 600ml)\n- stock_reco_posting_date / stock_reco_posting_time : tanggal & jam posting SR\n- stock_adjustment_account : akun selisih / Difference Account (mis. Stock Adjustment - PTMJ)\n\nCara pakai:\n1. Isi variabel di atas (Collection Variables).\n2. Tab Authorization pada request mana pun > Get New Access Token (alur OAuth2 sudah dikonfigurasi), atau jalankan folder \"0. OAuth 2.0\".\n3. Jalankan request pada folder modul yang diinginkan.",
+    "description": "Koleksi REST API ERPNext (Frappe) - satu file untuk SEMUA modul.\nSaat ini berisi: OAuth 2.0 + Supplier + Customer + Contact + Address + Lead + Employee + User + Warehouse + POS Profile + Item Group + Stock Reconciliation. Modul lain (Buying, Selling, dst.) ditambahkan sebagai folder baru. Folder 14 = Pricing Rule (diskon/promo); folder 15 = Price List & Item Price (harga produk).\n\nAutentikasi: OAuth 2.0 (Authorization Code + Refresh Token) - dikonfigurasi di level collection, otomatis dipakai semua folder.\n\nVariabel yang perlu diisi:\n- base_url        : alamat site, mis. https://erpnext.localhost\n- client_id       : dari Integrations > OAuth Client\n- client_secret   : dari Integrations > OAuth Client\n- callback_url    : redirect URI OAuth\n- supplier_id     : name Supplier hasil CREATE (mis. SUP-00001)\n- customer_id     : name Customer hasil CREATE (mis. CUST-00001)\n- lead_id         : name Lead hasil CREATE (mis. CRM-LEAD-00001)\n- employee_id     : name Employee hasil CREATE (mis. HR-EMP-00001)\n- contact_name    : name Contact hasil CREATE (mis. Markus)\n- address_id      : name Address hasil CREATE (mis. PT Maju Jaya-Billing)\n- user_id         : name User hasil CREATE (= email, mis. budi@perusahaan.co.id)\n- warehouse_id    : name Warehouse hasil CREATE (mis. Gudang Raw Material - PTMJ)\n- warehouse_name  : warehouse_name utk pre-check duplikat\n- warehouse_type_name : name Warehouse Type (mis. Store)\n- pos_profile_id    : name POS Profile hasil CREATE (mis. POS Toko Cikarang)\n- pos_profile_name  : label POS Profile utk pre-check duplikat\n- tax_servis_template     : title template pajak servis saja (title = 'Servis 10%'; name otomatis = 'Servis 10% - APS')\n- tax_servis_ppn_template : title template pajak servis + PPN (title = 'Servis + PPN 11% (dasar termasuk servis)'; name otomatis = '... - APS')\n- tax_tip_template       : title template biaya Tip (title = 'Tip 5%'; name otomatis = 'Tip 5% - APS')\n- tax_surcharge_template : title template Employee Surcharge (title = 'Employee Surcharge 3%'; name otomatis = '... - APS')\n- tax_servis_tip_ppn_template : title template Servis + Tip + PPN (title = 'Servis + Tip + PPN 11%'; name otomatis = '... - APS')\n- item_group_id     : name Item Group hasil CREATE (mis. Minuman)\n- item_group_name   : item_group_name utk pre-check duplikat\n- item_group_parent : parent group node (mis. Food & Beverage)\n- item_group_child  : leaf baru di bawah group (mis. Air Mineral)\n- item_code         : Item yg dipindah ke leaf baru (mis. Air Mineral 600ml)\n- item_tax_template : template pajak utk child taxes (mis. PPN 11% - PTMJ)\n- stock_reco_id        : name Stock Reconciliation hasil CREATE (mis. MAT-RECO-00001-2026)\n- stock_reco_company   : company utk SR (mis. PT Maju Jaya)\n- stock_reco_warehouse : warehouse utk baris items SR (mis. Toko Cikarang - PTMJ)\n- stock_reco_item      : item_code yg disesuaikan (mis. Air Mineral 600ml)\n- stock_reco_posting_date / stock_reco_posting_time : tanggal & jam posting SR\n- stock_adjustment_account : akun selisih / Difference Account (mis. Stock Adjustment - PTMJ)\n- price_list_name    : name Price List hasil CREATE (mis. Grosir; name = price_list_name)\n- price_list_name_2  : Price List kedua untuk uji (mis. Internal Transfer)\n- item_price_id      : name Item Price hasil CREATE (hash 10 karakter, mis. h6o7fl78so)\n- item_price_id_2    : name Item Price kedua (mis. harga khusus customer)\n- item_price_rate    : nilai harga uji untuk set_value/save (mis. 13500)\n\nCara pakai:\n1. Isi variabel di atas (Collection Variables).\n2. Tab Authorization pada request mana pun > Get New Access Token (alur OAuth2 sudah dikonfigurasi), atau jalankan folder \"0. OAuth 2.0\".\n3. Jalankan request pada folder modul yang diinginkan.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -2969,20 +2969,20 @@
               "mode": "raw",
               "raw": "{\n  \"doc\": {\n    \"doctype\": \"POS Profile\",\n    \"name\": \"{{pos_profile_id}}\",\n    \"company\": \"PT Maju Jaya\",\n    \"currency\": \"IDR\",\n    \"warehouse\": \"{{warehouse_id}}\",\n    \"write_off_account\": \"Round Off - PTMJ\",\n    \"write_off_cost_center\": \"Main - PTMJ\",\n    \"payments\": [\n      {\n        \"mode_of_payment\": \"Cash\",\n        \"default\": 1,\n        \"allow_in_returns\": 1\n      }\n    ]\n  }\n}"
             },
-            "description": "CREATE POS Profile minimum (prd_pos_profile.md 4.1) - frappe.client.insert, name di body (doc). Wajib: name (manual), company, currency, payments, warehouse, write_off_account, write_off_cost_center. Script test menyimpan name dari message ke variabel pos_profile_id.",
-            "event": [
-              {
-                "listen": "test",
-                "script": {
-                  "exec": [
-                    "const json = pm.response.json();",
-                    "if (json.message && json.message.name) { pm.environment.set('pos_profile_id', json.message.name); }"
-                  ],
-                  "type": "text/javascript"
-                }
-              }
-            ]
+            "description": "CREATE POS Profile minimum (prd_pos_profile.md 4.1) - frappe.client.insert, name di body (doc). Wajib: name (manual), company, currency, payments, warehouse, write_off_account, write_off_cost_center. Script test menyimpan name dari message ke variabel pos_profile_id."
           },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.environment.set('pos_profile_id', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "response": []
         },
         {
@@ -3002,20 +3002,20 @@
               "mode": "raw",
               "raw": "{\n  \"doc\": {\n    \"doctype\": \"POS Profile\",\n    \"name\": \"{{pos_profile_id}}\",\n    \"company\": \"PT Maju Jaya\",\n    \"currency\": \"IDR\",\n    \"warehouse\": \"{{warehouse_id}}\",\n    \"company_address\": \"Alamat Utama - PTMJ\",\n    \"customer\": \"Walk-In Customer\",\n    \"selling_price_list\": \"Standard Selling\",\n    \"income_account\": \"Sales - PTMJ\",\n    \"expense_account\": \"Cost of Goods Sold - PTMJ\",\n    \"cost_center\": \"Main - PTMJ\",\n    \"account_for_change_amount\": \"Kas - PTMJ\",\n    \"write_off_account\": \"Round Off - PTMJ\",\n    \"write_off_cost_center\": \"Main - PTMJ\",\n    \"taxes_and_charges\": \"PPN 11% - PTMJ\",\n    \"payments\": [\n      {\n        \"mode_of_payment\": \"Cash\",\n        \"default\": 1,\n        \"allow_in_returns\": 1\n      },\n      {\n        \"mode_of_payment\": \"Bank Transfer\",\n        \"default\": 0,\n        \"allow_in_returns\": 1\n      }\n    ],\n    \"item_groups\": [\n      {\n        \"item_group\": \"Products\"\n      }\n    ],\n    \"customer_groups\": [\n      {\n        \"customer_group\": \"Individual\"\n      }\n    ],\n    \"allow_rate_change\": 1,\n    \"allow_discount_change\": 1,\n    \"print_receipt_on_order_complete\": 1\n  }\n}"
             },
-            "description": "CREATE POS Profile lengkap toko retail (prd_pos_profile.md 4.1 contoh lengkap). Termasuk selling_price_list 'Standard Selling' (nilai ter-kunci), income/expense/cost center, account_for_change_amount, taxes_and_charges, item_groups, customer_groups, allow_rate_change/allow_discount_change, print_receipt_on_order_complete. Script test menyimpan name ke pos_profile_id.",
-            "event": [
-              {
-                "listen": "test",
-                "script": {
-                  "exec": [
-                    "const json = pm.response.json();",
-                    "if (json.message && json.message.name) { pm.environment.set('pos_profile_id', json.message.name); }"
-                  ],
-                  "type": "text/javascript"
-                }
-              }
-            ]
+            "description": "CREATE POS Profile lengkap toko retail (prd_pos_profile.md 4.1 contoh lengkap). Termasuk selling_price_list 'Standard Selling' (nilai ter-kunci), income/expense/cost center, account_for_change_amount, taxes_and_charges, item_groups, customer_groups, allow_rate_change/allow_discount_change, print_receipt_on_order_complete. Script test menyimpan name ke pos_profile_id."
           },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.environment.set('pos_profile_id', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "response": []
         },
         {
@@ -3502,7 +3502,7 @@
           "response": []
         },
         {
-          "name": "9.26 Create Tax Template - Servis 10% (On Net Total)",
+          "name": "9.26 Create Tax Template - Servis 10% (biaya tambahan + custom_rates)",
           "request": {
             "method": "POST",
             "header": [
@@ -3516,26 +3516,26 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"title\": \"{{tax_servis_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Biaya Servis\",\n        \"rate\": 10,\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"title\": \"{{tax_servis_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Biaya Servis\",\n        \"rate\": 10,\n        \"custom_rates\": \"[5, 10, 15]\",\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
             },
-            "description": "Create template pajak servis saja (prd_pos_profile.md 8b Langkah A). title -> variabel tax_servis_template. Script test menyimpan name dari message ke tax_servis_template.",
-            "event": [
-              {
-                "listen": "test",
-                "script": {
-                  "exec": [
-                    "const json = pm.response.json();",
-                    "if (json.message && json.message.name) { pm.environment.set('tax_servis_template', json.message.name); }"
-                  ],
-                  "type": "text/javascript"
-                }
-              }
-            ]
+            "description": "Create template biaya tambahan servis (prd_pos_profile.md 8b Langkah A). Akun 4310.000 - Pendapatan Service - APS (account_type boleh kosong). custom_rates WAJIB string JSON, contoh: [5, 10, 15] (list mentah ditolak: 'Value for Rates cannot be a list'). title -> tax_servis_template."
           },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.environment.set('tax_servis_template', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "response": []
         },
         {
-          "name": "9.27 Create Tax Template - Servis + PPN 11% (servis masuk dasar pajak)",
+          "name": "9.27 Create Tax Template - Servis + PPN 11% (custom_rates, PPN masuk dasar)",
           "request": {
             "method": "POST",
             "header": [
@@ -3549,26 +3549,26 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"title\": \"{{tax_servis_ppn_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Biaya Servis\",\n        \"rate\": 10,\n        \"cost_center\": \"Main - APS\"\n      },\n      {\n        \"charge_type\": \"On Previous Row Total\",\n        \"account_head\": \"2142.000 - PPN Keluaran - APS\",\n        \"description\": \"PPN (dasar termasuk servis)\",\n        \"rate\": 11,\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"title\": \"{{tax_servis_ppn_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Biaya Servis\",\n        \"rate\": 10,\n        \"custom_rates\": \"[5, 10, 15]\",\n        \"cost_center\": \"Main - APS\"\n      },\n      {\n        \"charge_type\": \"On Previous Row Total\",\n        \"account_head\": \"2142.000 - PPN Keluaran - APS\",\n        \"description\": \"PPN (dasar termasuk servis)\",\n        \"rate\": 11,\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
             },
-            "description": "Create template servis + PPN (prd_pos_profile.md 8b Langkah B). Baris PPN On Previous Row Total = dasar pajak net + biaya servis. title -> tax_servis_ppn_template.",
-            "event": [
-              {
-                "listen": "test",
-                "script": {
-                  "exec": [
-                    "const json = pm.response.json();",
-                    "if (json.message && json.message.name) { pm.environment.set('tax_servis_ppn_template', json.message.name); }"
-                  ],
-                  "type": "text/javascript"
-                }
-              }
-            ]
+            "description": "Create template biaya tambahan servis + PPN (prd_pos_profile.md 8b Langkah B). Baris PPN On Previous Row Total = dasar pajak net + biaya servis; custom_rates pada baris servis = string JSON. title -> tax_servis_ppn_template."
           },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.environment.set('tax_servis_ppn_template', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "response": []
         },
         {
-          "name": "9.28 Update Tax Template (edit servis -> servis + pajak, replace-all)",
+          "name": "9.28 Update Tax Template (edit servis -> servis + pajak, replace-all + custom_rates)",
           "request": {
             "method": "POST",
             "header": [
@@ -3582,9 +3582,9 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"name\": \"{{tax_servis_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Biaya Servis\",\n        \"rate\": 10,\n        \"cost_center\": \"Main - APS\"\n      },\n      {\n        \"charge_type\": \"On Previous Row Total\",\n        \"account_head\": \"2142.000 - PPN Keluaran - APS\",\n        \"description\": \"PPN (dasar termasuk servis)\",\n        \"rate\": 11,\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"name\": \"{{tax_servis_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Biaya Servis\",\n        \"rate\": 10,\n        \"custom_rates\": \"[5, 10, 15]\",\n        \"cost_center\": \"Main - APS\"\n      },\n      {\n        \"charge_type\": \"On Previous Row Total\",\n        \"account_head\": \"2142.000 - PPN Keluaran - APS\",\n        \"description\": \"PPN (dasar termasuk servis)\",\n        \"rate\": 11,\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
             },
-            "description": "Update template milik profil (prd_pos_profile.md 8b Skenario 2 / alur frontend). child taxes replace-all: baris lama dihapus, baris baru di-insert. Tidak menumpuk; tidak menimpa profil lain jika tiap profil punya template sendiri."
+            "description": "Update template milik profil (prd_pos_profile.md 8b Skenario 2 / alur frontend). child taxes replace-all: baris lama dihapus, baris baru di-insert. Sertakan custom_rates (string JSON) pada baris biaya. Tidak menumpuk; tidak menimpa profil lain jika tiap profil punya template sendiri."
           },
           "response": []
         },
@@ -3607,6 +3607,140 @@
             },
             "description": "Set taxes_and_charges POS Profile (prd_pos_profile.md 8b Langkah C / alur frontend). Arahkan ke template yang diinginkan (mis. servis+PPN)."
           },
+          "response": []
+        },
+        {
+          "name": "9.30 Create Tax Template - Tip 5% (biaya tambahan + custom_rates)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.insert"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"title\": \"{{tax_tip_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Tip\",\n        \"rate\": 5,\n        \"custom_rates\": \"[5, 10, 15]\",\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "Create template biaya tambahan Tip (prd_pos_profile.md 8b kasus 5). Akun sama 4310.000 - Pendapatan Service - APS. custom_rates = string JSON (list mentah ditolak). title -> tax_tip_template."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.environment.set('tax_tip_template', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "9.31 Create Tax Template - Employee Surcharge 3% (biaya tambahan + custom_rates)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.insert"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"title\": \"{{tax_surcharge_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Employee Surcharge\",\n        \"rate\": 3,\n        \"custom_rates\": \"[1, 2, 3]\",\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "Create template biaya tambahan Employee Surcharge (prd_pos_profile.md 8b kasus 6). Akun sama 4310.000 - Pendapatan Service - APS. custom_rates = string JSON. title -> tax_surcharge_template."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.environment.set('tax_surcharge_template', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "9.32 Create Tax Template - Servis + Tip + PPN 11% (semua masuk dasar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.insert"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Sales Taxes and Charges Template\",\n    \"title\": \"{{tax_servis_tip_ppn_template}}\",\n    \"company\": \"PT Rapupa Guna Teknologi\",\n    \"taxes\": [\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Biaya Servis\",\n        \"rate\": 10,\n        \"custom_rates\": \"[5, 10, 15]\",\n        \"cost_center\": \"Main - APS\"\n      },\n      {\n        \"charge_type\": \"On Net Total\",\n        \"account_head\": \"4310.000 - Pendapatan Service - APS\",\n        \"description\": \"Tip\",\n        \"rate\": 5,\n        \"custom_rates\": \"[5, 10, 15]\",\n        \"cost_center\": \"Main - APS\"\n      },\n      {\n        \"charge_type\": \"On Previous Row Total\",\n        \"account_head\": \"2142.000 - PPN Keluaran - APS\",\n        \"description\": \"PPN (dasar termasuk servis + tip)\",\n        \"rate\": 11,\n        \"cost_center\": \"Main - APS\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "Create template gabungan biaya tambahan (prd_pos_profile.md 8b kasus 8): Servis + Tip + PPN, semua masuk dasar pajak (PPN On Previous Row Total). title -> tax_servis_tip_ppn_template."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.environment.set('tax_servis_tip_ppn_template', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "9.33 GET Tax Template - cek custom_rates (kembali sebagai string)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Sales Taxes and Charges Template\",\n  \"name\": \"{{tax_tip_template}}\"\n}"
+            },
+            "description": "Ambil detail template (prd_pos_profile.md 8b). taxes[].custom_rates dikembalikan sebagai STRING (mis. contoh [5, 10, 15]), bukan array -> frontend wajib JSON.parse(row.custom_rates)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const row = (json.message && json.message.taxes && json.message.taxes[0]) || {};",
+                  "const parsed = JSON.parse(row.custom_rates || '[]');",
+                  "console.log('custom_rates (string):', row.custom_rates, 'array:', parsed);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "response": []
         }
       ]
@@ -4650,6 +4784,3105 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "13. Stock Ledger",
+      "item": [
+        {
+          "name": "13.1 List Stock Ledger (periode + company)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_list"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"fields\": [\n    \"name\",\n    \"item_code\",\n    \"warehouse\",\n    \"posting_date\",\n    \"posting_time\",\n    \"actual_qty\",\n    \"qty_after_transaction\",\n    \"valuation_rate\",\n    \"stock_value\",\n    \"stock_value_difference\",\n    \"voucher_type\",\n    \"voucher_no\",\n    \"is_cancelled\"\n  ],\n  \"filters\": [\n    [\n      \"is_cancelled\",\n      \"=\",\n      0\n    ],\n    [\n      \"company\",\n      \"=\",\n      \"{{sle_company}}\"\n    ],\n    [\n      \"posting_date\",\n      \"between\",\n      [\n        \"{{sle_date_from}}\",\n        \"{{sle_date_to}}\"\n      ]\n    ]\n  ],\n  \"order_by\": \"posting_date desc, posting_time desc, creation desc\",\n  \"limit_start\": 0,\n  \"limit_page_length\": 50\n}"
+            },
+            "description": "Daftar SLE transaksi stok pada rentang tanggal + company (prd_stock_ledger.md 4.1). is_cancelled=0 = riwayat efektif. Test script menyimpan name baris pertama ke variabel sle_row_name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.length) { pm.collectionVariables.set('sle_row_name', json.message[0].name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "13.2 Kartu stok 1 item+warehouse (asc)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_list"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"fields\": [\n    \"name\",\n    \"posting_date\",\n    \"posting_time\",\n    \"actual_qty\",\n    \"qty_after_transaction\",\n    \"incoming_rate\",\n    \"outgoing_rate\",\n    \"valuation_rate\",\n    \"stock_value\",\n    \"stock_value_difference\",\n    \"voucher_type\",\n    \"voucher_no\",\n    \"voucher_detail_no\"\n  ],\n  \"filters\": [\n    [\n      \"item_code\",\n      \"=\",\n      \"{{sle_item}}\"\n    ],\n    [\n      \"warehouse\",\n      \"=\",\n      \"{{sle_warehouse}}\"\n    ],\n    [\n      \"is_cancelled\",\n      \"=\",\n      0\n    ],\n    [\n      \"posting_date\",\n      \"<=\",\n      \"{{sle_date_to}}\"\n    ]\n  ],\n  \"order_by\": \"posting_datetime asc, creation asc\",\n  \"limit_page_length\": 100\n}"
+            },
+            "description": "Kartu stok / mutasi 1 item+warehouse urut ascending -> qty_after_transaction = saldo berjalan (prd_stock_ledger.md 4.2). Test script menyimpan name baris pertama ke variabel sle_row_name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.length) { pm.collectionVariables.set('sle_row_name', json.message[0].name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "13.3 Verifikasi per voucher",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_list"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"fields\": [\n    \"name\",\n    \"item_code\",\n    \"warehouse\",\n    \"posting_date\",\n    \"posting_time\",\n    \"actual_qty\",\n    \"qty_after_transaction\",\n    \"valuation_rate\",\n    \"stock_value_difference\",\n    \"voucher_detail_no\"\n  ],\n  \"filters\": [\n    [\n      \"voucher_type\",\n      \"=\",\n      \"{{sle_voucher_type}}\"\n    ],\n    [\n      \"voucher_no\",\n      \"=\",\n      \"{{sle_voucher_no}}\"\n    ],\n    [\n      \"is_cancelled\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"creation asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Verifikasi posting - baca SLE milik 1 voucher (voucher_type + voucher_no) (prd_stock_ledger.md 4.3)."
+          },
+          "response": []
+        },
+        {
+          "name": "13.4 Detail 1 baris SLE (get)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"name\": \"{{sle_row_name}}\"\n}"
+            },
+            "description": "Detail 1 baris SLE (prd_stock_ledger.md 4.4). Jalankan setelah 13.1/13.2 agar sle_row_name terisi; atau isi manual dengan name SLE."
+          },
+          "response": []
+        },
+        {
+          "name": "13.5 Cek nilai field (get_value)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_value",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_value"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"filters\": [\n    [\n      \"item_code\",\n      \"=\",\n      \"{{sle_item}}\"\n    ],\n    [\n      \"warehouse\",\n      \"=\",\n      \"{{sle_warehouse}}\"\n    ],\n    [\n      \"is_cancelled\",\n      \"=\",\n      0\n    ]\n  ],\n  \"fieldname\": [\n    \"qty_after_transaction\",\n    \"valuation_rate\",\n    \"posting_datetime\"\n  ]\n}"
+            },
+            "description": "Cek cepat nilai field SLE - get_value (prd_stock_ledger.md 4.5). message = objek berisi field yang diminta."
+          },
+          "response": []
+        },
+        {
+          "name": "13.6 Saldo terkini (baris terakhir)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_list"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"fields\": [\n    \"posting_datetime\",\n    \"actual_qty\",\n    \"qty_after_transaction\",\n    \"valuation_rate\",\n    \"stock_value\"\n  ],\n  \"filters\": [\n    [\n      \"item_code\",\n      \"=\",\n      \"{{sle_item}}\"\n    ],\n    [\n      \"warehouse\",\n      \"=\",\n      \"{{sle_warehouse}}\"\n    ],\n    [\n      \"is_cancelled\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"posting_datetime desc, creation desc\",\n  \"limit_page_length\": 1\n}"
+            },
+            "description": "Saldo terkini item+warehouse - baris SLE terakhir (order posting_datetime desc, limit 1) (prd_stock_ledger.md 4.6). Alternatif: frappe.client.get_last_doc."
+          },
+          "response": []
+        },
+        {
+          "name": "13.7 Count Stock Ledger Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_count"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"filters\": [\n    [\n      \"is_cancelled\",\n      \"=\",\n      0\n    ],\n    [\n      \"company\",\n      \"=\",\n      \"{{sle_company}}\"\n    ],\n    [\n      \"posting_date\",\n      \"between\",\n      [\n        \"{{sle_date_from}}\",\n        \"{{sle_date_to}}\"\n      ]\n    ]\n  ]\n}"
+            },
+            "description": "Total baris SLE sesuai filter - pagination (prd_stock_ledger.md 4.7). message = jumlah record."
+          },
+          "response": []
+        },
+        {
+          "name": "13.8 Dropdown Item (is_stock_item)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_list"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\n    \"name\",\n    \"item_name\"\n  ],\n  \"filters\": [\n    [\n      \"is_stock_item\",\n      \"=\",\n      1\n    ],\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Dropdown item_code (is_stock_item=1) utk filter SLE (prd_stock_ledger.md 5.1)."
+          },
+          "response": []
+        },
+        {
+          "name": "13.8b Dropdown Item per Item Group (leaf)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_list"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\n    \"name\",\n    \"item_name\"\n  ],\n  \"filters\": [\n    [\n      \"item_group\",\n      \"=\",\n      \"{{sle_item_group}}\"\n    ],\n    [\n      \"is_stock_item\",\n      \"=\",\n      1\n    ],\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Langkah 1 - resolve item_code per Item Group (leaf) utk menyaring SLE (prd_stock_ledger.md 4.9). is_stock_item=1; item_group harus leaf (is_group=0), utk group induk resolve subtree dulu - pola lengkap di prd_item.md 6.7. Hasil name dipakai sbg filter item_code in [...] pd request SLE (13.1/13.2/13.7)."
+          },
+          "response": []
+        },
+        {
+          "name": "13.9 Dropdown Warehouse",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_list"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Warehouse\",\n  \"fields\": [\n    \"name\"\n  ],\n  \"filters\": [\n    [\n      \"company\",\n      \"=\",\n      \"{{sle_company}}\"\n    ],\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ],\n    [\n      \"is_group\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Dropdown warehouse per company (leaf) utk filter SLE (prd_stock_ledger.md 5.2)."
+          },
+          "response": []
+        },
+        {
+          "name": "13.10 Dropdown Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "method", "frappe.client.get_list"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Company\",\n  \"fields\": [\n    \"name\"\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Dropdown company utk filter SLE (prd_stock_ledger.md 5.3)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "14. Pricing Rule",
+      "item": [
+        {
+          "name": "14.1 Pre-check Pricing Rule (duplikat title + company)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Pricing Rule\",\n  \"fields\": [\n    \"name\",\n    \"title\",\n    \"apply_on\",\n    \"rate_or_discount\",\n    \"discount_percentage\",\n    \"valid_from\",\n    \"valid_upto\",\n    \"disable\"\n  ],\n  \"filters\": [\n    [\n      \"title\",\n      \"=\",\n      \"Diskon Grosir 10%\"\n    ],\n    [\n      \"company\",\n      \"=\",\n      \"{{promo_company}}\"\n    ]\n  ],\n  \"limit_page_length\": 1\n}"
+            },
+            "description": "Langkah 0 CREATE (prd_item_pricing_rule.md 4.1): name memakai seri PRLE-.#### sehingga duplikat tidak diblokir DB -> cek title+company dulu. message=[] berarti boleh lanjut CREATE."
+          }
+        },
+        {
+          "name": "14.2 Create Pricing Rule - diskon persen (minimum)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Diskon Grosir 10%\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 10,\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE rule diskon persen (prd_item_pricing_rule.md 4.1 + varian A). company WAJIB dikirim eksplisit (kalau tidak, terisi default company user dan rule tidak akan cocok dengan company transaksi). margin_type dikirim \"\" agar tanpa efek margin. Test script menyimpan name ke pricing_rule_id dan title ke pricing_rule_title."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"pricing_rule_id\", j.message.name);",
+                  "  pm.collectionVariables.set(\"pricing_rule_title\", j.message.title);",
+                  "  console.log(\"pricing_rule_id = \" + j.message.name);",
+                  "} else {",
+                  "  console.log(\"respons tidak memuat name\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14.3 Create Pricing Rule - harga tetap (Rate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Harga Spesial Rp7.500\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Rate\",\n    \"rate\": 7500,\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE harga tetap (varian C): rate MENIMPA price_list_rate Item Price saat transaksi."
+          }
+        },
+        {
+          "name": "14.4 Create Pricing Rule - diskon nominal per unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Potongan Rp1.500\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Amount\",\n    \"discount_amount\": 1500,\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE diskon nominal (varian B). Field rate/discount_percentage di luar rate_or_discount otomatis dikosongkan backend."
+          }
+        },
+        {
+          "name": "14.5 Create Pricing Rule - diskon level nota (apply_on Transaction)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Diskon Nota 5% min. Rp500.000\",\n    \"apply_on\": \"Transaction\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 5,\n    \"min_amt\": 500000,\n    \"apply_discount_on\": \"Net Total\",\n    \"valid_from\": \"2026-09-15\"\n  }\n}"
+            },
+            "description": "CREATE diskon level nota (varian D) - tanpa child table. Diterapkan saat dokumen transaksi dihitung: additional_discount_percentage/discount_amount + apply_discount_on (prd_item_pricing_rule.md 4.7)."
+          }
+        },
+        {
+          "name": "14.6 Create Pricing Rule - per Item Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Diskon Item Group 12%\",\n    \"apply_on\": \"Item Group\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 12,\n    \"valid_from\": \"2026-09-15\",\n    \"item_groups\": [\n      {\n        \"item_group\": \"{{item_group_name}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE rule per Item Group (varian E). Berlaku hirarkis: group induk mencakup sub-group. Child table berlaku replace-all saat UPDATE."
+          }
+        },
+        {
+          "name": "14.7 Create Pricing Rule - bertingkat qty (min_qty/max_qty)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Diskon 10% min. 5\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 10,\n    \"min_qty\": 5,\n    \"max_qty\": 20,\n    \"threshold_percentage\": 70,\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE promo bertingkat qty (varian G/T) - inilah pengganti 'harga bertingkat' yang tidak ada di Item Price. threshold_percentage memunculkan pesan saran promo (muncul di _server_messages). Buat rule terpisah per tier bila perlu."
+          }
+        },
+        {
+          "name": "14.8 Create Pricing Rule - gratis item lain (product discount)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Beli 1 gratis 2 item bonus\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Product\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ],\n    \"free_item\": \"{{free_item_code}}\",\n    \"free_qty\": 2,\n    \"dont_enforce_free_item_qty\": 0\n  }\n}"
+            },
+            "description": "CREATE gratis item lain (varian H). Hasil resolusi memuat free_item_data (item_code, qty, is_free_item=1, rate=0) yang wajib ditambahkan UI ke keranjang."
+          }
+        },
+        {
+          "name": "14.9 Create Pricing Rule - beli X gratis X (same_item + recursive)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Beli 2 gratis 1\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Product\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"min_qty\": 2,\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ],\n    \"same_item\": 1,\n    \"free_qty\": 1,\n    \"is_recursive\": 1,\n    \"recurse_for\": 2,\n    \"apply_recursion_over\": 2,\n    \"round_free_qty\": 1\n  }\n}"
+            },
+            "description": "CREATE beli X gratis X (varian I). Bila free_item dikosongkan, backend otomatis mengisi same_item=1. is_recursive tidak dapat digabung dengan mixed_conditions."
+          }
+        },
+        {
+          "name": "14.10 Create Pricing Rule - khusus Customer Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Harga Distributor 20%\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 20,\n    \"applicable_for\": \"Customer Group\",\n    \"customer_group\": \"{{customer_group_name}}\",\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE rule khusus pihak tertentu (varian K/L/M). Hanya SATU field pihak yang boleh diisi sesuai applicable_for; applicable_for jual wajib selling=1 (beli wajib buying=1)."
+          }
+        },
+        {
+          "name": "14.11 Create Pricing Rule - khusus warehouse (toko/POS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Promo Outlet 15%\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 15,\n    \"warehouse\": \"{{warehouse_id}}\",\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE rule khusus gudang (varian P) - cocok bila warehouse baris transaksi/POS Profile sama dengan warehouse rule. Rule tanpa warehouse berlaku di semua gudang."
+          }
+        },
+        {
+          "name": "14.12 Create Pricing Rule - khusus Price List",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Diskon khusus price list\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 18,\n    \"for_price_list\": \"{{promo_price_list}}\",\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE rule khusus price list (varian Q). currency rule WAJIB sama dengan currency price list (kalau tidak: 'Currency should be same as Price List Currency')."
+          }
+        },
+        {
+          "name": "14.13a Create Pricing Rule - prioritas + tumpuk (rule 1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Promo Bertumpuk A 10%\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 10,\n    \"priority\": \"1\",\n    \"has_priority\": 1,\n    \"apply_multiple_pricing_rules\": 1,\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE rule bertumpuk 1/2 (varian R). apply_multiple_pricing_rules HARUS aktif di SEMUA rule yang ingin ditumpuk. Test script menyimpan name ke pricing_rule_id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"pricing_rule_id\", j.message.name);",
+                  "  pm.collectionVariables.set(\"pricing_rule_title\", j.message.title);",
+                  "  console.log(\"pricing_rule_id = \" + j.message.name);",
+                  "} else {",
+                  "  console.log(\"respons tidak memuat name\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14.13b Create Pricing Rule - prioritas + tumpuk (rule 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Promo Bertumpuk B 5%\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 5,\n    \"priority\": \"1\",\n    \"has_priority\": 1,\n    \"apply_multiple_pricing_rules\": 1,\n    \"apply_discount_on_rate\": 1,\n    \"valid_from\": \"2026-09-15\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE rule bertumpuk 2/2. Hasil uji: total diskon ditumpuk (10%+5%=15%) dan pricing_rules memuat kedua nama rule. apply_discount_on_rate=1 wajib priority > 1. Test script menyimpan name ke pricing_rule_id_2."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"pricing_rule_id_2\", j.message.name);",
+                  "  console.log(\"pricing_rule_id_2 = \" + j.message.name);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14.14 Create Pricing Rule - promo kupon (coupon_code_based)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"title\": \"Kupon HEMAT25\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 25,\n    \"coupon_code_based\": 1,\n    \"valid_from\": \"2026-09-15\",\n    \"valid_upto\": \"2026-12-31\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE rule kupon (varian O). Jalankan 14.15 setelah ini untuk membuat record Coupon Code yang menunjuk rule. Test script menyimpan name ke pricing_rule_id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"pricing_rule_id\", j.message.name);",
+                  "  pm.collectionVariables.set(\"pricing_rule_title\", j.message.title);",
+                  "  console.log(\"pricing_rule_id = \" + j.message.name);",
+                  "} else {",
+                  "  console.log(\"respons tidak memuat name\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14.15 Create Coupon Code (menunjuk rule kupon)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Coupon Code\",\n    \"coupon_name\": \"CPN-HEMAT25\",\n    \"coupon_type\": \"Promotional\",\n    \"coupon_code\": \"HEMAT25\",\n    \"pricing_rule\": \"{{pricing_rule_id}}\",\n    \"valid_from\": \"2026-09-15\",\n    \"valid_upto\": \"2026-12-31\",\n    \"maximum_use\": 5\n  }\n}"
+            },
+            "description": "CREATE Coupon Code (prd_item_pricing_rule.md 4.6) - coupon_name = name record, coupon_code = teks yang diketik pelanggan. PENTING: saat simulasi/transaksi, kirim field coupon_code = coupon_name (BUKAN teks kodenya). Test script menyimpan name ke coupon_code_id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"coupon_code_id\", j.message.name);",
+                  "  console.log(\"coupon_code_id = \" + j.message.name);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14.16 Read Pricing Rule (single)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Pricing Rule\",\n  \"name\": \"{{pricing_rule_id}}\"\n}"
+            },
+            "description": "READ 1 rule (prd_item_pricing_rule.md 4.2) - semua field termasuk child table items/item_groups/brands."
+          }
+        },
+        {
+          "name": "14.17 Read Pricing Rule (list - daftar promo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Pricing Rule\",\n  \"fields\": [\n    \"name\",\n    \"title\",\n    \"apply_on\",\n    \"price_or_product_discount\",\n    \"rate_or_discount\",\n    \"rate\",\n    \"discount_percentage\",\n    \"discount_amount\",\n    \"selling\",\n    \"buying\",\n    \"applicable_for\",\n    \"valid_from\",\n    \"valid_upto\",\n    \"priority\",\n    \"disable\",\n    \"company\"\n  ],\n  \"filters\": [\n    [\n      \"disable\",\n      \"=\",\n      0\n    ],\n    [\n      \"company\",\n      \"=\",\n      \"{{promo_company}}\"\n    ]\n  ],\n  \"order_by\": \"valid_from desc, name desc\",\n  \"limit_start\": 0,\n  \"limit_page_length\": 50\n}"
+            },
+            "description": "Tabel 'Daftar Promo' (prd_item_pricing_rule.md 4.2/5.7). Untuk hanya yang sedang berlaku tambahkan filter valid_upto. Pagination: naikkan limit_start; total via 14.18."
+          }
+        },
+        {
+          "name": "14.18 Count Pricing Rule (get_count)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_count"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Pricing Rule\",\n  \"filters\": [\n    [\n      \"disable\",\n      \"=\",\n      0\n    ],\n    [\n      \"company\",\n      \"=\",\n      \"{{promo_company}}\"\n    ]\n  ]\n}"
+            },
+            "description": "Total rule sesuai filter untuk menghitung jumlah halaman (prd_item_pricing_rule.md 4.2)."
+          }
+        },
+        {
+          "name": "14.19 Simulasi promo keranjang (apply_pricing_rule)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/erpnext.accounts.doctype.pricing_rule.pricing_rule.apply_pricing_rule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "erpnext.accounts.doctype.pricing_rule.pricing_rule.apply_pricing_rule"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"args\": {\n    \"doctype\": \"Sales Invoice\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"conversion_rate\": 1,\n    \"plc_conversion_rate\": 1,\n    \"price_list\": \"{{promo_price_list}}\",\n    \"transaction_date\": \"2026-09-15\",\n    \"customer\": \"{{customer_id}}\",\n    \"ignore_pricing_rule\": 0,\n    \"coupon_code\": \"{{coupon_code_id}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\",\n        \"qty\": 5,\n        \"stock_qty\": 5,\n        \"price_list_rate\": 10000,\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "SIMULASI promo tanpa menyimpan transaksi (prd_item_pricing_rule.md 4.5) - untuk preview keranjang/kasir. Baca: pricing_rules (JSON string daftar rule terpakai), discount_percentage/discount_amount, price_list_rate (bila Rate), free_item_data (item bonus), has_pricing_rule. coupon_code berisi NAME record Coupon Code (dari 14.15); kosongkan bila tidak memakai kupon. Rule apply_on=Transaction tidak muncul di sini. Konflik prioritas -> error MultiplePricingRuleConflict."
+          }
+        },
+        {
+          "name": "14.20 Update Pricing Rule - non-aktifkan (set_value)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Pricing Rule\",\n  \"name\": \"{{pricing_rule_id}}\",\n  \"fieldname\": {\n    \"disable\": 1\n  }\n}"
+            },
+            "description": "Non-aktifkan rule (prd_item_pricing_rule.md 4.3/4.4). set_value menulis langsung tanpa validasi controller. Aktifkan kembali dengan {\"disable\": 0}."
+          }
+        },
+        {
+          "name": "14.21 Update Pricing Rule - ubah diskon & periode (save)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.save"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Pricing Rule\",\n    \"name\": \"{{pricing_rule_id}}\",\n    \"title\": \"{{pricing_rule_title}}\",\n    \"apply_on\": \"Item Code\",\n    \"price_or_product_discount\": \"Price\",\n    \"company\": \"{{promo_company}}\",\n    \"currency\": \"{{promo_currency}}\",\n    \"selling\": 1,\n    \"rate_or_discount\": \"Discount Percentage\",\n    \"discount_percentage\": 12,\n    \"valid_from\": \"2026-09-15\",\n    \"valid_upto\": \"2026-12-31\",\n    \"margin_type\": \"\",\n    \"items\": [\n      {\n        \"item_code\": \"{{item_code}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "UPDATE penuh (prd_item_pricing_rule.md 4.3): child table replace-all -> kirim daftar item lengkap. Field di luar logika terpilih akan dikosongkan backend; margin_type \"\" mencegah efek margin."
+          }
+        },
+        {
+          "name": "14.22 Delete Pricing Rule (promo salah buat)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.delete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.delete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Pricing Rule\",\n  \"name\": \"{{pricing_rule_id}}\"\n}"
+            },
+            "description": "HAPUS rule (prd_item_pricing_rule.md 4.4). Aman karena rule disalin ke transaksi saat dokumen dihitung, tetapi untuk promo yang sudah berjalan lebih baik dinon-aktifkan (14.20)."
+          }
+        },
+        {
+          "name": "14.23 Dropdown Item (isi child table items)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\n    \"name\",\n    \"item_name\",\n    \"stock_uom\",\n    \"brand\",\n    \"item_group\"\n  ],\n  \"filters\": [\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ],\n    [\n      \"has_variants\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"item_name asc\",\n  \"limit_page_length\": 50\n}"
+            },
+            "description": "Dropdown item untuk child table items (prd_item_pricing_rule.md 5.1). Item template (has_variants=1) tidak boleh dipakai (template + variannya tidak boleh berada di satu rule)."
+          }
+        },
+        {
+          "name": "14.24 Dropdown Customer Group / Territory / Sales Partner / Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Customer Group\",\n  \"fields\": [\n    \"name\",\n    \"parent_customer_group\",\n    \"is_group\"\n  ],\n  \"filters\": [\n    [\n      \"is_group\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Dropdown untuk applicable_for (prd_item_pricing_rule.md 5.2). Ganti doctype menjadi Territory / Sales Partner ((disabled=0)) / UTM Campaign sesuai kebutuhan."
+          }
+        },
+        {
+          "name": "14.25 Dropdown Warehouse (batasi promo per gudang)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Warehouse\",\n  \"fields\": [\n    \"name\",\n    \"warehouse_name\",\n    \"company\",\n    \"is_group\"\n  ],\n  \"filters\": [\n    [\n      \"is_group\",\n      \"=\",\n      0\n    ],\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ],\n    [\n      \"company\",\n      \"=\",\n      \"{{promo_company}}\"\n    ]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Dropdown warehouse untuk field warehouse (prd_item_pricing_rule.md 5.4)."
+          }
+        },
+        {
+          "name": "14.26 Dropdown Price List + default Selling Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"fields\": [\n    \"name\",\n    \"currency\",\n    \"selling\",\n    \"buying\",\n    \"enabled\"\n  ],\n  \"filters\": [\n    [\n      \"enabled\",\n      \"=\",\n      1\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Dropdown for_price_list (prd_item_pricing_rule.md 5.6). currency price list harus sama dengan currency rule. Default jual/beli: frappe.client.get doctype Selling Settings / Buying Settings (lihat prd_item_price.md 5.7)."
+          }
+        },
+        {
+          "name": "14.27 Opsi field Select Pricing Rule (DocField)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"DocField\",\n  \"fields\": [\n    \"fieldname\",\n    \"fieldtype\",\n    \"options\"\n  ],\n  \"filters\": [\n    [\n      \"parent\",\n      \"=\",\n      \"Pricing Rule\"\n    ],\n    [\n      \"fieldname\",\n      \"in\",\n      [\n        \"apply_on\",\n        \"price_or_product_discount\",\n        \"rate_or_discount\",\n        \"applicable_for\",\n        \"apply_rule_on_other\",\n        \"apply_discount_on\",\n        \"margin_type\",\n        \"priority\"\n      ]\n    ]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Opsi dropdown UI langsung dari definisi doctype (prd_item_pricing_rule.md 5.8) - pisah options dengan \\n; entri kosong di depan berarti field boleh dikosongkan."
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. Price List & Item Price",
+      "item": [
+        {
+          "name": "15.1 Pre-check Price List (duplikat price_list_name)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"fields\": [\n    \"name\",\n    \"currency\",\n    \"selling\",\n    \"buying\",\n    \"enabled\"\n  ],\n  \"filters\": [\n    [\n      \"price_list_name\",\n      \"=\",\n      \"Grosir\"\n    ]\n  ],\n  \"limit_page_length\": 1\n}"
+            },
+            "description": "Langkah 0 CREATE Price List (prd_item_price.md 4.1): name = price_list_name (autoname field). message=[] berarti boleh lanjut CREATE."
+          }
+        },
+        {
+          "name": "15.2 Create Price List - harga jual (minimum)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Price List\",\n    \"price_list_name\": \"Grosir\",\n    \"currency\": \"IDR\",\n    \"selling\": 1\n  }\n}"
+            },
+            "description": "CREATE Price List jual (prd_item_price.md 4.1). Wajib: price_list_name + currency + minimal salah satu selling/buying. Test script menyimpan name ke variabel price_list_name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"price_list_name\", j.message.name);",
+                  "  console.log(\"price_list_name = \" + j.message.name);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15.3 Create Price List - harga beli",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Price List\",\n    \"price_list_name\": \"Harga Beli Distributor\",\n    \"currency\": \"IDR\",\n    \"buying\": 1\n  }\n}"
+            },
+            "description": "CREATE Price List beli (varian A) - dipakai untuk Item Price sisi pembelian (buying=1)."
+          }
+        },
+        {
+          "name": "15.4 Create Price List - jual + beli",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Price List\",\n    \"price_list_name\": \"Internal Transfer\",\n    \"currency\": \"IDR\",\n    \"selling\": 1,\n    \"buying\": 1,\n    \"countries\": [\n      {\n        \"country\": \"Indonesia\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE Price List dua flag (varian B) + child countries (informatif saja, tidak dipakai mesin harga). Test script menyimpan name ke variabel price_list_name_2."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"price_list_name_2\", j.message.name);",
+                  "  console.log(\"price_list_name_2 = \" + j.message.name);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15.5 Read Price List (single)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"name\": \"{{price_list_name}}\"\n}"
+            },
+            "description": "READ 1 Price List (prd_item_price.md 4.2) - termasuk child countries."
+          }
+        },
+        {
+          "name": "15.6 Read Price List (list / dropdown harga jual)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"fields\": [\n    \"name\",\n    \"currency\",\n    \"selling\",\n    \"buying\",\n    \"enabled\"\n  ],\n  \"filters\": [\n    [\n      \"enabled\",\n      \"=\",\n      1\n    ],\n    [\n      \"selling\",\n      \"=\",\n      1\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Dropdown Price List (prd_item_price.md 4.2/5.1). Ganti filter menjadi [[\"buying\",\"=\",1]] untuk sisi pembelian. limit_page_length=0 = ambil semua."
+          }
+        },
+        {
+          "name": "15.7 Count Price List (get_count)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_count"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"filters\": [\n    [\n      \"enabled\",\n      \"=\",\n      1\n    ]\n  ]\n}"
+            },
+            "description": "Total Price List sesuai filter (prd_item_price.md 4.2) untuk pagination."
+          }
+        },
+        {
+          "name": "15.8 Update Price List - ubah currency (set_value) - PERHATIAN efek menyeluruh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"name\": \"{{price_list_name}}\",\n  \"fieldname\": {\n    \"currency\": \"IDR\"\n  }\n}"
+            },
+            "description": "Ubah 1 field Price List (prd_item_price.md 4.3). PERHATIAN: mengubah currency/selling/buying menjalankan `update tabItem Price set ... where price_list=...` sehingga SEMUA Item Price milik price list ini ikut berubah (tanpa validasi). Pakai 15.10 bila hanya ingin menonaktifkan."
+          }
+        },
+        {
+          "name": "15.9 Update Price List - save (ubah flag / aktif kembali)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.save"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Price List\",\n    \"name\": \"{{price_list_name}}\",\n    \"price_list_name\": \"{{price_list_name}}\",\n    \"currency\": \"IDR\",\n    \"selling\": 1,\n    \"buying\": 0,\n    \"enabled\": 1\n  }\n}"
+            },
+            "description": "UPDATE penuh (prd_item_price.md 4.3). JANGAN kirim price_list_name yang berbeda dari name - nilainya akan kembali ke nilai lama (field efektif tidak bisa diubah); pakai 15.11 untuk ganti nama."
+          }
+        },
+        {
+          "name": "15.10 Non-aktifkan Price List (enabled = 0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"name\": \"{{price_list_name}}\",\n  \"fieldname\": {\n    \"enabled\": 0\n  }\n}"
+            },
+            "description": "Non-aktifkan Price List (prd_item_price.md 4.4) - cara yang disarankan. Price list non-aktif tidak bisa dipakai membuat Item Price baru (pesan: 'The price list ... does not exist or is disabled'). Aktifkan kembali dengan enabled=1."
+          }
+        },
+        {
+          "name": "15.11 Rename Price List (rename_doc)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.rename_doc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.rename_doc"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"old\": \"{{price_list_name}}\",\n  \"new\": \"{{price_list_name}}-2026\",\n  \"merge\": 0\n}"
+            },
+            "description": "Ganti nama Price List (prd_item_price.md 4.4). Terverifikasi: name berubah DAN kolom Item Price.price_list ikut ter-update otomatis. merge=1 hanya bila ingin menggabungkan (berisiko)."
+          }
+        },
+        {
+          "name": "15.12 Delete Price List (contoh: ditolak bila masih dipakai Item Price)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.delete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.delete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Price List\",\n  \"name\": \"{{price_list_name}}\"\n}"
+            },
+            "description": "HAPUS Price List (prd_item_price.md 4.4). Bila masih ada baris Item Price yang memakainya, backend menolak: LinkExistsError 'You can disable this Price List instead of deleting it.' -> gunakan 15.10."
+          }
+        },
+        {
+          "name": "15.13 Get default price list (Selling Settings / Buying Settings)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Selling Settings\",\n  \"name\": \"Selling Settings\"\n}"
+            },
+            "description": "Default price list jual (prd_item_price.md 5.7): selling_price_list, fallback_to_default_price_list, editable_price_list_rate, allow_negative_rates_for_items. Untuk pembelian ganti doctype/name menjadi Buying Settings."
+          }
+        },
+        {
+          "name": "15.14 Pre-check Item Price (kombinasi duplikat)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Price\",\n  \"fields\": [\n    \"name\",\n    \"price_list_rate\",\n    \"uom\",\n    \"valid_from\",\n    \"valid_upto\",\n    \"customer\",\n    \"supplier\"\n  ],\n  \"filters\": [\n    [\n      \"item_code\",\n      \"=\",\n      \"{{item_code}}\"\n    ],\n    [\n      \"price_list\",\n      \"=\",\n      \"{{price_list_name}}\"\n    ],\n    [\n      \"uom\",\n      \"=\",\n      \"Nos\"\n    ],\n    [\n      \"valid_from\",\n      \"=\",\n      \"2026-09-15\"\n    ]\n  ],\n  \"limit_page_length\": 1\n}"
+            },
+            "description": "Langkah 0 CREATE Item Price (prd_item_price.md 4.5). Backend menolak kombinasi item+price list+uom+valid_from+valid_upto+customer+supplier+batch_no+packing_unit yang sama (pesan ItemPriceDuplicateItem yang tidak menyebut field bentrok). Tambahkan filter customer/supplier bila yang dicek harga khusus."
+          }
+        },
+        {
+          "name": "15.15 Create Item Price - harga umum (minimum)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Item Price\",\n    \"item_code\": \"{{item_code}}\",\n    \"price_list\": \"{{price_list_name}}\",\n    \"price_list_rate\": 12000,\n    \"valid_from\": \"2026-09-15\"\n  }\n}"
+            },
+            "description": "CREATE baris harga (prd_item_price.md 4.5). uom terisi otomatis dari Item.stock_uom; buying/selling/currency mengikuti Price List. Simpan name (hash) via test script -> variabel item_price_id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"item_price_id\", j.message.name);",
+                  "  console.log(\"item_price_id = \" + j.message.name);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15.16 Create Item Price - masa berlaku (promo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Item Price\",\n    \"item_code\": \"{{item_code}}\",\n    \"price_list\": \"{{price_list_name}}\",\n    \"price_list_rate\": 10000,\n    \"uom\": \"Nos\",\n    \"valid_from\": \"2026-09-01\",\n    \"valid_upto\": \"2026-09-30\",\n    \"note\": \"Promo bulan September\"\n  }\n}"
+            },
+            "description": "CREATE harga berperiode (varian A prd_item_price.md 4.5). valid_upto wajib >= valid_from. Baris kedaluwarsa tidak dinonaktifkan otomatis - hanya diabaikan saat resolusi harga."
+          }
+        },
+        {
+          "name": "15.17 Create Item Price - harga khusus customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Item Price\",\n    \"item_code\": \"{{item_code}}\",\n    \"price_list\": \"{{price_list_name}}\",\n    \"price_list_rate\": 11000,\n    \"uom\": \"Nos\",\n    \"customer\": \"{{customer_id}}\",\n    \"valid_from\": \"2026-09-15\"\n  }\n}"
+            },
+            "description": "CREATE harga khusus customer (varian B). Hanya berlaku pada price list selling. Harga ini MENANG atas harga umum saat resolusi. Test script menyimpan name ke variabel item_price_id_2."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.message && j.message.name) {",
+                  "  pm.collectionVariables.set(\"item_price_id_2\", j.message.name);",
+                  "  console.log(\"item_price_id_2 = \" + j.message.name);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15.18 Create Item Price - harga beli khusus supplier",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Item Price\",\n    \"item_code\": \"{{item_code}}\",\n    \"price_list\": \"Harga Beli Distributor\",\n    \"price_list_rate\": 9000,\n    \"uom\": \"Nos\",\n    \"supplier\": \"{{supplier_id}}\",\n    \"valid_from\": \"2026-09-15\"\n  }\n}"
+            },
+            "description": "CREATE harga beli khusus supplier (varian C). price_list WAJIB buying=1; di respons selling otomatis 0 dan reference = supplier."
+          }
+        },
+        {
+          "name": "15.19 Create Item Price - harga per UOM",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Item Price\",\n    \"item_code\": \"{{item_code}}\",\n    \"price_list\": \"{{price_list_name}}\",\n    \"price_list_rate\": 110000,\n    \"uom\": \"Krat\",\n    \"valid_from\": \"2026-09-15\"\n  }\n}"
+            },
+            "description": "CREATE harga per UOM (varian D). Prasyarat: UOM ada di child uoms item (cek lewat 15.29); bila tidak -> 'UOM Krat not found in Item ...'."
+          }
+        },
+        {
+          "name": "15.20 Create Item Price - packing_unit (qty harus kelipatan)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Item Price\",\n    \"item_code\": \"{{item_code}}\",\n    \"price_list\": \"{{price_list_name}}\",\n    \"price_list_rate\": 108000,\n    \"uom\": \"Krat\",\n    \"packing_unit\": 12,\n    \"valid_from\": \"2026-09-15\"\n  }\n}"
+            },
+            "description": "CREATE harga dengan packing_unit (varian E): harga hanya berlaku bila qty transaksi kelipatan nilai packing_unit."
+          }
+        },
+        {
+          "name": "15.21 Read Item Price (single)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Price\",\n  \"name\": \"{{item_price_id}}\"\n}"
+            },
+            "description": "READ 1 baris harga (prd_item_price.md 4.6). Field buying/selling/currency/item_name adalah read-only turunan."
+          }
+        },
+        {
+          "name": "15.22 Read Item Price - semua harga 1 item (tabel harga produk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Price\",\n  \"fields\": [\n    \"name\",\n    \"price_list\",\n    \"price_list_rate\",\n    \"uom\",\n    \"currency\",\n    \"customer\",\n    \"supplier\",\n    \"valid_from\",\n    \"valid_upto\",\n    \"packing_unit\"\n  ],\n  \"filters\": [\n    [\n      \"item_code\",\n      \"=\",\n      \"{{item_code}}\"\n    ]\n  ],\n  \"order_by\": \"price_list asc, valid_from desc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Tabel harga di layar detail produk (prd_item_price.md 4.6). Komponen harga efektif: lihat prd_item_price.md 5.8."
+          }
+        },
+        {
+          "name": "15.23 Read Item Price - semua harga 1 Price List (layar isi harga)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Price\",\n  \"fields\": [\n    \"name\",\n    \"item_code\",\n    \"item_name\",\n    \"price_list_rate\",\n    \"uom\",\n    \"valid_from\",\n    \"valid_upto\"\n  ],\n  \"filters\": [\n    [\n      \"price_list\",\n      \"=\",\n      \"{{price_list_name}}\"\n    ],\n    [\n      \"valid_upto\",\n      \">=\",\n      \"2026-09-15\"\n    ]\n  ],\n  \"order_by\": \"item_code asc\",\n  \"limit_start\": 0,\n  \"limit_page_length\": 50\n}"
+            },
+            "description": "Padanan tombol 'Add / Edit Prices' di Desk (prd_item_price.md 4.6). Pagination: naikkan limit_start; total via 15.24."
+          }
+        },
+        {
+          "name": "15.24 Count Item Price (get_count)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_count"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Price\",\n  \"filters\": [\n    [\n      \"price_list\",\n      \"=\",\n      \"{{price_list_name}}\"\n    ]\n  ]\n}"
+            },
+            "description": "Total baris harga sesuai filter (prd_item_price.md 4.6) untuk pagination lazy loading."
+          }
+        },
+        {
+          "name": "15.25 Update Item Price - ubah harga (set_value)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Price\",\n  \"name\": \"{{item_price_id}}\",\n  \"fieldname\": {\n    \"price_list_rate\": \"{{item_price_rate}}\"\n  }\n}"
+            },
+            "description": "Ubah harga 1 field (prd_item_price.md 4.7). CATATAN: set_value menulis langsung ke kolom sehingga validasi controller (duplikat, valid_from/valid_upto, uom) TIDAK dijalankan - lakukan pre-check 15.14 dulu."
+          }
+        },
+        {
+          "name": "15.26 Update Item Price - save (ubah periode & packing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.save"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Item Price\",\n    \"name\": \"{{item_price_id}}\",\n    \"item_code\": \"{{item_code}}\",\n    \"price_list\": \"{{price_list_name}}\",\n    \"price_list_rate\": \"{{item_price_rate}}\",\n    \"uom\": \"Nos\",\n    \"valid_from\": \"2026-09-15\",\n    \"valid_upto\": \"2026-12-31\",\n    \"packing_unit\": 0,\n    \"note\": \"Harga naik September\"\n  }\n}"
+            },
+            "description": "UPDATE penuh (prd_item_price.md 4.7) - validasi backend ikut berjalan. Kirim hasil GET yang dimodifikasi, jangan mengubah item_code/price_list/uom pada baris yang sudah dipakai."
+          }
+        },
+        {
+          "name": "15.27 Akhiri harga tanpa hapus (set valid_upto)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Price\",\n  \"name\": \"{{item_price_id}}\",\n  \"fieldname\": {\n    \"valid_upto\": \"2026-09-14\"\n  }\n}"
+            },
+            "description": "Alternatif penghapusan (prd_item_price.md 4.8): baris tetap tersimpan sebagai riwayat tetapi diabaikan saat resolusi harga untuk tanggal setelah valid_upto. UI sebaiknya menandainya 'kedaluwarsa'."
+          }
+        },
+        {
+          "name": "15.28 Delete Item Price (hapus satu baris harga)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.delete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.delete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Price\",\n  \"name\": \"{{item_price_id}}\"\n}"
+            },
+            "description": "HAPUS baris harga (prd_item_price.md 4.8) - Item Price adalah data assignment, hapus aman (tidak ada validasi on_trash). Berbeda dari Price List yang tidak boleh dihapus (15.10/15.12)."
+          }
+        },
+        {
+          "name": "15.29 Get UOM milik item (validasi uom harga)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"name\": \"{{item_code}}\"\n}"
+            },
+            "description": "Ambil daftar UOM item (prd_item_price.md 5.4): pakai message.uoms[].uom sebagai pilihan field uom Item Price. UOM di luar daftar ini akan ditolak backend."
+          }
+        },
+        {
+          "name": "15.30 Import Item Price (Data Import - bulk update harga)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method//api/resource/Data Import",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "/api/resource/Data Import"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference_doctype\": \"Item Price\",\n  \"import_type\": \"Update\",\n  \"import_file\": \"/private/files/item_price_import.csv\",\n  \"mute_emails\": 1,\n  \"status\": \"Pending\"\n}"
+            },
+            "description": "Bulk update harga (prd_item_price.md 4.10). Alur: unggah berkas -> POST /api/resource/Data Import (request ini) -> jalankan frappe.core.doctype.data_import.data_import.form_start_import dengan data_import = name respons ini. import_type Update butuh kolom ID (= name Item Price); Insert untuk harga baru; jangan sertakan kolom currency/buying/selling."
+          }
+        }
+      ]
+    },
+    {
+      "name": "17. Product Bundle",
+      "item": [
+        {
+          "name": "17.1 Pre-check Product Bundle (duplikat new_item_code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"fields\": [\n    \"name\",\n    \"new_item_code\",\n    \"disabled\"\n  ],\n  \"filters\": [\n    [\n      \"new_item_code\",\n      \"=\",\n      \"{{pb_parent_item}}\"\n    ]\n  ],\n  \"limit_page_length\": 1\n}"
+            },
+            "description": "Langkah 0 CREATE (prd_item_product_bundle.md 4.1): name = new_item_code, jadi satu Item hanya boleh punya satu paket. message=[] berarti aman lanjut CREATE; bila terisi -> tampilkan 'sudah dipakai sebagai paket' & jangan CREATE (backend: 409 DuplicateEntryError)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (Array.isArray(json.message)) {",
+                  "  console.log(json.message.length === 0 ? 'OK: item belum menjadi paket' : 'SUDAH ADA PAKET: ' + JSON.stringify(json.message));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "17.2 Create Product Bundle - minimum",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Product Bundle\",\n    \"new_item_code\": \"{{pb_parent_item}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{pb_component_item}}\",\n        \"qty\": 1\n      },\n      {\n        \"item_code\": \"{{pb_component_item_2}}\",\n        \"qty\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE minimum (prd_item_product_bundle.md 4.1): wajib new_item_code (Link Item non-stok) + items[].item_code/qty. uom & description baris terisi otomatis dari master Item; jangan kirim uom. Simpan message.name (= new_item_code) + creation + modified untuk request save."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) {",
+                  "  pm.environment.set('pb_parent_item', json.message.name);",
+                  "  pm.environment.set('pb_creation', json.message.creation);",
+                  "  pm.environment.set('pb_modified', json.message.modified);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "17.3 Create Product Bundle - lengkap (description)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Product Bundle\",\n    \"new_item_code\": \"{{pb_parent_item_2}}\",\n    \"description\": \"Laptop + tas travel\",\n    \"disabled\": 0,\n    \"items\": [\n      {\n        \"item_code\": \"{{pb_component_item}}\",\n        \"qty\": 1,\n        \"description\": \"Laptop 14 inch (wajib)\"\n      },\n      {\n        \"item_code\": \"{{pb_component_item_2}}\",\n        \"qty\": 2,\n        \"description\": \"Tas travel\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "CREATE lengkap (prd_item_product_bundle.md 4.1): description paket bebas + description baris komponen diubah manual (menimpa hasil fetch dari Item.description). Field rate TIDAK dipakai selama Selling Settings editable_bundle_item_rates = 0."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.environment.set('pb_parent_item_2', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "17.4 Cek prasyarat item induk (Item non-stok, bukan fixed asset)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\n    \"name\",\n    \"item_name\",\n    \"is_stock_item\",\n    \"is_fixed_asset\",\n    \"has_variants\",\n    \"disabled\"\n  ],\n  \"filters\": [\n    [\n      \"name\",\n      \"=\",\n      \"{{pb_parent_item}}\"\n    ]\n  ],\n  \"limit_page_length\": 1\n}"
+            },
+            "description": "Langkah 0b CREATE (prd_item_product_bundle.md 2.2 & 5.2a): is_stock_item=0 & is_fixed_asset=0 wajib, kalau tidak CREATE gagal 417 ('Parent Item X must not be a Stock Item' / '...must not be a Fixed Asset')."
+          },
+          "response": []
+        },
+        {
+          "name": "17.5 Read Product Bundle (detail + komponen) & simpan modified",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"name\": \"{{pb_parent_item}}\"\n}"
+            },
+            "description": "READ detail (prd_item_product_bundle.md 4.2). message.items = baris komponen (Product Bundle Item tidak bisa dibaca via get_list). Test script menyimpan creation/modified yang wajib dikirim ulang pada request save (17.10)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) {",
+                  "  pm.environment.set('pb_parent_item', json.message.name);",
+                  "  pm.environment.set('pb_creation', json.message.creation);",
+                  "  pm.environment.set('pb_modified', json.message.modified);",
+                  "}",
+                  "console.log('items: ' + (json.message.items || []).map(r => r.item_code + ' x' + r.qty + ' ' + r.uom).join(', '));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "17.6 Read sebagian field (description, disabled)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"filters\": {\n    \"name\": \"{{pb_parent_item}}\"\n  },\n  \"fieldname\": [\n    \"description\",\n    \"disabled\"\n  ]\n}"
+            },
+            "description": "READ ringan (prd_item_product_bundle.md 4.2): pakai get_value bila hanya butuh 1-2 field (tanpa memuat baris komponen)."
+          },
+          "response": []
+        },
+        {
+          "name": "17.7 Daftar Product Bundle (get_list)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"fields\": [\n    \"name\",\n    \"new_item_code\",\n    \"disabled\",\n    \"description\"\n  ],\n  \"filters\": [\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_start\": 0,\n  \"limit_page_length\": 50\n}"
+            },
+            "description": "READ list (prd_item_product_bundle.md 4.3). Daftar tidak memuat komponen; panggil 17.5 per paket bila isi paket perlu ditampilkan. limit_page_length=0 = ambil semua."
+          },
+          "response": []
+        },
+        {
+          "name": "17.8 Count Product Bundle (pagination)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_count"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"filters\": [\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ]\n  ]\n}"
+            },
+            "description": "Total record untuk lazy loading (prd_item_product_bundle.md 4.2). Respons: { message: <angka> }."
+          },
+          "response": []
+        },
+        {
+          "name": "17.9 Update save TANPA creation (contoh error Created On)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.save"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Product Bundle\",\n    \"name\": \"{{pb_parent_item}}\",\n    \"new_item_code\": \"{{pb_parent_item}}\",\n    \"modified\": \"{{pb_modified}}\",\n    \"description\": \"tanpa creation\",\n    \"items\": [\n      {\n        \"item_code\": \"{{pb_component_item}}\",\n        \"qty\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "CONTOH KESALAHAN (prd_item_product_bundle.md 4.4): save membangun dokumen dari dict yang dikirim. Tanpa field creation -> 417 CannotChangeConstantError 'Value cannot be changed for Created On'. Jadi SELALU kirim dokumen utuh hasil GET (17.5)."
+          },
+          "response": []
+        },
+        {
+          "name": "17.10 Update save dengan dokumen utuh (items replace-all)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.save"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Product Bundle\",\n    \"name\": \"{{pb_parent_item}}\",\n    \"owner\": \"Administrator\",\n    \"creation\": \"{{pb_creation}}\",\n    \"modified\": \"{{pb_modified}}\",\n    \"modified_by\": \"Administrator\",\n    \"docstatus\": 0,\n    \"idx\": 0,\n    \"new_item_code\": \"{{pb_parent_item}}\",\n    \"description\": \"Paket hemat laptop + tas\",\n    \"disabled\": 0,\n    \"items\": [\n      {\n        \"item_code\": \"{{pb_component_item}}\",\n        \"qty\": 1\n      },\n      {\n        \"item_code\": \"{{pb_component_item_2}}\",\n        \"qty\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "UPDATE (prd_item_product_bundle.md 4.4): WAJIB kirim creation + modified terbaru (dari 17.5) bersama seluruh field yang ingin dipertahankan. items = REPLACE-ALL: baris yang tidak dikirim akan HILANG. modified basi -> 417 TimestampMismatchError."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) {",
+                  "  pm.environment.set('pb_parent_item', json.message.name);",
+                  "  pm.environment.set('pb_creation', json.message.creation);",
+                  "  pm.environment.set('pb_modified', json.message.modified);",
+                  "}",
+                  "console.log('items sekarang: ' + (json.message.items || []).map(r => r.item_code + ' x' + r.qty).join(', '));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "17.11 Update set_value - description paket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"name\": \"{{pb_parent_item}}\",\n  \"fieldname\": {\n    \"description\": \"Paket hemat laptop + tas (set_value)\"\n  }\n}"
+            },
+            "description": "UPDATE ringan (prd_item_product_bundle.md 4.4): set_value memuat dokumen dari DB sehingga tidak perlu creation/modified. Field standar (creation/modified/owner/docstatus) DITOLAK dengan 'Cannot edit standard fields'."
+          },
+          "response": []
+        },
+        {
+          "name": "17.12 Rename Product Bundle (contoh DITOLAK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.rename_doc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.rename_doc"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"old_name\": \"{{pb_parent_item}}\",\n  \"new_name\": \"PAKET-RENAMED\"\n}"
+            },
+            "description": "CONTOH KESALAHAN (prd_item_product_bundle.md 4.4): allow_rename = 0 -> 417 ValidationError 'Product Bundle not allowed to be renamed'. Jangan tampilkan tombol rename di UI; ganti kode item lewat master Item atau hapus lalu buat ulang paketnya."
+          },
+          "response": []
+        },
+        {
+          "name": "17.13 Non-aktifkan paket (disabled=1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"name\": \"{{pb_parent_item}}\",\n  \"fieldname\": {\n    \"disabled\": 1\n  }\n}"
+            },
+            "description": "Soft-delete (prd_item_product_bundle.md 4.5): cara yang disarankan dibanding DELETE. Paket disabled=1 tidak dikenali lagi di transaksi & hilang dari daftar paket aktif."
+          },
+          "response": []
+        },
+        {
+          "name": "17.14 Aktifkan kembali paket (disabled=0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"name\": \"{{pb_parent_item}}\",\n  \"fieldname\": {\n    \"disabled\": 0\n  }\n}"
+            },
+            "description": "Kebalikan 17.13 (prd_item_product_bundle.md 4.5). Paket hanya benar-benar hilang dari transaksi bila disabled=0."
+          },
+          "response": []
+        },
+        {
+          "name": "17.15 Delete Product Bundle (normal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.delete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.delete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"name\": \"{{pb_parent_item_2}}\"\n}"
+            },
+            "description": "DELETE (prd_item_product_bundle.md 4.5): sukses (message: null) hanya bila item induknya belum dipakai transaksi SUBMITTED. Dokumen draft tidak menghalangi. Default aplikasi: non-aktifkan (17.13), jangan hapus."
+          },
+          "response": []
+        },
+        {
+          "name": "17.16 Delete paket yang sudah dipakai transaksi (contoh DITOLAK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.delete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.delete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"name\": \"{{pb_parent_item}}\"\n}"
+            },
+            "description": "CONTOH KESALAHAN (prd_item_product_bundle.md 4.5 & 6): bila item paket muncul di Sales Order/Invoice/POS/Purchase/Stock Entry/Stock Reconciliation/Material Request yang docstatus=1 -> 417 'This Product Bundle is linked with <dokumen>. You will have to cancel these documents in order to delete this Product Bundle'. Jalankan setelah membuat transaksi submitted."
+          },
+          "response": []
+        },
+        {
+          "name": "17.17 GET helper get_new_item_code (dropdown item induk)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/erpnext.selling.doctype.product_bundle.product_bundle.get_new_item_code?doctype=Product Bundle&txt=PAKET&searchfield=name&start=0&page_len=20&filters=%5B%5D",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "erpnext.selling.doctype.product_bundle.product_bundle.get_new_item_code"
+              ],
+              "query": [
+                {
+                  "key": "doctype",
+                  "value": "Product Bundle"
+                },
+                {
+                  "key": "txt",
+                  "value": "PAKET"
+                },
+                {
+                  "key": "searchfield",
+                  "value": "name"
+                },
+                {
+                  "key": "start",
+                  "value": "0"
+                },
+                {
+                  "key": "page_len",
+                  "value": "20"
+                },
+                {
+                  "key": "filters",
+                  "value": "%5B%5D"
+                }
+              ]
+            },
+            "description": "Helper bawaan Desk (prd_item_product_bundle.md 5.1): hanya item is_stock_item=0, is_fixed_asset=0, dan belum jadi paket aktif. WAJIB kirim 6 parameter (doctype, txt, searchfield, start, page_len, filters) - tanpa filters -> HTTP 500 TypeError. Respons: [[kode_item, nama_item], ...]. Catatan: method ini TIDAK menyaring Item.disabled."
+          },
+          "response": []
+        },
+        {
+          "name": "17.18 GET Item Group leaf (dropdown item_group)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item Group\",\n  \"fields\": [\n    \"name\"\n  ],\n  \"filters\": [\n    [\n      \"is_group\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Dropdown item_group saat membuat Item induk/komponen (prd_item_product_bundle.md 5.3; detail: prd_item_group.md 5.2). Hanya leaf (is_group=0) yang boleh dipakai Item."
+          },
+          "response": []
+        },
+        {
+          "name": "17.19 GET daftar Item komponen (kecuali paket aktif)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\n    \"name\",\n    \"item_name\",\n    \"stock_uom\",\n    \"is_stock_item\"\n  ],\n  \"filters\": [\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ],\n    [\n      \"has_variants\",\n      \"=\",\n      0\n    ],\n    [\n      \"name\",\n      \"not in\",\n      [\n        \"{{pb_parent_item}}\",\n        \"{{pb_parent_item_2}}\"\n      ]\n    ]\n  ],\n  \"order_by\": \"item_name asc\",\n  \"limit_page_length\": 50\n}"
+            },
+            "description": "Pemilihan komponen (prd_item_product_bundle.md 2.2 & 5.2b): saring disabled=0 & has_variants=0 (template hanya disaring di UI Desk, backend tetap menerimanya), dan kecualikan item yang sudah jadi paket aktif (paket tidak boleh bersarang). Isi daftar 'not in' idealnya dari response 17.7."
+          },
+          "response": []
+        },
+        {
+          "name": "17.20 GET daftar paket aktif (dropdown POS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Product Bundle\",\n  \"fields\": [\n    \"name\",\n    \"new_item_code\",\n    \"description\"\n  ],\n  \"filters\": [\n    [\n      \"disabled\",\n      \"=\",\n      0\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "Daftar paket siap jual (prd_item_product_bundle.md 5.4). Isi komponen diambil dari 17.5 (message.items) dan harga dari Item Price item induk (prd_item_price.md)."
+          },
+          "response": []
+        },
+        {
+          "name": "17.21 Error - item induk adalah item stok",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Product Bundle\",\n    \"new_item_code\": \"{{pb_component_item}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{pb_component_item_2}}\",\n        \"qty\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "CONTOH KESALAHAN (prd_item_product_bundle.md 2.2 & 6): induk harus non-stok -> 417 ValidationError 'Parent Item X must not be a Stock Item'. Matikan 'Maintain Stock' pada Item induk dulu."
+          },
+          "response": []
+        },
+        {
+          "name": "17.22 Error - komponen berupa Product Bundle aktif",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Product Bundle\",\n    \"new_item_code\": \"{{pb_parent_item_2}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{pb_parent_item}}\",\n        \"qty\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "CONTOH KESALAHAN (prd_item_product_bundle.md 2.2 & 6): paket tidak boleh bersarang -> 417 ValidationError 'Row #1: Child Item should not be a Product Bundle. Please remove Item X and Save'."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -4685,6 +7918,9 @@
     { "key": "pos_profile_name", "value": "POS Toko Cikarang" },
     { "key": "tax_servis_template", "value": "Servis 10%" },
     { "key": "tax_servis_ppn_template", "value": "Servis + PPN 11% (dasar termasuk servis)" },
+    { "key": "tax_tip_template", "value": "Tip 5%" },
+    { "key": "tax_surcharge_template", "value": "Employee Surcharge 3%" },
+    { "key": "tax_servis_tip_ppn_template", "value": "Servis + Tip + PPN 11%" },
     { "key": "item_group_id", "value": "Minuman" },
     { "key": "item_group_name", "value": "Minuman" },
     { "key": "item_group_parent", "value": "Food & Beverage" },
@@ -4697,6 +7933,35 @@
     { "key": "stock_reco_item", "value": "Air Mineral 600ml" },
     { "key": "stock_reco_posting_date", "value": "2026-09-04" },
     { "key": "stock_reco_posting_time", "value": "09:15:00" },
-    { "key": "stock_adjustment_account", "value": "Stock Adjustment - PTMJ" }
+    { "key": "stock_adjustment_account", "value": "Stock Adjustment - PTMJ" },
+    { "key": "sle_company", "value": "PT Maju Jaya" },
+    { "key": "sle_warehouse", "value": "Toko Cikarang - PTMJ" },
+    { "key": "sle_item", "value": "Air Mineral 600ml" },
+    { "key": "sle_voucher_type", "value": "Stock Reconciliation" },
+    { "key": "sle_voucher_no", "value": "MAT-RECO-00001-2026" },
+    { "key": "sle_date_from", "value": "2026-09-01" },
+    { "key": "sle_date_to", "value": "2026-09-30" },
+    { "key": "sle_item_group", "value": "Minuman" },
+    { "key": "sle_row_name", "value": "MAT-SLE-00042-2026" },
+    { "key": "pricing_rule_id", "value": "" },
+    { "key": "pricing_rule_id_2", "value": "" },
+    { "key": "pricing_rule_title", "value": "" },
+    { "key": "coupon_code_id", "value": "" },
+    { "key": "promo_company", "value": "" },
+    { "key": "promo_currency", "value": "IDR" },
+    { "key": "promo_price_list", "value": "Standard Selling" },
+    { "key": "free_item_code", "value": "" },
+    { "key": "price_list_name", "value": "Grosir" },
+    { "key": "price_list_name_2", "value": "Internal Transfer" },
+    { "key": "item_price_id", "value": "" },
+    { "key": "item_price_id_2", "value": "" },
+    { "key": "item_price_rate", "value": "13500" },
+    { "key": "pb_parent_item", "value": "" },
+    { "key": "pb_parent_item_2", "value": "PAKET-LAPTOP-TRAVEL" },
+    { "key": "pb_component_item", "value": "LAPTOP-14INCH" },
+    { "key": "pb_component_item_2", "value": "BACKPACK-CANVAS" },
+    { "key": "pb_item_group", "value": "Elektronik" },
+    { "key": "pb_creation", "value": "" },
+    { "key": "pb_modified", "value": "" }
   ]
 }

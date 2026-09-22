@@ -30,6 +30,8 @@ Dokumentasi REST API untuk doctype **Customer**, mengikuti pola yang sama dengan
 | 7 | `/api/resource/Territory` | GET | Daftar Territory (dropdown UI) |
 | 8 | `/api/method/frappe.core.doctype.data_export.exporter.export_data` | GET | Export Customer ke Excel/CSV (§2.6) |
 | 9 | `/api/method/frappe.client.get_count` | GET | Total record Customer sesuai filter — untuk pagination / lazy loading (§2.2) |
+| 10 | `/api/resource/Customer/{name}` | GET + PUT | Baca / set **credit limit** (limitasi piutang) lewat child table `credit_limits` (§2.8) |
+| 11 | `/api/resource/Payment Terms Template` + `/api/resource/Payment Term` | GET + POST | Termin / cicilan pembayaran: dropdown template, detail termin, dan pembuatan master (§2.9) |
 
 ---
 
@@ -593,6 +595,430 @@ curl -X POST https://site-anda.com/api/resource/Data%20Import \
 - **Catatan nama:** pre-check nama (Langkah 0 §2.1) TIDAK berlaku untuk import masal — baris
   duplikat di-update/di-skip sesuai `import_type`. Upsert memakai kolom `name`.
 - **Postman:** request `2.17` di folder `2. Customer` (lihat §4).
+
+### 2.8 Credit limit (limitasi piutang) — child table `Customer Credit Limit`
+
+Limitasi piutang per Customer disimpan di **child table** `Customer Credit Limit`, yang diakses
+lewat field **`credit_limits`** pada dokumen Customer (label form: *"Credit & Overdue Limits"*).
+
+| Field | Tipe | Keterangan |
+|---|---|---|
+| `company` | Link → Company | **Kunci baris** — satu baris per company, tidak boleh duplikat. |
+| `credit_limit` | Currency | Batas piutang. `0`/kosong = tidak ada limit **di baris ini** (bukan berarti "unlimited"; lihat §2.8.4). |
+| `bypass_credit_limit_check` | Check | Label UI: **"Bypass credit limit check at sales order"**. Lihat §2.8.3. |
+| `overdue_billing_threshold` | Currency | Label UI: **"Overdue Limit"** — `hidden: 1`, hanya berlaku bila *Accounts Settings → Restrict Customer Over Billing* aktif. Lihat §2.8.4. |
+
+> **Identitas baris:** tiap baris punya `name` sendiri (hash yang dibangkitkan server — **bukan**
+> `company`). Kirimkan `name` ini saat PUT agar baris yang sama di-update, bukan dihapus lalu
+> dibuat ulang.
+
+#### 2.8.1 Cara menulis — wajib lewat parent Customer (replace-all)
+
+`Customer Credit Limit` adalah **child table** (`istable: 1`) dan **tidak punya DocPerm sendiri**.
+Jangan panggil `/api/resource/Customer Credit Limit` (POST/PUT ke child doctype ditolak — permission
+child selalu dievaluasi lewat parent). Semua operasi lewat parent: `POST`/`PUT /api/resource/Customer`.
+
+`PUT /api/resource/Customer/{name}` menjalankan `doc.update(data)` + `doc.save()`, sehingga field
+`credit_limits` bersifat **replace-all**: array yang dikirim **menggantikan seluruh isi tabel** dan
+baris yang tidak disertakan akan **terhapus**. Urutan yang benar: **GET dulu → ubah satu baris →
+PUT array lengkap.**
+
+**Langkah 1 — GET data limit yang ada (termasuk `name` tiap baris):**
+
+```bash
+curl -G "https://site-anda.com/api/resource/Customer/CUST-00001" \
+  -H 'Authorization: Bearer <access_token>' \
+  --data-urlencode 'fields=["name","customer_name","credit_limits"]'
+```
+
+**Contoh respons (HTTP 200):**
+
+```json
+{
+  "data": {
+    "name": "CUST-00001",
+    "customer_name": "PT Maju Jaya",
+    "credit_limits": [
+      {
+        "name": "a1b2c3d4e5",
+        "doctype": "Customer Credit Limit",
+        "parent": "CUST-00001",
+        "parentfield": "credit_limits",
+        "parenttype": "Customer",
+        "company": "PT Maju Jaya",
+        "credit_limit": 50000000,
+        "overdue_billing_threshold": 0,
+        "bypass_credit_limit_check": 0
+      }
+    ]
+  }
+}
+```
+
+**Langkah 2 — set / ubah limit (PUT array penuh):**
+
+```bash
+curl -X PUT "https://site-anda.com/api/resource/Customer/CUST-00001" \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "credit_limits": [
+      {
+        "name": "a1b2c3d4e5",
+        "company": "PT Maju Jaya",
+        "credit_limit": 75000000,
+        "bypass_credit_limit_check": 0
+      }
+    ]
+  }'
+```
+
+**Contoh respons (HTTP 200):** objek `data` terbaru, `credit_limits[0].credit_limit = 75000000`.
+
+> **Catatan UI:** selalu kirim **semua** baris hasil Langkah 1 (bukan hanya baris yang diubah).
+> Menghilangkan satu baris = menghapus limit company tersebut.
+
+**Langkah 3 (opsional) — langsung set limit saat CREATE Customer:** tambahkan `credit_limits` pada
+payload `POST /api/resource/Customer` (§2.1):
+
+```json
+{
+  "customer_name": "PT Maju Jaya",
+  "customer_group": "Commercial",
+  "territory": "Indonesia",
+  "customer_type": "Company",
+  "credit_limits": [
+    {
+      "company": "PT Maju Jaya",
+      "credit_limit": 75000000,
+      "bypass_credit_limit_check": 0
+    }
+  ]
+}
+```
+
+**Validasi server yang harus diantisipasi UI** (`Customer.validate_credit_limit_on_change`, hanya
+jalan pada dokumen yang sudah ada — jadi muncul saat PUT, bukan POST):
+
+| Kondisi | Perilaku |
+|---|---|
+| Dua baris dengan `company` sama | **Gagal.** *"Credit limit is already defined for the Company {0}"* |
+| Limit baru **<** outstanding saat ini | **Gagal.** *"New credit limit is less than current outstanding amount for the customer. Credit limit has to be atleast {0}"* (nilai `{0}` = outstanding berjalan) |
+| Limit baru **≥** outstanding | Sukses, `credit_limits` diganti |
+
+> Karena validasi kedua dihitung dari outstanding **berjalan**, PUT bisa gagal walau payload sudah
+> benar secara format. Tampilkan pesan error dari server apa adanya ke user.
+
+#### 2.8.2 Menghapus / "mengosongkan" limit
+
+Tidak ada endpoint DELETE untuk satu baris limit. Dua cara yang tersedia, **efeknya berbeda**:
+
+| Aksi | Payload | Efek |
+|---|---|---|
+| Hapus baris | PUT dengan `credit_limits` **tanpa** baris company tsb. | Baris hilang dari tabel → limit efektif **jatuh ke fallback** (§2.8.4), bukan otomatis tanpa limit. |
+| Kosongkan nilai | PUT dengan baris tetap ada, `"credit_limit": 0` | Sama: limit baris itu dianggap tidak diset → **jatuh ke fallback**. |
+
+> Karena keduanya berujung ke fallback (Customer Group → default Company), **"hapus limit" di UI
+> harus dikonfirmasi** dan sebaiknya menampilkan limit efektif hasil fallback tersebut.
+
+#### 2.8.3 `bypass_credit_limit_check` — "Bypass credit limit check at sales order"
+
+Bersifat **per baris company**, bukan global. Fungsinya **memindahkan titik blokir dari Sales Order
+ke Delivery Note / Sales Invoice**, bukan mematikan limit. Perilaku di kode backend:
+
+| Tahap | `bypass = 0` | `bypass = 1` |
+|---|---|---|
+| **Sales Order** | Dicek penuh (`check_credit_limit`); SO ikut dihitung sebagai outstanding. | `SalesOrder.check_credit_limit()` langsung `return` → SO **tidak pernah diblokir**. |
+| **Outstanding** | GLE + Sales Order + Delivery Note non-SO. | SO **tidak dihitung** (`ignore_outstanding_sales_order=True`) — hanya GLE + DN. |
+| **Delivery Note** | Divalidasi untuk item yang belum terhubung SO/DN. | Hanya divalidasi untuk item yang belum punya Sales Invoice, plus `extra_amount = base_grand_total` DN. |
+| **Sales Invoice** | Divalidasi hanya bila ada item tanpa SO/DN. | **Selalu** divalidasi. |
+
+**Implikasi untuk UI:** dengan `bypass = 1`, user bisa membuat Sales Order melebihi limit, tetapi
+blokir tetap datang saat membuat Delivery Note / Sales Invoice. Tampilkan status ini di form Customer
+(mis. badge *"Limit diperiksa di Invoice"*) agar user tidak mengira limit sudah dibebaskan.
+
+> **Catatan istilah (sering tertukar):** `bypass_credit_limit_check_at_sales_order` adalah **nama
+> field lama di level doctype Customer** (v11). Patch v12
+> `move_credit_limit_to_customer_credit_limit.py` memindahkannya ke child table sebagai
+> `bypass_credit_limit_check` **per company**. Di UI maupun REST API sekarang **tidak ada** lagi
+> field `bypass_credit_limit_check_at_sales_order` di Customer — nama itu hanya tersisa sebagai nama
+> variabel di dalam kode SO/DN/SI.
+
+#### 2.8.4 Limit efektif (fallback), Overdue Limit & pengaturan Accounts Settings
+
+**Limit efektif** tidak hanya dibaca dari Customer. `erpnext.selling.doctype.customer.customer.get_credit_limit()`
+meresolusi berurutan:
+
+1. `Customer Credit Limit` dengan `parenttype = "Customer"` (baris Customer tsb),
+2. jika kosong/`0` → `Customer Credit Limit` dengan `parenttype = "Customer Group"` untuk
+   `customer_group` Customer itu (**Customer Group juga punya tabel `credit_limits`**),
+3. jika masih kosong → default `credit_limit` pada doctype **Company**.
+
+`check_credit_limit()` `return` lebih awal bila hasil resolusi = `0` (benar-benar tanpa pengecekan).
+Jadi `credit_limit: 0` di Customer = "pakai limit Group/Company", bukan "tanpa batas".
+
+**Overdue Limit (`overdue_billing_threshold`)** — hanya aktif bila *Accounts Settings* diisi:
+
+| Accounts Settings | Label | Fungsi |
+|---|---|---|
+| `enable_overdue_billing_threshold` | *Restrict Customer Over Billing* | Menyalakan pengecekan Overdue Limit. |
+| `role_allowed_to_bypass_overdue_billing` | *Role Allowed to Bypass Over Billing Restriction* | Role yang boleh tetap submit Sales Invoice meski Overdue Limit terlampaui. |
+| `credit_controller` | *Role allowed to bypass credit limit* | Role yang boleh menembus credit limit tanpa diblokir. |
+| `over_billing_allowance` (+ `role_allowed_to_over_bill`) | *Over Billing Allowance (%)* | Toleransi over-billing terhadap nilai order — terpisah dari credit limit. |
+
+Saat submit Sales Invoice: `check_overdue_billing_threshold()` menghitung overdue dari Payment Ledger;
+if `overdue_amount > threshold` dan user tidak punya role bypass → error
+*"Overdue Limit crossed for customer {0}…"*.
+
+**Saat credit limit terlanggar (SO/DN/SI):** `check_credit_limit()` menampilkan dialog
+*"Credit Limit has been crossed for customer …"*. Bila user **tidak** punya role `credit_controller`,
+blokir bersifat keras (`raise_exception=1`) dan user hanya ditawari mengirim email ke user ber-role
+`Sales Master Manager` (fallback daftar penerima). Jadi menaikkan limit tetap wewenang user dengan
+role tersebut.
+
+> **Ringkas untuk UI:** tampilkan `credit_limit`, `bypass_credit_limit_check`, dan
+> `overdue_billing_threshold` dari baris company yang relevan; sediakan aksi "ubah limit" =
+> GET → PUT array penuh, dan tangani pesan error validasi server (§2.8.1) apa adanya.
+
+### 2.9 Termin pembayaran & cicilan (jatuh tempo)
+
+Cicilan pelanggan **bukan** field di Customer. Mekanismenya **tiga lapis**:
+
+| Lapis | Doctype | Fungsi |
+|---|---|---|
+| 1. Komponen | `Payment Term` (master, autoname `field:payment_term_name`) | Definisi **satu** termin: porsi %, jatuh tempo, diskon. |
+| 2. Paket | `Payment Terms Template` (autoname `field:template_name`) + child `terms` → `Payment Terms Template Detail` | Kumpulan termin; **total `invoice_portion` wajib 100%**. |
+| 3. Eksekusi | Child table **`Payment Schedule`** di Sales Order / Sales Invoice | Baris cicilan hasil generate: `due_date` + `payment_amount` per termin. |
+
+Customer hanya menyimpan **default**: field `payment_terms` (Link → `Payment Terms Template`).
+
+`Payment Term` dan `Payment Terms Template` **bukan child table** → keduanya bisa ditulis langsung
+lewat `/api/resource/...` (berbeda dari `Customer Credit Limit`, §2.8).
+
+**Field `Payment Term`:**
+
+| Field | Tipe | Keterangan |
+|---|---|---|
+| `payment_term_name` | Data | **Kunci/autoname** (unik), `allow_rename: 1`. |
+| `invoice_portion` | Float | Porsi terhadap nilai invoice (%). |
+| `due_date_based_on` | Select | `Day(s) after invoice date`, `Day(s) after the end of the invoice month`, `Month(s) after the end of the invoice month`. |
+| `credit_days` / `credit_months` | Int | Dipakai sesuai `due_date_based_on` (default `0`). |
+| `mode_of_payment` | Link → Mode of Payment | Opsional. |
+| `discount_type`, `discount`, `discount_validity_based_on`, `discount_validity` | — | Diskon bila dibayar lebih awal (opsional). |
+| `description` | Small Text | Muncul di baris `payment_schedule`. |
+
+**Field `Payment Terms Template`:** `template_name` (autoname), `terms` (child, `reqd`),
+`allocate_payment_based_on_payment_terms` (Check, default `0`).
+
+**Field child `terms` (`Payment Terms Template Detail`):** `payment_term` (Link → Payment Term),
+`invoice_portion` (**reqd**), `due_date_based_on` (**reqd**), `credit_days`, `credit_months`,
+`mode_of_payment`, `description`, `discount_*`.
+
+> **Validasi server saat simpan template** (`PaymentTermsTemplate.validate`):
+> - Total `invoice_portion` semua baris **harus = 100** → *"Combined invoice portion must equal 100%"*.
+> - Baris dengan kombinasi (`payment_term`, `credit_days`, `credit_months`, `due_date_based_on`) yang
+>   sama dianggap duplikat → *"The Payment Term at row {0} is possibly a duplicate."*
+> - Bila `allocate_payment_based_on_payment_terms = 1`, `payment_term` **wajib** di tiap baris →
+>   *"Row {0}: Payment Term is mandatory"*.
+> - `payment_term` hanya Link biasa: kalau diisi, master `Payment Term`-nya harus sudah ada (validasi
+>   link). Bila ingin template berdiri sendiri tanpa master, **kosongkan** `payment_term`.
+
+#### 2.9.1 Buat master termin — `POST /api/resource/Payment Term`
+
+```bash
+curl -X POST https://site-anda.com/api/resource/Payment%20Term \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "payment_term_name": "DP 30%",
+    "invoice_portion": 30,
+    "due_date_based_on": "Day(s) after invoice date",
+    "credit_days": 0,
+    "description": "Uang muka 30%"
+  }'
+```
+
+**Contoh respons (HTTP 200):** `{ "data": { "name": "DP 30%", ... } }` — `name` = `payment_term_name`.
+
+#### 2.9.2 Buat template 3 termin — `POST /api/resource/Payment Terms Template`
+
+Skenario: **DP 30%** (jatuh tempo saat invoice), **Termin 2 40%** (+30 hari), **Termin 3 30%** (+60 hari).
+
+```bash
+curl -X POST https://site-anda.com/api/resource/Payment%20Terms%20Template \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "template_name": "3 Termin - 30/40/30",
+    "allocate_payment_based_on_payment_terms": 0,
+    "terms": [
+      { "payment_term": "DP 30%",   "invoice_portion": 30, "due_date_based_on": "Day(s) after invoice date", "credit_days": 0,  "description": "DP 30%" },
+      { "payment_term": "Termin 2", "invoice_portion": 40, "due_date_based_on": "Day(s) after invoice date", "credit_days": 30, "description": "Termin 2 (30 hari)" },
+      { "payment_term": "Termin 3", "invoice_portion": 30, "due_date_based_on": "Day(s) after invoice date", "credit_days": 60, "description": "Termin 3 (60 hari)" }
+    ]
+  }'
+```
+
+**Contoh respons (HTTP 200):**
+
+```json
+{
+  "data": {
+    "name": "3 Termin - 30/40/30",
+    "template_name": "3 Termin - 30/40/30",
+    "allocate_payment_based_on_payment_terms": 0,
+    "terms": [
+      { "payment_term": "DP 30%", "invoice_portion": 30, "due_date_based_on": "Day(s) after invoice date", "credit_days": 0 },
+      { "payment_term": "Termin 2", "invoice_portion": 40, "due_date_based_on": "Day(s) after invoice date", "credit_days": 30 },
+      { "payment_term": "Termin 3", "invoice_portion": 30, "due_date_based_on": "Day(s) after invoice date", "credit_days": 60 }
+    ]
+  }
+}
+```
+
+**Baca template untuk dropdown / pratinjau termin:**
+
+```bash
+# dropdown: cukup name + template_name
+curl -G "https://site-anda.com/api/resource/Payment%20Terms%20Template" \
+  -H 'Authorization: Bearer <access_token>' \
+  --data-urlencode 'fields=["name","template_name"]' \
+  --data-urlencode 'limit_page_length=0'
+
+# detail termin (child `terms`)
+curl -G "https://site-anda.com/api/resource/Payment%20Terms%20Template/3%20Termin%20-%2030%2F40%2F30" \
+  -H 'Authorization: Bearer <access_token>'
+```
+
+#### 2.9.3 Set / ganti default termin di Customer
+
+```bash
+curl -X PUT "https://site-anda.com/api/resource/Customer/CUST-00001" \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{ "payment_terms": "3 Termin - 30/40/30" }'
+```
+
+**Rantai fallback** — `erpnext.accounts.party.get_payment_terms_template()` meresolusi berurutan:
+
+1. `Customer.payment_terms`,
+2. jika kosong → `Customer Group.payment_terms` (label: *Default Payment Terms Template*),
+3. jika masih kosong → `Company.payment_terms`.
+
+> **Catatan penting:** field ini hanya **default untuk transaksi baru**. Mengubah `payment_terms`
+> **tidak** mengubah Sales Order / Sales Invoice yang sudah dibuat. Untuk SI yang dibuat dari SO,
+> penarikan termin diatur *Accounts Settings → `automatically_fetch_payment_terms`*.
+
+#### 2.9.4 Pratinjau jatuh tempo — `GET /api/method/erpnext.accounts.party.get_due_date`
+
+Method whitelisted untuk menghitung jatuh tempo dari template — berguna untuk pratinjau di form Customer
+(tanpa membuat dokumen).
+
+```bash
+curl -G "https://site-anda.com/api/method/erpnext.accounts.party.get_due_date" \
+  -H 'Authorization: Bearer <access_token>' \
+  --data-urlencode 'posting_date=2026-09-12' \
+  --data-urlencode 'party_type=Customer' \
+  --data-urlencode 'party=CUST-00001'
+```
+
+**Contoh respons (HTTP 200):**
+
+```json
+{ "message": "2026-11-11" }
+```
+
+Parameter: `posting_date` (wajib), `party_type`, `party` (wajib), `company`, `bill_date`,
+`template_name` (opsional — bila dikosongkan, otomatis memakai default Customer → Group → Company).
+Nilai balikan = jatuh tempo **terakhir** (maksimum dari seluruh termin template).
+
+#### 2.9.5 Mengirim cicilan custom di Sales Order / Sales Invoice
+
+`Sales Order` dan `Sales Invoice` punya field `payment_terms_template` (Link) dan `payment_schedule`
+(Table → `Payment Schedule`). Field `payment_schedule` **boleh dikirim langsung** — penting karena
+`set_payment_schedule()` hanya meng-generate baris dari template **jika `payment_schedule` masih kosong**.
+
+**Field `Payment Schedule`:** `payment_term`, `description`, `due_date` (**reqd**), `invoice_portion`
+(Percent), `payment_amount` (**reqd**), `mode_of_payment`, `outstanding` (read-only),
+`paid_amount`, `base_payment_amount`, `discount_date`.
+
+```bash
+curl -X POST https://site-anda.com/api/resource/Sales%20Invoice \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "customer": "CUST-00001",
+    "company": "PT Maju Jaya",
+    "posting_date": "2026-09-12",
+    "payment_terms_template": "3 Termin - 30/40/30",
+    "payment_schedule": [
+      { "payment_term": "DP 30%",   "description": "DP 30%",              "due_date": "2026-09-12", "invoice_portion": 30 },
+      { "payment_term": "Termin 2", "description": "Termin 2 (30 hari)",  "due_date": "2026-10-12", "invoice_portion": 40 },
+      { "payment_term": "Termin 3", "description": "Termin 3 (60 hari)",  "due_date": "2026-11-11", "invoice_portion": 30 }
+    ]
+  }'
+```
+
+> Kalau `invoice_portion` diisi, backend yang menghitung `payment_amount = grand_total * portion / 100`
+> (begitu juga `base_payment_amount`). Kalau `invoice_portion` kosong, nilai `payment_amount` dikirim
+> apa adanya.
+
+> **`due_date` dokumen** di-set otomatis = **maksimum** `due_date` di `payment_schedule`
+> (`set_due_date()`). Jangan mengandalkan `due_date` yang dikirim manual.
+
+**Validasi server yang harus diantisipasi UI:**
+
+| Kondisi | Perilaku |
+|---|---|
+| Σ `payment_amount` ≠ grand / rounded total (> 0.1) | **Gagal.** *"Total Payment Amount in Payment Schedule must be equal to Grand / Rounded Total"* |
+| Dua baris dengan `due_date` sama | **Gagal.** *"Rows with duplicate due dates in other rows were found: …"* |
+| Sales Order: `due_date` < `transaction_date` | **Gagal.** *"Row {0}: Due Date in the Payment Terms table cannot be before Posting Date"* |
+| Sales Invoice: `due_date` < `posting_date` | **Gagal.** *"Due Date cannot be before Posting Date"* |
+| SI punya `payment_terms_template` dan `due_date` (hasil maksimum schedule) > jatuh tempo template | **Gagal** *"Due Date cannot be after {0}"* — kecuali user punya role `credit_controller` (hanya peringatan *"Due Date exceeds allowed credit days by N day(s)"*) |
+
+> Sales Invoice dengan `is_pos = 1` atau `is_return = 1` → `payment_terms_template` dan
+> `payment_schedule` **dikosongkan** otomatis oleh backend.
+
+#### 2.9.6 Menagih per termin — Payment Request
+
+Agar pelanggan bisa **membayar per termin**, buat `Payment Request` yang menunjuk baris
+`payment_schedule` terpilih (satu PR = satu cicilan).
+
+```bash
+curl -X POST https://site-anda.com/api/method/erpnext.accounts.doctype.payment_request.payment_request.make_payment_request \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "dt": "Sales Invoice",
+    "dn": "SINV-00001",
+    "party_type": "Customer",
+    "party": "CUST-00001",
+    "schedules": "[{\"name\":\"a1b2c3d4e5\",\"payment_term\":\"Termin 2\",\"description\":\"Termin 2 (30 hari)\",\"due_date\":\"2026-10-12\",\"payment_amount\":40000000}]",
+    "submit_doc": 1,
+    "mute_email": 1
+  }'
+```
+
+**Cara paling praktis:** jalankan `GET /api/resource/Sales Invoice/SINV-00001` → ambil array
+`payment_schedule` → pilih baris yang ingin ditagih → kirim array itu (apa adanya) sebagai parameter
+`schedules` (JSON string). Backend memetakan tiap baris menjadi child `payment_reference`
+(`payment_term`, `description`, `due_date`, `amount`, `payment_schedule` = `name` baris) dan
+menjumlahkan `payment_amount` menjadi `grand_total` Payment Request.
+
+| Parameter | Keterangan |
+|---|---|
+| `dt`, `dn` | Doctype & nama dokumen sumber. Diizinkan: `Sales Order`, `Sales Invoice`, `Purchase Order`, `Purchase Invoice`, `POS Invoice`, `Fees`. |
+| `schedules` | JSON string baris `payment_schedule` terpilih (kunci yang dibaca: `name`, `payment_term`, `description`, `due_date`, `payment_amount`, `currency`). |
+| `party_type`, `party` | Untuk pengambilan bank account pihak. |
+| `submit_doc` | `1` = langsung submit (bila *Accounts Settings → `create_pr_in_draft_status`* aktif, dokumen dibuat draft dulu). |
+| `mute_email` | `1` = jangan kirim email payment link. |
+| `return_doc` | `1` = kembalikan dokumen (bukan dict). |
+
+> **Batasan backend:** (a) PR berbasis schedule **ditolak** bila sudah ada Payment Entry pada dokumen itu
+> (*"Payment Schedule based Payment Requests cannot be created because a Payment Entry already exists…"*);
+> (b) baris schedule yang **sudah pernah** dijadikan PR akan ditolak
+> (*"The following payment schedule(s) already exist: …"*); (c) bila sudah ada PR draft, baris baru
+> di-append ke PR draft tersebut, bukan membuat PR baru.
 
 ---
 

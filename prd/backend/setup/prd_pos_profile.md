@@ -924,7 +924,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
   }'
 ```
 
-**GET daftar Letter Head (dropdown UI):**
+**GET daftar Letter Head (dropdown UI) — sudah termasuk `content`:**
 
 ```bash
 curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
@@ -932,18 +932,52 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Letter Head",
-    "fields": ["name","letter_head_name","is_default","disabled","source"],
+    "fields": ["name","letter_head_name","is_default","disabled","source","content"],
     "filters": [["disabled","=",0]],
     "limit_page_length": 0
   }'
 ```
 
-> Non-aktif LH = `disabled: 1` (tidak muncul di dropdown). `is_default` = LH default yang dipakai
-> bila `letter_head` kosong (maks. 1 aktif; tidak boleh `disabled`+`is_default` sekaligus).
-> Role: baca `Desk User`; buat/ubah `System Manager`. Catatan: bila klien memakai **satu company
+> `content` sengaja disertakan dalam **1x panggilan yang sama** (dropdown + deteksi) supaya
+> frontend tidak perlu memanggil API 2x. `frappe.client.get_list` hanya mengembalikan field yang
+> diminta di `fields` — jadi cukup tambahkan `"content"` di sini. Bila suatu saat payload ingin
+> dipangkas (LH banyak & `content` panjang), field ini bisa dilepas; konsekuensinya deteksi
+> otomatis-vs-custom (sub-bagian berikut) tidak bisa jalan tanpa `content`.
+
+**Mendeteksi: apakah Letter Head memakai data Company (header otomatis) atau tidak?**
+
+Tidak ada field boolean khusus di Letter Head utk menandai ini — penandanya ada di isi **`content`**.
+Saat print, ERPNext **merender `content` sebagai template Jinja** dengan `doc` (invoice) sebagai
+konteks. Karena itu:
+
+- **LH "memakai data Company"** (seperti template bawaan `Company Letterhead` / `Company Letterhead - Grey`,
+  dan Opsi A) → `content`-nya memuat **referensi Jinja ke Company**, contoh token yang bisa dicek:
+  `{{ doc.company }}`, `frappe.db.get_value("Company", ...)`, `doc.company_address`,
+  `company_logo`, `frappe.utils.get_url(...)`.
+- **LH "custom / tidak memakai data Company"** (Opsi B, `source = HTML` statis atau `source = Image`)
+  → `content`-nya **HTML statis** (teks / `<img src="...">` logo outlet), tanpa referensi Jinja tsb.
+
+**Aturan deteksi (frontend)** — cek `content` dari hasil **GET daftar di atas** (cukup satu
+panggilan; frontend mengecek token dengan `includes()` / regex):
+
+| Kondisi `content` | Kesimpulan |
+|---|---|
+| Mengandung `frappe.db.get_value("Company"` ATAU `doc.company` ATAU `doc.company_address` ATAU `company_logo` | **Memakai data Company** (header otomatis; butuh Company/`company_logo` terisi) |
+| Tidak ada token tsb (HTML statis / hanya `<img>` logo outlet) | **Custom / per Letter Head** (logo & identitas dari LH itu sendiri) |
+
+> Catatan: `content` yg di-return berupa string HTML mentah (masih memuat sintaks Jinja `{{ ... }}`,
+> belum dirender) — jadi token Jinja tetap terlihat & bisa dicek. Bila klien memakai **satu company
 > per outlet**, logo per outlet cukup di-set di `Company.company_logo` (Opsi A); bila semua outlet
 > satu company namun beda logo, gunakan Opsi B (satu Letter Head per outlet, `letter_head` diisi
 > per POS Profile).
+
+> **Ringkasan field Letter Head:** `letter_head_name` (= `name`, unique, reqd), `source`
+> (`Image`/`HTML`), `image` (logo; `source=Image`), `content` (Header HTML), `footer` (+
+> `footer_source`), `is_default`, `disabled`. Non-aktif LH = `disabled: 1` (tidak muncul di
+> dropdown). `is_default` = LH default yang dipakai bila `letter_head` kosong (maks. 1 aktif;
+> tidak boleh `disabled`+`is_default` sekaligus). Role: baca `Desk User`; buat/ubah
+> `System Manager`. `content`/`footer` mendukung Jinja (mis. `{{ doc.company }}`,
+> `{{ doc.company_address }}`) — dipakai Opsi A/template bawaan.
 
 ### 5.11b GET / CREATE Terms and Conditions — isi printout (kebijakan retur/catatan)
 
@@ -1015,7 +1049,7 @@ resolve `write_off_account` di §5.9). Pemetaan `type` → akun yang dipakai:
 | `Cash` | `1111.002` | `Kas Besar` | `Cash` |
 | `Bank` | `1120.001` | `Rekening Bank Utama` | `Bank` |
 | `General` | `5110.019` | `Biaya Penjualan Lain Lain` | (boleh kosong) |
-| `Phone` | `5130.003` | `Biaya TLP Gudang & Kantor` | (boleh kosong) |
+| `Phone` | `1132.002` | `Piutang Payment Gateway` | (boleh kosong) |
 
 **Contoh — resolve akun utk `type = Cash`:**
 
@@ -1052,7 +1086,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 ```
 
 > Ulangi pola yang sama utk tipe lain dgn `account_number` sesuai tabel (`1120.001` utk `Bank`,
-> `5110.019` utk `General`, `5130.003` utk `Phone`). `account_number` tidak unik global — sertakan
+> `5110.019` utk `General`, `1132.002` utk `Phone`). `account_number` tidak unik global — sertakan
 > `company`. Bila `message` kosong (`[]`) → akun belum ada utk company tsb → blokir CREATE Mode of
 > Payment. `account_type` boleh kosong utk `General`/`Phone` (tetap valid sbg `default_account`).
 >
@@ -1082,9 +1116,10 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 Seluruh pemanggilan di atas mengikuti koleksi Postman yang sama:
 `docs/postman/postman_erpnext_api.json` (Collection v2.1) — berisi seluruh modul API ERPNext
 (OAuth 2.0 + Supplier + Customer + Contact + Address + Lead + Employee + User + Warehouse + POS Profile).
-Request POS Profile sudah masuk ke koleksi sebagai folder **`9. POS Profile`** (30 request: 9.1–9.29
+Request POS Profile sudah masuk ke koleksi sebagai folder **`9. POS Profile`** (34 request: 9.1–9.33
 sesuai contoh di dokumen ini) — `pos_profile_id`/`pos_profile_name`/`tax_servis_template`/
-`tax_servis_ppn_template` tersedia sebagai variabel koleksi.
+`tax_servis_ppn_template`/`tax_tip_template`/`tax_surcharge_template`/`tax_servis_tip_ppn_template`
+tersedia sebagai variabel koleksi.
 
 ---
 
@@ -1232,13 +1267,27 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 > tanpa `applicable_for_users` berlaku untuk semua user, dan tanpa User Permission semua warehouse
 > bisa diakses.
 
-**8b — Pajak & servis: servis saja vs servis + pajak (per POS Profile)**
+**8b — Biaya tambahan & pajak: servis, tip, employee surcharge (per POS Profile)**
 
 `taxes_and_charges` adalah field **per POS Profile**, jadi tiap profil bebas menunjuk ke template
-pajak yang berbeda. Contoh di bawah memakai **data nyata** sistem: company
-**PT Rapupa Guna Teknologi** (abbr `APS`) — akun `4310.000 - Pendapatan Service - APS` (income)
-untuk baris servis & `2142.000 - PPN Keluaran - APS` (tax) untuk baris pajak; cost center
+pajak yang berbeda. Konfigurasi di sini **tidak terbatas** pada "pajak" atau "servis" saja — user
+bisa menambahkan **biaya tambahan lain** seperti **tip** atau **employee surcharge**. Semua biaya
+tambahan memakai **akun yang sama**, `4310.000 - Pendapatan Service - APS` (income), dengan alur
+identik seperti biaya servis: tarif **persen** (`rate`), dan masing-masing bebas **dikenakan pajak
+atau tidak**. Baris pajaknya sendiri memakai `2142.000 - PPN Keluaran - APS` (tax); cost center
 `Main - APS`.
+
+**Jenis biaya tambahan yang didukung (semua via akun `4310.000 - Pendapatan Service - APS`):**
+
+| Jenis biaya | `account_head` | Contoh `rate` | `description` |
+|---|---|---|---|
+| Servis | `4310.000 - Pendapatan Service - APS` | `10` (%) | `Biaya Servis` |
+| Tip | `4310.000 - Pendapatan Service - APS` | `5` (%) | `Tip` |
+| Employee Surcharge | `4310.000 - Pendapatan Service - APS` | `3` (%) | `Employee Surcharge` |
+
+> Semua jenis biaya tambahan **memakai akun yang sama** (`4310.000`) — pembedaannya hanya pada
+> `description`. Tiap jenis bisa **berdiri sendiri** maupun **digabung** dalam satu template
+> (mis. Servis + Tip), dan masing-masing bisa **ikut** atau **tidak ikut** dasar PPN.
 
 > Tiap kasus = 1 `Sales Taxes and Charges Template` terpisah; arahkan `taxes_and_charges` POS
 > Profile ke nama template sesuai kasus (Langkah C). Detail CREATE penuh mengikuti pola Langkah
@@ -1251,7 +1300,7 @@ untuk baris servis & `2142.000 - PPN Keluaran - APS` (tax) untuk baris pajak; co
 jadi frontend **tidak boleh hardcode** nama lengkapnya. Ambil lewat `account_number` + company
 (cara sama dengan resolve `write_off_account` di §5.9):
 
-**a) Akun servis (baris servis; akun income):**
+**a) Akun biaya tambahan (servis/tip/employee surcharge; akun income):**
 
 ```bash
 curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
@@ -1337,7 +1386,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
     "company": "PT Rapupa Guna Teknologi",
     "taxes": [
       { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
-        "description": "Biaya Servis", "rate": 10, "cost_center": "Main - APS" }
+        "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+        "cost_center": "Main - APS" }
     ]
   }
 }
@@ -1357,7 +1407,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
     "company": "PT Rapupa Guna Teknologi",
     "taxes": [
       { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
-        "description": "Biaya Servis", "rate": 10, "cost_center": "Main - APS" },
+        "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+        "cost_center": "Main - APS" },
       { "charge_type": "On Previous Row Total", "account_head": "2142.000 - PPN Keluaran - APS",
         "description": "PPN (dasar termasuk servis)", "rate": 11, "cost_center": "Main - APS" }
     ]
@@ -1387,9 +1438,9 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
 > contoh §8a masih memakai `- PTMJ`, samakan company-nya saat implementasi agar validasi
 > "template tidak se-company" tidak muncul.
 
-**Contoh kombinasi — 4 kasus servis & pajak:**
+**Contoh kombinasi — biaya tambahan & pajak:**
 
-Berikut 4 kombinasi yang bisa dipilih user (centang + % di form), lengkap dengan isi `taxes`
+Berikut kombinasi yang bisa dipilih user (centang + % di form), lengkap dengan isi `taxes`
 template dan nama `taxes_and_charges` yang harus diarahkan. Akun: `4310.000 - Pendapatan Service - APS`
 (income) & `2142.000 - PPN Keluaran - APS` (tax); cost center: `Main - APS`.
 
@@ -1399,15 +1450,23 @@ template dan nama `taxes_and_charges` yang harus diarahkan. Akun: `4310.000 - Pe
 | 2 | Hanya pajak (11%) | 1 baris | `On Net Total` | `PPN 11% - APS` |
 | 3 | Servis (10%) + pajak (11%), servis **tidak** masuk dasar | 2 baris independen | `On Net Total` + `On Net Total` | `Servis + PPN 11% - APS` |
 | 4 | Servis (10%) + pajak (11%), **servis masuk** dasar pajak | 2 baris berurutan | `On Net Total` + `On Previous Row Total` | `Servis + PPN 11% (dasar termasuk servis) - APS` |
+| 5 | Tip saja (5%) | 1 baris | `On Net Total` | `Tip 5% - APS` |
+| 6 | Employee Surcharge saja (3%) | 1 baris | `On Net Total` | `Employee Surcharge 3% - APS` |
+| 7 | Tip (5%) + pajak (11%), **tip masuk** dasar pajak | 2 baris berurutan | `On Net Total` + `On Previous Row Total` | `Tip + PPN 11% - APS` |
+| 8 | Servis (10%) + Tip (5%) + pajak (11%), semua masuk dasar | 3 baris berurutan | `On Net Total` + `On Net Total` + `On Previous Row Total` | `Servis + Tip + PPN 11% - APS` |
 
 **Isi `doc.taxes` per kasus:**
+
+> `custom_rates` (field dari custom app **baseapp**, lihat sub-bagian berikut) dicontohkan di baris
+> biaya tambahan; bentuknya **string JSON** (bukan list mentah), mis. `"[5, 10, 15]"`.
 
 **Kasus 1 — Servis saja:**
 
 ```json
 "taxes": [
   { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
-    "description": "Biaya Servis", "rate": 10, "cost_center": "Main - APS" }
+    "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+    "cost_center": "Main - APS" }
 ]
 ```
 
@@ -1425,7 +1484,8 @@ template dan nama `taxes_and_charges` yang harus diarahkan. Akun: `4310.000 - Pe
 ```json
 "taxes": [
   { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
-    "description": "Biaya Servis", "rate": 10, "cost_center": "Main - APS" },
+    "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+    "cost_center": "Main - APS" },
   { "charge_type": "On Net Total", "account_head": "2142.000 - PPN Keluaran - APS",
     "description": "PPN (tanpa servis di dasar)", "rate": 11, "cost_center": "Main - APS" }
 ]
@@ -1436,15 +1496,63 @@ template dan nama `taxes_and_charges` yang harus diarahkan. Akun: `4310.000 - Pe
 ```json
 "taxes": [
   { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
-    "description": "Biaya Servis", "rate": 10, "cost_center": "Main - APS" },
+    "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+    "cost_center": "Main - APS" },
   { "charge_type": "On Previous Row Total", "account_head": "2142.000 - PPN Keluaran - APS",
     "description": "PPN (dasar termasuk servis)", "rate": 11, "cost_center": "Main - APS" }
 ]
 ```
 
+**Kasus 5 — Tip saja (5%):**
+
+```json
+"taxes": [
+  { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
+    "description": "Tip", "rate": 5, "custom_rates": "[5, 10, 15]",
+    "cost_center": "Main - APS" }
+]
+```
+
+**Kasus 6 — Employee Surcharge saja (3%):**
+
+```json
+"taxes": [
+  { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
+    "description": "Employee Surcharge", "rate": 3, "custom_rates": "[1, 2, 3]",
+    "cost_center": "Main - APS" }
+]
+```
+
+**Kasus 7 — Tip + pajak (tip masuk dasar pajak):**
+
+```json
+"taxes": [
+  { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
+    "description": "Tip", "rate": 5, "custom_rates": "[5, 10, 15]",
+    "cost_center": "Main - APS" },
+  { "charge_type": "On Previous Row Total", "account_head": "2142.000 - PPN Keluaran - APS",
+    "description": "PPN (dasar termasuk tip)", "rate": 11, "cost_center": "Main - APS" }
+]
+```
+
+**Kasus 8 — Servis + Tip + pajak (semua masuk dasar pajak):**
+
+```json
+"taxes": [
+  { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
+    "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+    "cost_center": "Main - APS" },
+  { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
+    "description": "Tip", "rate": 5, "custom_rates": "[5, 10, 15]",
+    "cost_center": "Main - APS" },
+  { "charge_type": "On Previous Row Total", "account_head": "2142.000 - PPN Keluaran - APS",
+    "description": "PPN (dasar termasuk servis + tip)", "rate": 11, "cost_center": "Main - APS" }
+]
+```
+
 > **Catatan penting:**
 > - `account_head` pada tiap kasus harus **hasil resolve Langkah 0** (jangan hardcode) dan
->   se-company dengan template. `account_type` akun servis boleh kosong — tetap valid.
+>   se-company dengan template. `account_type` akun biaya tambahan boleh kosong — tetap valid.
 > - Template per-company dan **boleh banyak per company** — tidak bentrok antar profil.
 > - Mengubah % pajak = **update template-nya** (`frappe.client.save` dengan `taxes` baru; child
 >   table berlaku **replace-all**, jadi baris `tabSales Taxes and Charges` milik template **diganti,
@@ -1452,7 +1560,61 @@ template dan nama `taxes_and_charges` yang harus diarahkan. Akun: `4310.000 - Pe
 > - Yang membuat `tabSales Taxes and Charges` bertambah adalah **invoice per transaksi** (POS
 >   Invoice/Sales Invoice menyalin baris pajak dari template) — itu normal, bukan konfigurasi.
 
-**Alur frontend — menyimpan konfigurasi servis/pajak (CREATE & EDIT):**
+**Field `custom_rates` — daftar pilihan persentase (custom app `baseapp`):**
+
+`custom_rates` adalah **Custom Field yang dibuat oleh custom app `baseapp`** (fungsi
+`ensure_sales_taxes_custom_fields` di `baseapp/utils.py`) pada **child table `Sales Taxes and
+Charges`** — jadi melekat di **tiap baris `taxes[]`**, bukan di parent template. Spesifikasi:
+`label` = `Rates`, `fieldtype` = **JSON**, `insert_after` = `rate`.
+
+Fungsinya: menampung **daftar opsi persentase alternatif** (mis. `[5, 10, 15]`) yang ditampilkan UI
+sebagai pilihan cepat, *selain* nilai default yang tersimpan di field `rate`. **Nilai yang benar-benar
+dipakai untuk menghitung pajak/biaya tetap `rate`** — `custom_rates` **tidak** direferensikan oleh
+logika kalkulasi server mana pun (murni bantu UI). Jadi bila user memilih salah satu opsi, frontend
+harus **menulis nilai terpilih itu ke `rate`** juga.
+
+**Aturan pengiriman (penting — fieldtype JSON):** karena `fieldtype = JSON`, Frappe menolak **list
+mentah** dengan error `Value for Rates cannot be a list` (`frappe/model/base_document.py:548`).
+Yang diterima hanya **string JSON** atau **object (dict)**. Jadi:
+
+| Salah (ditolak) | Benar |
+|---|---|
+| `"custom_rates": [5, 10, 15]` | `"custom_rates": "[5, 10, 15]"` |
+
+**Contoh payload (baris `taxes[]`, `custom_rates` sebagai string):**
+
+```json
+{ "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
+  "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+  "cost_center": "Main - APS" }
+```
+
+**Contoh respons (HTTP 200)** — perhatikan `custom_rates` **kembali sebagai string**, bukan array:
+
+```json
+{
+  "message": {
+    "name": "Tax POS Toko Cikarang - APS",
+    "company": "PT Rapupa Guna Teknologi",
+    "taxes": [
+      {
+        "charge_type": "On Net Total",
+        "account_head": "4310.000 - Pendapatan Service - APS",
+        "description": "Biaya Servis",
+        "rate": 10,
+        "custom_rates": "[5, 10, 15]",
+        "cost_center": "Main - APS"
+      }
+    ]
+  }
+}
+```
+
+> **Untuk frontend:** `custom_rates` **selalu dibaca sebagai string**. Lakukan
+> `JSON.parse(row.custom_rates)` untuk mendapatkan array-nya, dan `JSON.stringify(array)` sebelum
+> mengirim. Nilai `null`/kosong berarti tidak ada opsi alternatif.
+
+**Alur frontend — menyimpan konfigurasi biaya tambahan & pajak (CREATE & EDIT):**
 
 Centang + nilai % di form **bukan** field POS Profile langsung — frontend harus **mewujudkannya
 menjadi `Sales Taxes and Charges Template`** (baris `taxes`), lalu arahkan `taxes_and_charges`
@@ -1464,15 +1626,16 @@ profil lain. `name` otomatis = `{title} - {abbr}`.
 
 | Pilihan user | Baris `taxes` yang dibentuk |
 |---|---|
-| Servis saja | 1 baris: `On Net Total` (rate servis) |
+| Biaya tambahan saja (servis/tip/employee surcharge) | 1 baris `On Net Total` (rate biaya) + `custom_rates` (opsional) |
 | Hanya pajak | 1 baris: `On Net Total` (rate pajak) |
-| Servis + pajak (servis **tidak** masuk dasar) | 2 baris `On Net Total` (servis, pajak) |
-| Servis + pajak (**servis masuk** dasar pajak) | 2 baris: servis `On Net Total` + pajak `On Previous Row Total` |
+| Biaya tambahan + pajak (biaya **tidak** masuk dasar) | 2 baris `On Net Total` (biaya, pajak) |
+| Biaya tambahan + pajak (**biaya masuk** dasar pajak) | 2 baris: biaya `On Net Total` + pajak `On Previous Row Total` |
+| Beberapa biaya tambahan (mis. Servis + Tip) + pajak | 3 baris: tiap biaya `On Net Total`, lalu pajak `On Previous Row Total` (agar semua biaya masuk dasar) |
 
-**Skenario 1 — Membuat POS Profile baru (servis saja):**
+**Skenario 1 — Membuat POS Profile baru (biaya tambahan saja, mis. servis):**
 
 1. **Pre-check** duplikat `name` (§4.1 Langkah 0).
-2. **Resolve akun** servis & PPN (Langkah 0 di atas).
+2. **Resolve akun** biaya tambahan & PPN (Langkah 0 di atas).
 3. **Buat template** `Tax POS Toko Cikarang` (jika belum ada) via `frappe.client.insert`:
 
 ```json
@@ -1483,7 +1646,8 @@ profil lain. `name` otomatis = `{title} - {abbr}`.
     "company": "PT Rapupa Guna Teknologi",
     "taxes": [
       { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
-        "description": "Biaya Servis", "rate": 10, "cost_center": "Main - APS" }
+        "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+        "cost_center": "Main - APS" }
     ]
   }
 }
@@ -1510,7 +1674,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
       "company": "PT Rapupa Guna Teknologi",
       "taxes": [
         { "charge_type": "On Net Total", "account_head": "4310.000 - Pendapatan Service - APS",
-          "description": "Biaya Servis", "rate": 10, "cost_center": "Main - APS" },
+          "description": "Biaya Servis", "rate": 10, "custom_rates": "[5, 10, 15]",
+          "cost_center": "Main - APS" },
         { "charge_type": "On Previous Row Total", "account_head": "2142.000 - PPN Keluaran - APS",
           "description": "PPN (dasar termasuk servis)", "rate": 11, "cost_center": "Main - APS" }
       ]
@@ -1526,11 +1691,12 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
 | Pertanyaan | Jawaban |
 |---|---|
 | Apakah membuat template baru? | **Tidak** (pola satu-template-per-profil) — frontend cukup `save` (update) template milik profil tsb. Template baru hanya dibuat saat pertama kali. |
-| Mengupdate nilai servis lama atau membuat data baru? | **Update (replace-all)** — baris lama dihapus, baris baru di-insert sesuai centang terbaru. Tidak menumpuk data lama. |
+| Mengupdate nilai biaya/pajak lama atau membuat data baru? | **Update (replace-all)** — baris lama dihapus, baris baru di-insert sesuai centang terbaru. Tidak menumpuk data lama. |
 | Menimpa nilai di POS Profile lain? | **Tidak**, selama tiap profil punya template sendiri (dedicated). Hanya bila dua profil **berbagi satu template** yang sama, update akan memengaruhi keduanya — karena itu hindari berbagi template antar profil. |
 
 > **Alternatif nama-per-konfigurasi:** bila sengaja membuat template baru tiap kombinasi berubah
-> (mis. `Servis 10%`, `PPN 11%`, `Servis + PPN 11%`, `Servis + PPN 11% (dasar termasuk servis)`),
+> (mis. `Servis 10%`, `Tip 5%`, `Employee Surcharge 3%`, `PPN 11%`,
+> `Servis + PPN 11%`, `Servis + PPN 11% (dasar termasuk servis)`),
 > aman terhadap profil lain selama nama unik, tetapi **menumpuk template** dan wajib
 > `set_value taxes_and_charges` ke nama baru setiap berubah. Rekomendasi tetap
 > **satu-template-per-profil + update**.

@@ -62,27 +62,30 @@
 | 🔴 **WAJIB** | `item_group` | Link → Item Group | Grup produk (pilih node **leaf**/daun, `is_group=0`). Detail: [prd_item_group.md §5.2](./prd_item_group.md). |
 | 🔴 **WAJIB** | `stock_uom` | Link → UOM | Satuan dasar stok (Unit of Measure). Semua qty stok & konversi dihitung relatif ke UOM ini. |
 | 🟠 | `is_stock_item` | Check | `1` = produk stok (dikelola via Stock Ledger, punya `tabBin`). `0` = jasa/non-stok. |
+| 🟠 | `is_dynamic_product_bundle` | Check | `1` = Item ini **paket dinamis** — komponen/isiannya dipilih kasir saat transaksi (berbeda dari `Product Bundle` bawaan ERPNext yang statis — paket statis dibahas di [prd_item_product_bundle.md](./prd_item_product_bundle.md)). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_stock_item`); hanya ada bila app tersebut terpasang. Default `0`. Struktur & CRUD pilihannya: [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md). |
 | 🟠 | `is_sales_item` | Check | `1` = produk bisa dijual (muncul di Quotation/Sales Order/Sales Invoice/POS). |
 | 🟠 | `is_purchase_item` | Check | `1` = produk bisa dibeli (muncul di Request for Quotation/Purchase Order/Purchase Receipt). |
 | 🟠 | `purchase_uom` | Link → UOM | UOM default saat transaksi **beli** (bisa berbeda dari `stock_uom`; faktor konversi di `uoms`, §2.3/§5). |
 | 🟠 | `has_variants` | Check | `1` = Item ini **template** varian (wajib isi `attributes`, §2.5). `0`/kosong = Item tunggal. |
+| 🟠 | `is_fixed_asset` | Check | `1` = Item **aset tetap** (mis. mesin/kendaraan) yang dibeli untuk dikapitalisasi jadi **Asset** (modul Assets; `is_stock_item` ikut jadi `0`, butuh `asset_category`). Default `0` — untuk produk jualan biasa kirim `0`. |
 | 🟠 | `weight_per_unit` | Float | Berat per unit produk (dipakai hitung `total_weight` pada transaksi) -> berat yang digunakan untuk perhitungan logistik/ongkos kirim. |
 | 🟠 | `weight_uom` | Link → UOM | Satuan berat (mis. `Kg`, `Gram`) -> satuan produk yang digunakan untuk perhitungan logistik/ongkos kirim. |
 | 🟠 | `image` | AttachImage | **Foto utama** produk — disimpan sebagai **string URL file** (mis. `/files/kaos.jpg` atau URL lengkap). Foto tambahan (multi) disimpan di `tabFile` (§4.7). |
 | 🟠 | `allow_negative_stock` | Check | `1` = izinkan stok menjadi negatif (transaksi tetap jalan walau stok kurang). Default `0`. |
+| 🟠 | `has_serial_no` | Check | `1` = tiap unit produk punya **nomor seri unik** (dilacak per unit via doctype `Serial No`; hanya untuk item stok). Default `0`. Menjadi **read-only** setelah Item punya riwayat stok (§2.1 no. 3). |
 | 🟠 | `has_batch_no` | Check | `1` = produk dikelola per **Batch** (stok & `batch_no` dilacak per batch; item ber-batch memakai doctype `Batch`). **Wajib diisi `1` jika `has_expiry_date` diisi `1`** — backend menolak bila kedaluwarsa diaktifkan tanpa batch. Menjadi **read-only** setelah Item punya riwayat stok (§2.1 no. 3). |
 | 🟠 | `has_expiry_date` | Check | `1` = produk punya tanggal kedaluwarsa (per batch). **Jika diisi `1`, `has_batch_no` wajib ikut diisi `1`** (lihat baris `has_batch_no`). Memunculkan field `shelf_life_in_days`. |
 | 🟠 | `shelf_life_in_days` | Int | **Umur simpan dalam hari** — hanya relevan (muncul) saat `has_expiry_date = 1`. Berfungsi sebagai **preset/template**: ketika **Batch baru dibuat** untuk Item ini, `expiry_date` Batch dihitung **otomatis** oleh backend (mis. dari tanggal produksi/manufaktur + `shelf_life_in_days`). |
-| 🟠 | `min_order_qty` | Float | Qty minimum saat pemesanan (dipakai Material Request / peringatan di Purchase). |
+| 🟠 | `reorder_levels` | Table (child `Item Reorder`) | **Batas stok per (item, warehouse)** — ambang **min & maks**. Baris: `warehouse` (Link→Warehouse, `reqd`); `warehouse_reorder_level` (Float = **nilai ambang minimum**, satuan `stock_uom`); `material_request_type` (`reqd` — Select `Purchase`/`Transfer`/`Material Issue`/`Manufacture`, menentukan cara restock; `Purchase` = beli ke supplier); `warehouse_reorder_qty` (Float, **opsional** — untuk alur pemesanan nanti, PRD stok §9); `max_stock_level` (Float, **opsional** — **custom field dari app `baseapp`**, nilai ambang maksimum, satuan `stock_uom`; hanya ada bila `baseapp` terpasang, lihat §4.1). Hanya relevan untuk item stok (`is_stock_item=1`). Cara simpan: §4.1 (contoh CREATE). |
 | 🟠 | `brand` | Link → Brand | Merek produk (opsional; bisa jadi sumber default via `brand_defaults`). |
 | 🟠 | `description` | TextEditor | Deskripsi produk (HTML). Backend membersihkan HTML bila kosong/rapi. |
 | 🟠 | `_user_tags` | Tags (kolom sistem) | **Tag** produk, dipisah koma (mis. `"best seller,baru"`). Bukan field definisi doctype — kolom sistem yang tersedia di semua tabel (§2.6). |
 | 🟠 | `valuation_rate` | Currency | **Nilai persediaan per unit** (biaya masuk stok; dipakai hitung `stock_value` di `tabBin`). Bisa diisi 0 untuk item baru / zero valuation. |
-| 🟠 | `standard_rate` | Currency | **Harga jual standar**. Mengisi field ini saat CREATE **otomatis membuat Item Price** di backend (detail: PRD Price List, §9). |
+| 🟠 | `standard_rate` | Currency | **Harga jual standar**. Mengisi field ini saat CREATE **otomatis membuat Item Price** di backend (detail: [prd_item_price.md §4.9](./prd_item_price.md)). |
 | ⚪ **Otomatis — jangan dikirim** | `name` | — | `name = item_code`. |
 | ⚪ **Read-only / dikelola sistem** | `valuation_rate` (stok berjalan), `last_purchase_rate`, `total_projected_qty` | — | Nilai dihitung/di-update dari transaksi stok. |
 | ⚪ **Set saat varian** | `variant_of`, `variant_based_on`, `attributes` | — | Lihat §4.2. |
-| ✖️ **Bukan bagian scope** | `opening_stock`, `reorder_levels`, `has_serial_no`, `is_fixed_asset`, `taxes`, `item_defaults`, dst. | — | Field lanjutan boleh dipakai, tetapi **stok** (opening stock, reorder) dan **price list** didokumentasikan di PRD terpisah (§9). |
+| ✖️ **Bukan bagian scope** | `opening_stock`, `taxes`, `item_defaults`, dst. | — | Field lanjutan boleh dipakai, tetapi mekanisme **stok** (opening stock, auto-reorder) dan **price list** didokumentasikan di PRD terpisah (§9). Penyimpanan ambang `reorder_levels` sudah dicakup di dokumen ini (lihat baris `reorder_levels` di atas & §4.1). |
 
 > Catatan: daftar di atas adalah **data yang wajib/diperlukan** menurut kebutuhan aplikasi
 > (per permintaan tim produk), bukan seluruh field Item. Field `reqd` sebenarnya oleh doctype hanya
@@ -126,7 +129,7 @@
 | `tabBin` | `Bin` | **Stok per (item, warehouse)** — `actual_qty`, `projected_qty`, `stock_value`, dsb. (§4.9). |
 | `tabItem Default` | `Item Default` | Child table `item_defaults` — default per company (`default_warehouse`, akun, dst.). |
 | `tabItem Tax` | `Item Tax` | Child table `taxes` — template pajak default (cross-ref: [prd_item_group.md §2.3](./prd_item_group.md)). |
-| `tabItem Reorder` | `Item Reorder` | Child table `reorder_levels` — ambang & qty reorder (PRD stok, §9). |
+| `tabItem Reorder` | `Item Reorder` | Child table `reorder_levels` — batas stok (**min & maks**) per (item, warehouse). Kolom `max_stock_level` adalah **custom field dari `baseapp`**. Cara menyimpan di dokumen ini: §4.1; mekanisme reorder / order otomatis: PRD stok (§9). |
 
 > Item Group disimpan di `tabItem Group` (lihat [prd_item_group.md §2.2](./prd_item_group.md));
 > Warehouse di `tabWarehouse` (lihat [prd_warehouse.md](../setup/prd_warehouse.md)).
@@ -250,14 +253,15 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
         { "uom": "Dus", "conversion_factor": 12 }
       ],
       "has_variants": 0,
+      "is_fixed_asset": 0,
       "weight_per_unit": 0.6,
       "weight_uom": "Kg",
       "image": "/files/min-001.jpg",
       "allow_negative_stock": 0,
+      "has_serial_no": 0,
       "has_batch_no": 1,
       "has_expiry_date": 1,
       "shelf_life_in_days": 180,
-      "min_order_qty": 10,
       "brand": "Aqua",
       "description": "Air mineral kemasan botol 600ml",
       "_user_tags": "best seller,baru",
@@ -291,9 +295,11 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
       { "name": "abc002", "uom": "Dus", "conversion_factor": 12 }
     ],
     "has_variants": 0,
+    "is_fixed_asset": 0,
     "weight_per_unit": 0.6,
     "weight_uom": "Kg",
     "image": "/files/min-001.jpg",
+    "has_serial_no": 0,
     "has_batch_no": 1,
     "has_expiry_date": 1,
     "shelf_life_in_days": 180,
@@ -316,8 +322,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 
 > **Catatan `standard_rate`:** mengisi `standard_rate` saat CREATE **otomatis membuat Item Price**
 > pada Price List default selling di backend (`after_insert → add_price`). Detail pengelolaan harga
-> (Item Price, Price List, bulk price) ada di **PRD Price List terpisah** (§9) — di dokumen ini cukup
-> kirim `standard_rate` sebagai harga jual standar awal.
+> (Item Price, Price List, bulk price) ada di **[prd_item_price.md](./prd_item_price.md)** — di dokumen
+> ini cukup kirim `standard_rate` sebagai harga jual standar awal.
 
 **Varian A — Produk jasa (non-stok, tidak dibeli):**
 
@@ -350,6 +356,51 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   "valuation_rate": 15000
 }
 ```
+
+**Simpan batas stok (minimum & maksimum) — `reorder_levels` (per item + warehouse):**
+
+Untuk menyimpan **nilai ambang stok per (item, warehouse)** — **minimum** (field standar
+`warehouse_reorder_level`) dan **maksimum** (`max_stock_level`, custom field dari app **`baseapp`**) —
+kelak dipakai untuk notifikasi re-stock / auto reorder (mekanismenya di PRD stok, §9), sertakan
+child table **`reorder_levels`** (doctype `Item Reorder`) saat CREATE/UPDATE Item. Berlaku
+**replace-all** (sama seperti `uoms`/`barcodes`): kirim seluruh baris yang diinginkan. Hanya untuk
+item stok (`is_stock_item=1`); nilai ambang dalam **satuan `stock_uom`**.
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Item",
+      "item_code": "MIN-001",
+      "item_group": "Minuman",
+      "stock_uom": "Pcs",
+      "reorder_levels": [
+        { "warehouse": "Toko Cikarang - PTMJ", "warehouse_reorder_level": 20, "max_stock_level": 120, "material_request_type": "Purchase" },
+        { "warehouse": "Gudang Pusat - PTMJ", "warehouse_reorder_level": 50, "max_stock_level": 300, "material_request_type": "Purchase" }
+      ]
+    }
+  }'
+```
+
+> - `warehouse` **`reqd`** — wajib diisi. `warehouse_reorder_level` = **nilai ambang minimum**
+>   (mis. `20` = min 20 Pcs), dalam satuan `stock_uom`.
+> - `material_request_type` **`reqd`** — menentukan **jenis Material Request** yang kelak dibuat
+>   sistem saat stok mencapai ambang (mekanisme auto-reorder, PRD stok §9). Opsi: `Purchase` =
+>   restock lewat **pembelian ke supplier** (cocok untuk item `is_purchase_item=1`, seperti contoh
+>   ini); `Transfer` = pindah gudang; `Material Issue` = pengeluaran material; `Manufacture` =
+>   produksi.
+> - `warehouse_reorder_qty` **opsional** — boleh dikosongkan dulu karena jumlah pemesanan dibahas di
+>   PRD stok (§9).
+> - `max_stock_level` **opsional** — **custom field dari app `baseapp`** (bukan field standar
+>   ERPNext): nilai **ambang maksimum** per (item, warehouse), satuan `stock_uom`. Hanya tersedia
+>   bila `baseapp` terpasang & sudah di-`bench migrate`. Murni untuk pencatatan/notifikasi — tidak
+>   memicu logika stok apa pun.
+> - Untuk item yang sudah ada, gunakan `frappe.client.save` dengan seluruh baris `reorder_levels`
+>   (replace-all); baris ini ikut terbaca pada `frappe.client.get` (§4.3).
+> - Menyimpan nilai di sini **belum memicu apa pun** di backend (tidak membuat Material Request
+>   otomatis) — mekanisme reorder & notifikasi diatur belakangan (PRD stok, §9).
 
 ### 4.2 CREATE — Item dengan varian
 
@@ -547,9 +598,9 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get \
 ```
 
 > Respons `message` berisi seluruh field Item (seperti respons CREATE), termasuk child table
-> `uoms`, `barcodes`, `attributes`, `item_defaults`, `taxes`. (Catatan: `uoms` pada respons
-> menampilkan baris yang tersimpan — baris `stock_uom` dengan `conversion_factor=1` otomatis
-> ditambahkan backend bila belum ada.)
+> `uoms`, `barcodes`, `attributes`, `reorder_levels`, `item_defaults`, `taxes`. (Catatan: `uoms`
+> pada respons menampilkan baris yang tersimpan — baris `stock_uom` dengan `conversion_factor=1`
+> otomatis ditambahkan backend bila belum ada.)
 
 **Total count — `frappe.client.get_count`** (untuk pagination / lazy loading):
 
@@ -606,8 +657,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 ### 4.5 UPDATE — `frappe.client.save` & `frappe.client.set_value`
 
 Update memakai `save`: kirim dokumen (hasil `frappe.client.get` yang dimodifikasi); `name` ada di
-body. Child table (`uoms`, `barcodes`, `attributes`, `item_defaults`, `taxes`) berlaku **replace-all** —
-kirim seluruh baris yang diinginkan.
+body. Child table (`uoms`, `barcodes`, `attributes`, `reorder_levels`, `item_defaults`, `taxes`)
+berlaku **replace-all** — kirim seluruh baris yang diinginkan.
 
 ```bash
 curl -X POST https://site-anda.com/api/method/frappe.client.save \
@@ -641,7 +692,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
 > - `save` membangun ulang dokumen dari dict — kirim dokumen yang konsisten/lengkap (idealnya hasil
 >   GET yang diubah). Child table bersifat replace-all.
 > - Ubah `standard_rate` di sini **tidak** otomatis mengubah Item Price yang sudah ada (hanya saat
->   CREATE). Pengelolaan harga: PRD Price List (§9).
+>   CREATE). Pengelolaan harga: [prd_item_price.md](./prd_item_price.md).
 > - Ubah `item_group` → pindah kategori produk (tidak ada efek samping stok).
 > - Ubah `stock_uom` pada Item ber-stok **ditolak backend**.
 
@@ -1344,6 +1395,61 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   }'
 ```
 
+### 6.7 Menyaring daftar Item per Item Group (filter `item_group`)
+
+Untuk menampilkan/menyaring Item berdasarkan kategori (mis. dropdown produk per grup / filter daftar),
+pakai field `item_group` — field **langsung** di doctype `Item` (berlaku juga di `get_count` /
+`get_value`). Item hanya menunjuk ke Item Group **leaf** (`is_group=0`), jadi:
+
+```bash
+# (a) Item pada 1 leaf group — langsung
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["name","item_name","item_group","stock_uom"],
+    "filters": [["item_group","=","Minuman"],["is_stock_item","=",1],["disabled","=",0]],
+    "order_by": "name asc",
+    "limit_page_length": 0
+  }'
+```
+
+```bash
+# (b) Item di bawah group induk + seluruh sub-group — 2 langkah.
+#     Langkah 1: resolve leaf keturunan group tsb (rentang lft/rgt subtree; alternatif:
+#     frappe.desk.treeview.get_children, lihat prd_item_group.md §4 & §5.1). Contoh rentang
+#     utk subtree "Food & Beverage" (angka lft/rgt diambil dari record group tsb):
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item Group",
+    "fields": ["name","is_group"],
+    "filters": [["lft",">=",4],["rgt","<=",11]],
+    "order_by": "lft asc",
+    "limit_page_length": 0
+  }'
+```
+
+```bash
+#     Langkah 2: filter Item dengan `item_group in [ ... ]` (daftar nama hasil Langkah 1)
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["name","item_name","item_group"],
+    "filters": [["item_group","in",["Minuman","Air Mineral"]],["is_stock_item","=",1]],
+    "order_by": "name asc",
+    "limit_page_length": 0
+  }'
+```
+
+> **Penting:** `item_group = <group induk>` (node `is_group=1`) **mengembalikan kosong** — Item tidak
+> pernah menunjuk node group, hanya leaf. Bila UI memakai tree picker, gunakan pola (b). Detail tree
+> Item Group & aturan leaf: [prd_item_group.md §4 & §5](./prd_item_group.md).
+
 ---
 
 ## 7. Penanganan error umum
@@ -1415,15 +1521,26 @@ test script.
 1. **Stok & Price List — PRD terpisah (menyusul).** Detail berikut **tidak** didokumentasikan di file
    ini dan akan dibuat sebagai file PRD sendiri:
    - **Stok:** Opening Stock, Stock Ledger Entry, Stock Entry (Receipt/Issue/Transfer), Stock
-     Reconciliation (mekanisme lanjutan: akun, posting date, reposting), reorder level — termasuk
-     cara mengisi stok awal saat item baru dibuat (`opening_stock` + `valuation_rate`, atau via
-     Stock Entry). Di file ini: info baca `tabBin` (§4.9) + **alur zero stok via Stock Reconciliation
-     saat non-aktif** (§4.8).
-   - **Price List / Item Price:** pengelolaan `standard_rate`, harga per Price List (selling/buying),
-     harga per UOM, bulk price — termasuk catatan bahwa `standard_rate` saat CREATE otomatis membuat
-     Item Price (lihat §4.1).
-   > Referensi silang pada file ini (mis. "PRD Price List", "PRD stok") menunjuk ke file yang akan
-   > dibuat: `prd_item_price.md` dan `prd_stock.md` (folder yang sama). Sampai file tersebut ada,
-   > anggap bagian terkait belum tersedia.
-2. **File terkait:** Item Group [prd_item_group.md](./prd_item_group.md), Warehouse
+     Reconciliation (mekanisme lanjutan: akun, posting date, reposting), **mekanisme reorder &
+     notifikasi re-stock** — termasuk cara mengisi stok awal saat item baru dibuat (`opening_stock` +
+     `valuation_rate`, atau via Stock Entry). Di file ini: info baca `tabBin` (§4.9), **alur zero
+     stok via Stock Reconciliation saat non-aktif** (§4.8), dan **penyimpanan ambang stok minimum
+     `reorder_levels`** (ringkasan §2 & contoh CREATE §4.1).
+   - **Price List / Item Price:** **sudah tersedia** → [prd_item_price.md](./prd_item_price.md)
+     (doctype `Price List` + `Item Price`): pengelolaan `standard_rate`, harga per Price List
+     (selling/buying), harga per UOM, harga khusus customer/supplier, masa berlaku, bulk update, dan
+     catatan bahwa `standard_rate` saat CREATE otomatis membuat Item Price (§4.9 file tersebut).
+   > Referensi silang pada file ini: **"PRD Price List"** → [prd_item_price.md](./prd_item_price.md)
+   > (sudah ada). **"PRD stok"** → `prd_stock.md` (belum dibuat, folder yang sama) — bagian terkait
+   > belum tersedia.
+2. **File terkait:** **Price List / Item Price [prd_item_price.md](./prd_item_price.md)**,
+   **Pricing Rule (diskon & promo) [prd_item_pricing_rule.md](./prd_item_pricing_rule.md)**,
+   **Product Bundle (paket statis) [prd_item_product_bundle.md](./prd_item_product_bundle.md)**,
+   **Dynamic Product Bundle (paket dengan isian dipilih kasir)
+   [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md)**,
+   Item Group [prd_item_group.md](./prd_item_group.md), Warehouse
    [prd_warehouse.md](../setup/prd_warehouse.md), OAuth [prd_oauth.md](../prd_oauth.md).
+   > Field Item yang dipakai Pricing Rule: `max_discount` (batas diskon per item) dan
+   > `item_group`/`brand` (dasar `apply_on` pada Pricing Rule).
+   > Field Item untuk paket dinamis: `is_dynamic_product_bundle` (custom field `baseapp`) —
+   > lihat [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md).
