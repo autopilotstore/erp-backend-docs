@@ -7883,6 +7883,1921 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "19. Stock Entry",
+      "item": [
+        {
+          "name": "19.1 GET Stock Entry Type (dropdown)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry Type\",\n  \"fields\": [\n    \"name\",\n    \"purpose\",\n    \"add_to_transit\"\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_entry.md 5.1. 13 type standar; kirim name-nya ke field stock_entry_type. add_to_transit semua 0 -> transfer 2 tahap cukup kirim add_to_transit=1 pada dokumen (lihat 19.18)."
+          },
+          "response": []
+        },
+        {
+          "name": "19.2 GET Stock Settings (prasyarat serial/batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Settings\",\n  \"filters\": {\n    \"name\": \"Stock Settings\"\n  },\n  \"fieldname\": [\n    \"enable_serial_and_batch_no_for_item\",\n    \"use_serial_batch_fields\",\n    \"allow_negative_stock\",\n    \"validate_material_transfer_warehouses\"\n  ]\n}"
+            },
+            "description": "prd_stock_entry.md 2.4 & 5.9. enable_serial_and_batch_no_for_item HARUS 1 agar serial_no/batch_no bisa dikirim; use_serial_batch_fields=1 = frontend mengirim teks serial/batch."
+          },
+          "response": []
+        },
+        {
+          "name": "19.3 CREATE Stock Entry draft (Material Transfer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"from_warehouse\": \"{{se_warehouse_from}}\",\n    \"to_warehouse\": \"{{se_warehouse_to}}\",\n    \"remarks\": \"Transfer antar gudang\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": \"{{se_qty}}\",\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 4.1. Draft saja (docstatus 0) -> stok BELUM bergerak. purpose tidak dikirim (ikut stock_entry_type). Tanpa set_posting_time, posting_date dipaksa hari ini. Test script menyimpan name ke se_stock_entry_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.collectionVariables.set('se_stock_entry_id', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.4 SUBMIT Stock Entry (draft -> submitted)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.submit"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": \"{{se_doc_full}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 4.2. Stok baru bergerak di langkah ini (SLE + GL). Body memakai {{se_doc_full}} yang diisi pre-request script (frappe.client.get). JANGAN kirim hanya {doctype,name} -> 417 TimestampMismatchError. Untuk baris serial/batch: submit memakai respons CREATE apa adanya, atau kosongkan serial_no+batch_no bila dokumen diambil ulang via GET."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ambil dokumen UTUH via frappe.client.get lalu simpan ke variabel se_doc_full,",
+                  "// karena frappe.client.submit/cancel baru butuh dokumen lengkap (bukan doctype+name saja).",
+                  "const dt = pm.collectionVariables.get('se_doc_doctype') || 'Stock Entry';",
+                  "const nm = pm.variables.replaceIn('{{' + (pm.collectionVariables.get('se_doc_var') || 'se_stock_entry_id') + '}}');",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{base_url}}/api/method/frappe.client.get'),",
+                  "  method: 'POST',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.variables.replaceIn('{{access_token}}'), 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ doctype: dt, name: nm }) }",
+                  "}, (err, res) => { pm.collectionVariables.set('se_doc_full', JSON.stringify(res.json().message)); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.5 READ Stock Entry (dokumen + items)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry\",\n  \"name\": \"{{se_stock_entry_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 4.3. Simpan message (dokumen utuh) bila akan submit/save."
+          },
+          "response": []
+        },
+        {
+          "name": "19.6 GET progres & nilai (get_value)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry\",\n  \"filters\": {\n    \"name\": \"{{se_stock_entry_id}}\"\n  },\n  \"fieldname\": [\n    \"docstatus\",\n    \"per_transferred\",\n    \"total_outgoing_value\",\n    \"total_incoming_value\",\n    \"value_difference\"\n  ]\n}"
+            },
+            "description": "prd_stock_entry.md 4.3. per_transferred = % qty yang sudah diterima (untuk entri transit 2 tahap)."
+          },
+          "response": []
+        },
+        {
+          "name": "19.7 GET daftar transfer submitted (get_list)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry\",\n  \"fields\": [\n    \"name\",\n    \"posting_date\",\n    \"stock_entry_type\",\n    \"from_warehouse\",\n    \"to_warehouse\",\n    \"total_outgoing_value\",\n    \"docstatus\"\n  ],\n  \"filters\": [\n    [\n      \"purpose\",\n      \"=\",\n      \"Material Transfer\"\n    ],\n    [\n      \"docstatus\",\n      \"=\",\n      1\n    ]\n  ],\n  \"order_by\": \"posting_date desc, name desc\",\n  \"limit_start\": 0,\n  \"limit_page_length\": 50\n}"
+            },
+            "description": "prd_stock_entry.md 4.3. Filter riwayat transfer. Stock Entry TIDAK punya field disabled."
+          },
+          "response": []
+        },
+        {
+          "name": "19.8 GET total data (get_count)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_count"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry\",\n  \"filters\": [\n    [\n      \"purpose\",\n      \"=\",\n      \"Material Transfer\"\n    ]\n  ]\n}"
+            },
+            "description": "prd_stock_entry.md 4.3. Untuk pagination/lazy loading."
+          },
+          "response": []
+        },
+        {
+          "name": "19.9 UPDATE field tunggal draft (set_value)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry\",\n  \"name\": \"{{se_stock_entry_id}}\",\n  \"fieldname\": {\n    \"remarks\": \"Koreksi: surat jalan SJ-001\"\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 4.4. Hanya untuk DRAFT; setelah submitted -> 417 UpdateAfterSubmitError untuk field tertentu."
+          },
+          "response": []
+        },
+        {
+          "name": "19.10 UPDATE dokumen draft (save, replace-all items)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.save"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": \"{{se_doc_full}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 4.4. save membangun ulang dokumen dari dict -> kirim dokumen UTUH (name+modified+items lengkap); items berlaku replace-all."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ambil dokumen UTUH via frappe.client.get lalu simpan ke variabel se_doc_full,",
+                  "// karena frappe.client.submit/cancel baru butuh dokumen lengkap (bukan doctype+name saja).",
+                  "const dt = pm.collectionVariables.get('se_doc_doctype') || 'Stock Entry';",
+                  "const nm = pm.variables.replaceIn('{{' + (pm.collectionVariables.get('se_doc_var') || 'se_stock_entry_id') + '}}');",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{base_url}}/api/method/frappe.client.get'),",
+                  "  method: 'POST',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.variables.replaceIn('{{access_token}}'), 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ doctype: dt, name: nm }) }",
+                  "}, (err, res) => { pm.collectionVariables.set('se_doc_full', JSON.stringify(res.json().message)); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.11 CANCEL Stock Entry (stok dikembalikan)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry\",\n  \"name\": \"{{se_stock_entry_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 4.5. docstatus -> 2, dibuat SLE pembalik. Diblokir bila stok hasil transfer sudah terpakai (NegativeStockError) - lihat 19.33/19.34."
+          },
+          "response": []
+        },
+        {
+          "name": "19.12 DELETE Stock Entry draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.delete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.delete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry\",\n  \"name\": \"{{se_stock_entry_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 4.5. Hanya draft. Dokumen submitted -> 417 Submitted Record cannot be deleted."
+          },
+          "response": []
+        },
+        {
+          "name": "19.13 Amend Stock Entry (amended_from)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"amended_from\": \"{{se_stock_entry_id}}\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"from_warehouse\": \"{{se_warehouse_from}}\",\n    \"to_warehouse\": \"{{se_warehouse_to}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": \"{{se_qty}}\",\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 4.5. Amend = buat dokumen baru dari dokumen yang sudah dibatalkan (amended_from). Jalankan setelah 19.11."
+          },
+          "response": []
+        },
+        {
+          "name": "19.14 CREATE Material Receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Receipt\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"to_warehouse\": \"{{se_warehouse_to}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": \"{{se_qty}}\",\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1,\n        \"basic_rate\": 500\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 4.1 varian C. Tanpa gudang asal; isi basic_rate (harga perolehan)."
+          },
+          "response": []
+        },
+        {
+          "name": "19.15 CREATE Material Issue (tanpa akun beban)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Issue\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"from_warehouse\": \"{{se_warehouse_to}}\",\n    \"remarks\": \"Pemakaian internal - nota INT-001\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": 2,\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 4.1 varian D & 6.6. expense_account TERISI OTOMATIS (site dev: 5110.020 - Penyesuaian Stock - APSD) sehingga tidak wajib dikirim."
+          },
+          "response": []
+        },
+        {
+          "name": "19.16 CREATE Material Issue (akun beban eksplisit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Issue\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"from_warehouse\": \"{{se_warehouse_to}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": 2,\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1,\n        \"expense_account\": \"{{se_expense_account}}\",\n        \"cost_center\": \"{{se_cost_center}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 6.6. Pakai bila beban harus masuk akun tertentu (isi variabel se_expense_account & se_cost_center)."
+          },
+          "response": []
+        },
+        {
+          "name": "19.17 GET stok tersedia di gudang asal (Bin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\n    \"item_code\",\n    \"warehouse\",\n    \"actual_qty\",\n    \"projected_qty\",\n    \"reserved_qty\"\n  ],\n  \"filters\": [\n    [\n      \"warehouse\",\n      \"=\",\n      \"{{se_warehouse_from}}\"\n    ],\n    [\n      \"item_code\",\n      \"=\",\n      \"{{se_item_code}}\"\n    ]\n  ],\n  \"limit_page_length\": 1\n}"
+            },
+            "description": "prd_stock_entry.md 5.4. Tampilkan agar user tidak mengirim qty melebihi stok (submit akan gagal NegativeStockError)."
+          },
+          "response": []
+        },
+        {
+          "name": "19.18 TAHAP 2 - buat draft pengeluaran ke Transit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/erpnext.stock.doctype.material_request.material_request.make_in_transit_stock_entry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "erpnext.stock.doctype.material_request.material_request.make_in_transit_stock_entry"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_name\": \"{{se_material_request_id}}\",\n  \"in_transit_warehouse\": \"{{se_warehouse_transit}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.2. Mengembalikan DRAFT (name null, add_to_transit=1, to_warehouse=Transit, baris s_warehouse=gudang asal MR). Tidak menyimpan -> lanjut 19.19 (insert). Wajib MR sudah submitted, jika belum: 417 'Cannot map because following condition fails: docstatus=1'."
+          },
+          "response": []
+        },
+        {
+          "name": "19.19 INSERT draft pengeluaran (tahap 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"add_to_transit\": 1,\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"to_warehouse\": \"{{se_warehouse_transit}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": \"{{se_qty}}\",\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1,\n        \"s_warehouse\": \"{{se_warehouse_from}}\",\n        \"t_warehouse\": \"{{se_warehouse_transit}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 6.2. Versi manual dari 19.18 (tanpa MR): add_to_transit=1 + to_warehouse = gudang Transit. Test script menyimpan name ke se_outgoing_stock_entry_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.collectionVariables.set('se_outgoing_stock_entry_id', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.20 TAHAP 2 - SUBMIT pengeluaran",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.submit"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": \"{{se_doc_full}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.2. Setelah submit: stok pindah ke Transit, MR transfer_status='In Transit', per_ordered=100. Pre-request mengambil dokumen se_outgoing_stock_entry_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('se_doc_doctype', 'Stock Entry');",
+                  "pm.collectionVariables.set('se_doc_var', 'se_outgoing_stock_entry_id');",
+                  "// Ambil dokumen UTUH via frappe.client.get lalu simpan ke variabel se_doc_full,",
+                  "// karena frappe.client.submit/cancel baru butuh dokumen lengkap (bukan doctype+name saja).",
+                  "const dt = pm.collectionVariables.get('se_doc_doctype') || 'Stock Entry';",
+                  "const nm = pm.variables.replaceIn('{{' + (pm.collectionVariables.get('se_doc_var') || 'se_stock_entry_id') + '}}');",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{base_url}}/api/method/frappe.client.get'),",
+                  "  method: 'POST',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.variables.replaceIn('{{access_token}}'), 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ doctype: dt, name: nm }) }",
+                  "}, (err, res) => { pm.collectionVariables.set('se_doc_full', JSON.stringify(res.json().message)); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.21 GET status Material Request setelah tahap 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"filters\": {\n    \"name\": \"{{se_material_request_id}}\"\n  },\n  \"fieldname\": [\n    \"status\",\n    \"transfer_status\",\n    \"per_ordered\",\n    \"per_received\"\n  ]\n}"
+            },
+            "description": "prd_stock_entry.md 6.2. Harapan: status=Transferred, transfer_status='In Transit', per_ordered=100."
+          },
+          "response": []
+        },
+        {
+          "name": "19.22 TAHAP 3 - buat draft penerimaan (Transit -> tujuan)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/erpnext.stock.doctype.stock_entry.stock_entry.make_stock_in_entry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "erpnext.stock.doctype.stock_entry.stock_entry.make_stock_in_entry"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_name\": \"{{se_outgoing_stock_entry_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.3. Draft: outgoing_stock_entry terisi, baris s_warehouse=Transit & t_warehouse=gudang tujuan MR, against_stock_entry+ste_detail terisi. Sumber harus submitted."
+          },
+          "response": []
+        },
+        {
+          "name": "19.23 INSERT draft penerimaan (tahap 3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"outgoing_stock_entry\": \"{{se_outgoing_stock_entry_id}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": \"{{se_qty}}\",\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1,\n        \"s_warehouse\": \"{{se_warehouse_transit}}\",\n        \"t_warehouse\": \"{{se_warehouse_to}}\",\n        \"against_stock_entry\": \"{{se_outgoing_stock_entry_id}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 6.3. Versi manual (tanpa mapper): set outgoing_stock_entry lalu isi baris via 19.27 (run_doc_method set_items_for_stock_in). Test script menyimpan name ke se_stock_entry_in_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.collectionVariables.set('se_stock_entry_in_id', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.24 TAHAP 3 - SUBMIT penerimaan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.submit"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": \"{{se_doc_full}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.3. Setelah submit: stok masuk gudang tujuan, MR transfer_status='Completed', dokumen keluar per_transferred=100."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('se_doc_doctype', 'Stock Entry');",
+                  "pm.collectionVariables.set('se_doc_var', 'se_stock_entry_in_id');",
+                  "// Ambil dokumen UTUH via frappe.client.get lalu simpan ke variabel se_doc_full,",
+                  "// karena frappe.client.submit/cancel baru butuh dokumen lengkap (bukan doctype+name saja).",
+                  "const dt = pm.collectionVariables.get('se_doc_doctype') || 'Stock Entry';",
+                  "const nm = pm.variables.replaceIn('{{' + (pm.collectionVariables.get('se_doc_var') || 'se_stock_entry_id') + '}}');",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{base_url}}/api/method/frappe.client.get'),",
+                  "  method: 'POST',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.variables.replaceIn('{{access_token}}'), 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ doctype: dt, name: nm }) }",
+                  "}, (err, res) => { pm.collectionVariables.set('se_doc_full', JSON.stringify(res.json().message)); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.25 GET status Material Request setelah tahap 3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"filters\": {\n    \"name\": \"{{se_material_request_id}}\"\n  },\n  \"fieldname\": [\n    \"status\",\n    \"transfer_status\",\n    \"per_ordered\"\n  ]\n}"
+            },
+            "description": "prd_stock_entry.md 6.3. Harapan: transfer_status='Completed'."
+          },
+          "response": []
+        },
+        {
+          "name": "19.26 GET pergerakan stok (Stock Ledger Entry) 2 tahap",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"fields\": [\n    \"item_code\",\n    \"warehouse\",\n    \"actual_qty\",\n    \"qty_after_transaction\",\n    \"voucher_type\",\n    \"voucher_no\",\n    \"is_cancelled\"\n  ],\n  \"filters\": [\n    [\n      \"voucher_no\",\n      \"in\",\n      [\n        \"{{se_outgoing_stock_entry_id}}\",\n        \"{{se_stock_entry_in_id}}\"\n      ]\n    ]\n  ],\n  \"order_by\": \"creation asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_entry.md 6.4. Verifikasi: keluar negatif dari gudang asal, masuk positif ke Transit, lalu -dari Transit ke gudang tujuan. Detail SLE: prd_stock_ledger.md."
+          },
+          "response": []
+        },
+        {
+          "name": "19.27 Isi baris penerimaan dari dokumen keluar (run_doc_method)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/run_doc_method",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "run_doc_method"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"set_items_for_stock_in\",\n  \"dt\": \"Stock Entry\",\n  \"dn\": \"{{se_stock_entry_in_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 5.6. Alternatif 19.22/19.23: buat draft + outgoing_stock_entry, lalu panggil method ini. Baris terisi s_warehouse=Transit & against_stock_entry/ste_detail; t_warehouse masih kosong -> isi gudang tujuan lalu submit."
+          },
+          "response": []
+        },
+        {
+          "name": "19.28 Autofill detail baris (run_doc_method get_item_details)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/run_doc_method",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "run_doc_method"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"get_item_details\",\n  \"docs\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"from_warehouse\": \"{{se_warehouse_from}}\",\n    \"to_warehouse\": \"{{se_warehouse_to}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": \"{{se_qty}}\"\n      }\n    ]\n  },\n  \"args\": {\n    \"item_code\": \"{{se_item_code}}\",\n    \"company\": \"{{se_company}}\",\n    \"uom\": \"Nos\",\n    \"s_warehouse\": \"{{se_warehouse_from}}\",\n    \"is_finished_item\": 0\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 5.7. Opsional: menampilkan conversion_factor/expense_account/cost_center sebelum dokumen dibuat (dokumen in-memory, tidak tersimpan)."
+          },
+          "response": []
+        },
+        {
+          "name": "19.29 CREATE Batch master (prasyarat serial/batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Batch\",\n    \"batch_id\": \"{{se_batch_no}}\",\n    \"item\": \"{{se_batch_item}}\"\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 2.4 no.2. batch_no HARUS sudah ada; jika belum -> 417 LinkValidationError 'Could not find Row #1: Batch No: ...'. Duplikat -> 409 DuplicateEntryError."
+          },
+          "response": []
+        },
+        {
+          "name": "19.30 CREATE Material Receipt batch + serial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Receipt\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"to_warehouse\": \"{{se_warehouse_to}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_batch_item}}\",\n        \"qty\": \"{{se_qty}}\",\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1,\n        \"t_warehouse\": \"{{se_warehouse_to}}\",\n        \"basic_rate\": 100000,\n        \"batch_no\": \"{{se_batch_no}}\",\n        \"serial_no\": \"{{se_serial_no}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 6.7 (1). serial_no = teks dipisah \\n. Prasyarat: enable_serial_and_batch_no_for_item=1 (19.2) + Batch sudah ada (19.29). Test script menyimpan name ke se_serial_batch_entry_id (pakai 19.31 untuk submit)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.collectionVariables.set('se_serial_batch_entry_id', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.31 SUBMIT Material Receipt batch + serial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.submit"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": \"{{se_doc_full}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.7 (1). Pakai respons CREATE apa adanya; bila dokumen diambil ulang via GET, kosongkan serial_no+batch_no -> kalau tidak: 417 'Serial and Batch Bundle <hash> has already created.'"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('se_doc_doctype', 'Stock Entry');",
+                  "pm.collectionVariables.set('se_doc_var', 'se_serial_batch_entry_id');",
+                  "// Ambil dokumen UTUH via frappe.client.get lalu simpan ke variabel se_doc_full,",
+                  "// karena frappe.client.submit/cancel baru butuh dokumen lengkap (bukan doctype+name saja).",
+                  "const dt = pm.collectionVariables.get('se_doc_doctype') || 'Stock Entry';",
+                  "const nm = pm.variables.replaceIn('{{' + (pm.collectionVariables.get('se_doc_var') || 'se_stock_entry_id') + '}}');",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{base_url}}/api/method/frappe.client.get'),",
+                  "  method: 'POST',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.variables.replaceIn('{{access_token}}'), 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ doctype: dt, name: nm }) }",
+                  "}, (err, res) => { pm.collectionVariables.set('se_doc_full', JSON.stringify(res.json().message)); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.32 CREATE Material Transfer batch + serial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"from_warehouse\": \"{{se_warehouse_to}}\",\n    \"to_warehouse\": \"{{se_warehouse_from}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_batch_item}}\",\n        \"qty\": \"{{se_qty}}\",\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1,\n        \"s_warehouse\": \"{{se_warehouse_to}}\",\n        \"t_warehouse\": \"{{se_warehouse_from}}\",\n        \"batch_no\": \"{{se_batch_no}}\",\n        \"serial_no\": \"{{se_serial_no}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 6.7 (2). Pindahkan serial ke gudang lain. Test script menyimpan name ke se_serial_transfer_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.collectionVariables.set('se_serial_transfer_id', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.33 SUBMIT Material Transfer batch + serial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.submit"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": \"{{se_doc_full}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.7 (2). Verifikasi Serial No berpindah warehouse + 2 bundle (Outward & Inward) via 19.34."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('se_doc_doctype', 'Stock Entry');",
+                  "pm.collectionVariables.set('se_doc_var', 'se_serial_transfer_id');",
+                  "// Ambil dokumen UTUH via frappe.client.get lalu simpan ke variabel se_doc_full,",
+                  "// karena frappe.client.submit/cancel baru butuh dokumen lengkap (bukan doctype+name saja).",
+                  "const dt = pm.collectionVariables.get('se_doc_doctype') || 'Stock Entry';",
+                  "const nm = pm.variables.replaceIn('{{' + (pm.collectionVariables.get('se_doc_var') || 'se_stock_entry_id') + '}}');",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{base_url}}/api/method/frappe.client.get'),",
+                  "  method: 'POST',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.variables.replaceIn('{{access_token}}'), 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ doctype: dt, name: nm }) }",
+                  "}, (err, res) => { pm.collectionVariables.set('se_doc_full', JSON.stringify(res.json().message)); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19.34 GET Serial No (status & warehouse)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Serial No\",\n  \"fields\": [\n    \"name\",\n    \"item_code\",\n    \"batch_no\",\n    \"warehouse\",\n    \"status\"\n  ],\n  \"filters\": [\n    [\n      \"item_code\",\n      \"=\",\n      \"{{se_batch_item}}\"\n    ]\n  ],\n  \"order_by\": \"name asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_entry.md 5.8 & 6.7. Serial No dibuat OTOMATIS dari teks serial_no (tidak perlu dibuat manual)."
+          },
+          "response": []
+        },
+        {
+          "name": "19.35 GET Serial and Batch Bundle (audit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Serial and Batch Bundle\",\n  \"fields\": [\n    \"name\",\n    \"voucher_type\",\n    \"voucher_no\",\n    \"type_of_transaction\",\n    \"total_qty\",\n    \"docstatus\"\n  ],\n  \"filters\": [\n    [\n      \"voucher_no\",\n      \"=\",\n      \"{{se_serial_transfer_id}}\"\n    ]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_entry.md 5.8. Satu dokumen transfer serial/batch menghasilkan 2 bundle: Outward (keluar) + Inward (masuk)."
+          },
+          "response": []
+        },
+        {
+          "name": "19.36 ERROR - Material Transfer tanpa gudang tujuan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"from_warehouse\": \"{{se_warehouse_from}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": 1,\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 7. Harapan: 417 ValidationError 'Target warehouse is mandatory for row 1'."
+          },
+          "response": []
+        },
+        {
+          "name": "19.37 ERROR - qty melebihi stok (submit gagal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"from_warehouse\": \"{{se_warehouse_from}}\",\n    \"to_warehouse\": \"{{se_warehouse_to}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": 999999,\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 7. Insert SUKSES (belum ada validasi stok); submit-nya gagal 417 NegativeStockError '<qty> units of Item X needed in Warehouse Y to complete this transaction.'"
+          },
+          "response": []
+        },
+        {
+          "name": "19.38 ERROR - gudang asal = tujuan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Stock Entry\",\n    \"stock_entry_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"set_posting_time\": 1,\n    \"posting_date\": \"{{se_posting_date}}\",\n    \"from_warehouse\": \"{{se_warehouse_to}}\",\n    \"to_warehouse\": \"{{se_warehouse_to}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": 1,\n        \"uom\": \"Nos\",\n        \"conversion_factor\": 1\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 7 & 2.1 no.5. Di site dev (validate_material_transfer_warehouses=0) gudang sama DIIZINKAN; aktifkan setting itu agar muncul 417 'Row #1: Source and Target Warehouse cannot be the same for Material Transfer'."
+          },
+          "response": []
+        },
+        {
+          "name": "19.39 ERROR - hapus dokumen submitted",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.delete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.delete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Entry\",\n  \"name\": \"{{se_outgoing_stock_entry_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 7. Harapan: 417 'Stock Entry <name>: Submitted Record cannot be deleted. You must Cancel it first.'"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "20. Material Request",
+      "item": [
+        {
+          "name": "20.1 GET daftar pengajuan transfer (dropdown)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"fields\": [\n    \"name\",\n    \"transaction_date\",\n    \"status\",\n    \"transfer_status\",\n    \"per_ordered\",\n    \"set_from_warehouse\",\n    \"set_warehouse\"\n  ],\n  \"filters\": [\n    [\n      \"material_request_type\",\n      \"=\",\n      \"Material Transfer\"\n    ],\n    [\n      \"docstatus\",\n      \"=\",\n      1\n    ],\n    [\n      \"status\",\n      \"!=\",\n      \"Cancelled\"\n    ]\n  ],\n  \"order_by\": \"transaction_date desc\",\n  \"limit_page_length\": 50\n}"
+            },
+            "description": "prd_stock_entry.md 5.5. Daftar pengajuan (tahap 1) yang siap dieksekusi. Baris (gudang asal/tujuan) dibaca via 20.4."
+          },
+          "response": []
+        },
+        {
+          "name": "20.2 CREATE Material Request (pengajuan transfer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.insert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.insert"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": {\n    \"doctype\": \"Material Request\",\n    \"naming_series\": \"MAT-MR-.YYYY.-\",\n    \"material_request_type\": \"Material Transfer\",\n    \"company\": \"{{se_company}}\",\n    \"transaction_date\": \"{{se_posting_date}}\",\n    \"schedule_date\": \"{{se_posting_date}}\",\n    \"items\": [\n      {\n        \"item_code\": \"{{se_item_code}}\",\n        \"qty\": \"{{se_qty}}\",\n        \"uom\": \"Nos\",\n        \"stock_uom\": \"Nos\",\n        \"conversion_factor\": 1,\n        \"from_warehouse\": \"{{se_warehouse_from}}\",\n        \"warehouse\": \"{{se_warehouse_to}}\",\n        \"schedule_date\": \"{{se_posting_date}}\"\n      },\n      {\n        \"item_code\": \"{{se_item_code_2}}\",\n        \"qty\": \"{{se_qty_2}}\",\n        \"uom\": \"Nos\",\n        \"stock_uom\": \"Nos\",\n        \"conversion_factor\": 1,\n        \"from_warehouse\": \"{{se_warehouse_from_2}}\",\n        \"warehouse\": \"{{se_warehouse_to}}\",\n        \"schedule_date\": \"{{se_posting_date}}\"\n      }\n    ]\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 6.1 langkah 1.1. from_warehouse = gudang ASAL, warehouse = gudang TUJUAN. Header set_from_warehouse/set_warehouse akan dikembalikan null bila tiap baris sudah mengisi gudangnya sendiri. Test script menyimpan name ke se_material_request_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.message && json.message.name) { pm.collectionVariables.set('se_material_request_id', json.message.name); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "20.3 SUBMIT Material Request (pengajuan)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.submit"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc\": \"{{se_doc_full}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.1 langkah 1.2. Setelah submit: docstatus=1, status='Pending', per_ordered=0, belum ada pergerakan stok."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('se_doc_doctype', 'Material Request');",
+                  "pm.collectionVariables.set('se_doc_var', 'se_material_request_id');",
+                  "// Ambil dokumen UTUH via frappe.client.get lalu simpan ke variabel se_doc_full,",
+                  "// karena frappe.client.submit/cancel baru butuh dokumen lengkap (bukan doctype+name saja).",
+                  "const dt = pm.collectionVariables.get('se_doc_doctype') || 'Stock Entry';",
+                  "const nm = pm.variables.replaceIn('{{' + (pm.collectionVariables.get('se_doc_var') || 'se_stock_entry_id') + '}}');",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{base_url}}/api/method/frappe.client.get'),",
+                  "  method: 'POST',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.variables.replaceIn('{{access_token}}'), 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ doctype: dt, name: nm }) }",
+                  "}, (err, res) => { pm.collectionVariables.set('se_doc_full', JSON.stringify(res.json().message)); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "20.4 READ Material Request (baris pengajuan)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"name\": \"{{se_material_request_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.1 langkah 1.3. Baris berisi item_code/qty/uom/warehouse(tujuan)/from_warehouse(asal)/ordered_qty/stock_qty."
+          },
+          "response": []
+        },
+        {
+          "name": "20.5 GET status & progres MR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"filters\": {\n    \"name\": \"{{se_material_request_id}}\"\n  },\n  \"fieldname\": [\n    \"status\",\n    \"transfer_status\",\n    \"per_ordered\",\n    \"per_received\"\n  ]\n}"
+            },
+            "description": "prd_stock_entry.md 6.9. Alur: '' -> 'In Transit' (tahap 2) -> 'Completed' (tahap 3)."
+          },
+          "response": []
+        },
+        {
+          "name": "20.6 GET list MR per status (monitoring)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"fields\": [\n    \"name\",\n    \"transaction_date\",\n    \"status\",\n    \"transfer_status\",\n    \"per_ordered\"\n  ],\n  \"filters\": [\n    [\n      \"material_request_type\",\n      \"=\",\n      \"Material Transfer\"\n    ],\n    [\n      \"docstatus\",\n      \"=\",\n      1\n    ],\n    [\n      \"transfer_status\",\n      \"in\",\n      [\n        \"\",\n        \"In Transit\"\n      ]\n    ]\n  ],\n  \"order_by\": \"transaction_date asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_entry.md 5.5. Daftar pengajuan yang belum selesai (belum atau setengah diterima)."
+          },
+          "response": []
+        },
+        {
+          "name": "20.7 UPDATE draft MR (set_value)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.set_value",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.set_value"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"name\": \"{{se_material_request_id}}\",\n  \"fieldname\": {\n    \"remarks\": \"Revisi: qty disesuaikan\"\n  }\n}"
+            },
+            "description": "prd_stock_entry.md 4.4 (pola sama). Hanya berlaku untuk MR draft; setelah submitted -> gunakan cancel/amend."
+          },
+          "response": []
+        },
+        {
+          "name": "20.8 CANCEL Material Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"name\": \"{{se_material_request_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.8. Batalkan pengajuan (mis. Stock Entry-nya ikut dibatalkan lebih dulu)."
+          },
+          "response": []
+        },
+        {
+          "name": "20.9 VARIAN - MR -> 1 Stock Entry langsung (tanpa Transit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/erpnext.stock.doctype.material_request.material_request.make_stock_entry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "erpnext.stock.doctype.material_request.material_request.make_stock_entry"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_name\": \"{{se_material_request_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.5 (A). Mengembalikan draft Stock Entry Material Transfer sumber->tujuan (1 dokumen, tanpa gudang Transit). Wajib MR submitted."
+          },
+          "response": []
+        },
+        {
+          "name": "20.10 VARIAN - MR -> Stock Entry keluar ke Transit (2 tahap)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/erpnext.stock.doctype.material_request.material_request.make_in_transit_stock_entry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "erpnext.stock.doctype.material_request.material_request.make_in_transit_stock_entry"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_name\": \"{{se_material_request_id}}\",\n  \"in_transit_warehouse\": \"{{se_warehouse_transit}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 6.2. Sama seperti 19.18; dipakai saat masuk dari sisi pengajuan. Parameter in_transit_warehouse WAJIB (bila tidak dikirim -> HTTP 500 TypeError)."
+          },
+          "response": []
+        },
+        {
+          "name": "20.11 ERROR - map MR yang belum submit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/erpnext.stock.doctype.material_request.material_request.make_stock_entry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "erpnext.stock.doctype.material_request.material_request.make_stock_entry"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_name\": \"{{se_material_request_id}}\"\n}"
+            },
+            "description": "prd_stock_entry.md 7. Harapan: 417 ValidationError 'Cannot map because following condition fails: docstatus=1'."
+          },
+          "response": []
+        },
+        {
+          "name": "20.12 GET total pengajuan (get_count)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_count"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Material Request\",\n  \"filters\": [\n    [\n      \"material_request_type\",\n      \"=\",\n      \"Material Transfer\"\n    ],\n    [\n      \"docstatus\",\n      \"=\",\n      1\n    ]\n  ]\n}"
+            },
+            "description": "prd_stock_entry.md 4.3 (pola sama). Untuk pagination monitoring pengajuan."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -7962,6 +9877,28 @@
     { "key": "pb_component_item_2", "value": "BACKPACK-CANVAS" },
     { "key": "pb_item_group", "value": "Elektronik" },
     { "key": "pb_creation", "value": "" },
-    { "key": "pb_modified", "value": "" }
+    { "key": "pb_modified", "value": "" },
+    { "key": "se_company", "value": "PT Rapupa Guna Teknologi (Demo)" },
+    { "key": "se_warehouse_from", "value": "Finished Goods - APSD" },
+    { "key": "se_warehouse_from_2", "value": "Work In Progress - APSD" },
+    { "key": "se_warehouse_to", "value": "Store Semarang - APSD" },
+    { "key": "se_warehouse_transit", "value": "Goods In Transit - APSD" },
+    { "key": "se_item_code", "value": "SKU010" },
+    { "key": "se_item_code_2", "value": "SKU008" },
+    { "key": "se_qty", "value": "3" },
+    { "key": "se_qty_2", "value": "20" },
+    { "key": "se_batch_item", "value": "AABB" },
+    { "key": "se_batch_no", "value": "BATCH-AABB-01" },
+    { "key": "se_serial_no", "value": "SN-AABB-001\nSN-AABB-002\nSN-AABB-003" },
+    { "key": "se_posting_date", "value": "2020-12-01" },
+    { "key": "se_expense_account", "value": "5110.020 - Penyesuaian Stock - APSD" },
+    { "key": "se_cost_center", "value": "Main - APSD" },
+    { "key": "se_stock_entry_id", "value": "" },
+    { "key": "se_outgoing_stock_entry_id", "value": "" },
+    { "key": "se_stock_entry_in_id", "value": "" },
+    { "key": "se_serial_batch_entry_id", "value": "" },
+    { "key": "se_serial_transfer_id", "value": "" },
+    { "key": "se_material_request_id", "value": "" },
+    { "key": "se_doc_full", "value": "" }
   ]
 }

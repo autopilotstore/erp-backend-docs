@@ -872,3 +872,10 @@ Folder **`12. Stock Reconciliation`** (nomor `11` di-reserve untuk folder `Item`
 Cara pakai sama dengan folder lain: isi variabel di atas, jalankan folder `0. OAuth 2.0` (atau Get
 New Access Token), lalu jalankan request pada folder `12. Stock Reconciliation`. Request CREATE
 otomatis menyimpan `name` hasil submit ke variabel `stock_reco_id` lewat test script.
+
+> **Pemakaian/kerusakan barang BUKAN opname:** bila barang keluar karena dipakai, rusak, atau
+> hilang (ada sebab & dokumennya), gunakan **Stock Entry `Material Issue`**, bukan Stock
+> Reconciliation. Perbandingan kriteria keduanya (sifat, arah, nilai, kapan dipakai) ada di
+> **[prd_stock_entry.md §4.6](./prd_stock_entry.md)**. Dokumen terkait lain:
+> **[prd_stock_ledger.md](./prd_stock_ledger.md)** (kartu stok),
+> **[prd_stock_balance.md](./prd_stock_balance.md)** (saldo per gudang).

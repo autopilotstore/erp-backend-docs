@@ -731,3 +731,8 @@ Folder **`13. Stock Ledger`** berisi **11 request** yang mencakup:
 Cara pakai sama dengan folder lain: isi variabel di atas, jalankan folder `0. OAuth 2.0` (atau Get
 New Access Token), lalu jalankan request pada folder `13. Stock Ledger`. Request `13.1`/`13.2`
 otomatis menyimpan `name` baris SLE pertama ke variabel `sle_row_name` lewat test script.
+
+> **Dokumen terkait:** **[prd_stock_entry.md](./prd_stock_entry.md)** — dokumen sumber SLE pada
+> alur transfer/pemakaian stok (transfer antar gudang, Material Issue/Receipt, transfer 2 tahap
+> lewat gudang Transit), termasuk contoh verifikasi SLE per voucher di §6.4.
+> **[prd_stock_balance.md](./prd_stock_balance.md)** — saldo stok per gudang/periode.

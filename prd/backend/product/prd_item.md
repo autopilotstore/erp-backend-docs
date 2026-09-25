@@ -1538,7 +1538,8 @@ test script.
    **Product Bundle (paket statis) [prd_item_product_bundle.md](./prd_item_product_bundle.md)**,
    **Dynamic Product Bundle (paket dengan isian dipilih kasir)
    [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md)**,
-   Item Group [prd_item_group.md](./prd_item_group.md), Warehouse
+   Item Group [prd_item_group.md](./prd_item_group.md), **Stock Entry (transfer & pemakaian stok)
+   [prd_stock_entry.md](./prd_stock_entry.md)**, Warehouse
    [prd_warehouse.md](../setup/prd_warehouse.md), OAuth [prd_oauth.md](../prd_oauth.md).
    > Field Item yang dipakai Pricing Rule: `max_discount` (batas diskon per item) dan
    > `item_group`/`brand` (dasar `apply_on` pada Pricing Rule).
