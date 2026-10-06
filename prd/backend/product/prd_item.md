@@ -26,17 +26,18 @@
 | 4 | `frappe.client.insert` | Simpan varian hasil `create_variant` (CREATE) | body (`doc`) |
 | 5 | `frappe.client.get` | Ambil detail 1 Item (READ) | body |
 | 6 | `frappe.client.get_list` | Daftar Item / dropdown pendukung (READ list) | body (filters) |
-| 7 | `frappe.client.get_count` | Total record Item sesuai filter — pagination | body |
+| 7 | `frappe.client.get_count` | Total record Item sesuai filter — pagination (termasuk saat memakai `or_filters`, §2.1 no. 9) | body |
 | 8 | `frappe.client.save` | Ubah Item (UPDATE) | body (`doc`) |
 | 9 | `frappe.client.set_value` | Ubah field tunggal — non-aktif, pindah `item_group`, ubah harga, dst. | body |
-| 10 | `frappe.client.attach_file` | Upload foto produk (multi foto → `tabFile`, §4.7) | body (base64) |
-| 11 | `frappe.client.get_list` | Daftar foto Item dari `tabFile` (READ list, §4.7) | body (filters) |
-| 12 | `frappe.client.insert` | Tag foto template ke varian — buat record `File` baru menunjuk `file_url` yang sama (Pendekatan A, §4.7) | body (`doc`) |
-| 13 | `frappe.client.delete` | Hapus foto (File) / Item — **dengan batasan** (§4.7, §4.8) | body |
-| 14 | `frappe.client.submit` | Submit **Stock Reconciliation** — eksekusi zero stok sebelum non-aktif (§4.8) | body (`doc`) |
+| 10 | `frappe.client.attach_file` | Upload foto produk (multi foto → `tabFile`, §4.8) | body (base64) |
+| 11 | `frappe.client.get_list` | Daftar foto Item dari `tabFile` (READ list, §4.8) | body (filters) |
+| 12 | `frappe.client.insert` | Tag foto template ke varian — buat record `File` baru menunjuk `file_url` yang sama (Pendekatan A, §4.8) | body (`doc`) |
+| 13 | `frappe.client.delete` | Hapus foto (File) / Item — **dengan batasan** (§4.8, §4.9) | body |
+| 14 | `frappe.client.submit` | Submit **Stock Reconciliation** — eksekusi zero stok sebelum non-aktif (§4.9) | body (`doc`) |
 | 15 | `erpnext.stock.doctype.item.item.get_uom_conv_factor` | Resolve faktor konversi UOM (pendukung §5) | body |
 | 16 | `erpnext.stock.doctype.item.item.get_item_attribute` | Autocomplete nilai Item Attribute (dropdown varian, §6) | body |
-| 17 | `frappe.client.get_list` | Baca stok via **Bin / `tabBin`** (info stok, §4.9) | body (filters) |
+| 17 | `frappe.client.get_list` | Baca stok via **Bin / `tabBin`** (info stok, §4.10) | body (filters) |
+| 18 | `baseapp.api.check_item_name` | Pre-check nama Item duplikat — **custom endpoint app `baseapp`** (§4.11) | body |
 
 > **Konvensi pemanggilan (penting):** seluruh operasi memakai method whitelisted **`frappe.client.*`**
 > (kecuali method ERPNext khusus) dengan `name` (dan filter) dikirim lewat **body JSON**, bukan di
@@ -46,9 +47,10 @@
 > seperti `/api/resource/...`).
 
 > **Perbedaan utama dengan Item Group:**
-> - `name = item_code` — item di-generate oleh **frontend** (bukan autoname dari field lain). Lihat §2.1 no. 1.
-> - Item **punya field `disabled`** → operasi non-aktif (soft-delete) berlaku (§4.8).
-> - Stok Item **tidak disimpan di `tabItem`**, melainkan di `tabBin` per item+warehouse (§4.9) dan
+> - `name = item_code` — tapi kodenya **di-generate backend** lewat naming series `YY.MM.######`
+>   (frontend tidak lagi menentukan kodenya). Lihat §2.1 no. 1.
+> - Item **punya field `disabled`** → operasi non-aktif (soft-delete) berlaku (§4.9).
+> - Stok Item **tidak disimpan di `tabItem`**, melainkan di `tabBin` per item+warehouse (§4.10) dan
 >   riwayatnya di Stock Ledger Entry (PRD stok terpisah, §9).
 
 ---
@@ -57,23 +59,29 @@
 
 | Status | Field | Tipe | Keterangan |
 |---|---|---|---|
-| 🟠 **DISARANKAN** | `item_code` | Data | Kode produk. **`reqd: 1` + `unique: 1`**, sekaligus menjadi `name`. Dibuat **manual oleh frontend** (dikirim di body). Bisa berisi spasi/karakter khusus. Bila dikosongkan, sistem hanya meng-generate otomatis bila `Stock Settings → Item Naming By = "Naming Series"` (series `STO-ITEM-.YYYY.-`). |
-| 🟠 **DISARANKAN** | `item_name` | Data | Nama tampilan produk. Kosong → backend menyalin `item_code`. |
+| ⚪ **Otomatis — dibuat backend** | `item_code` | Data | Kode produk **sekaligus `name`**. **Dibuat backend** dari naming series `YY.MM.######` (mis. `2609000001`) — lihat §2.1 no. 1. Kiriman frontend **ditimpa/diabaikan** — **tanpa pengecualian, termasuk varian**. Tidak perlu dikirim. |
+| 🔴 **WAJIB** | `item_name` | Data | **Nama tampilan produk** — inilah identitas yang dibaca user. Kosong → backend menyalin `item_code`, yang sekarang berupa angka seri (`2609000001`), sehingga **selalu kirim `item_name`**. **Harus unik di antara Item yang aktif** (§2.1 no. 8) — pre-check dulu dengan `baseapp.api.check_item_name` (§4.11). |
 | 🔴 **WAJIB** | `item_group` | Link → Item Group | Grup produk (pilih node **leaf**/daun, `is_group=0`). Detail: [prd_item_group.md §5.2](./prd_item_group.md). |
 | 🔴 **WAJIB** | `stock_uom` | Link → UOM | Satuan dasar stok (Unit of Measure). Semua qty stok & konversi dihitung relatif ke UOM ini. |
 | 🟠 | `is_stock_item` | Check | `1` = produk stok (dikelola via Stock Ledger, punya `tabBin`). `0` = jasa/non-stok. |
 | 🟠 | `is_dynamic_product_bundle` | Check | `1` = Item ini **paket dinamis** — komponen/isiannya dipilih kasir saat transaksi (berbeda dari `Product Bundle` bawaan ERPNext yang statis — paket statis dibahas di [prd_item_product_bundle.md](./prd_item_product_bundle.md)). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_stock_item`); hanya ada bila app tersebut terpasang. Default `0`. Struktur & CRUD pilihannya: [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md). |
+| 🟠 | `is_product_bundle` | Check | `1` = Item ini **paket statis** — punya **Product Bundle yang aktif** (doctype `Product Bundle`, tabel `tabProduct Bundle`), sehingga ERPNext otomatis memecahnya jadi komponen saat transaksi. **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_dynamic_product_bundle`); hanya ada bila app tersebut terpasang. Default `0`, dan bersifat **`read_only`** di form. **Jangan pernah dikirim frontend** — nilainya disinkronkan backend dari doctype `Product Bundle`, termasuk saat `disabled`-nya diubah (§2.1 no. 9). Detail paket statis: [prd_item_product_bundle.md](./prd_item_product_bundle.md). |
 | 🟠 | `is_sales_item` | Check | `1` = produk bisa dijual (muncul di Quotation/Sales Order/Sales Invoice/POS). |
+| 🟠 | `min_sales_qty` | Float | Jumlah jual minimum per Item dalam `stock_uom`; default `0` (tanpa batas minimum). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
+| 🟠 | `max_sales_qty` | Float | Jumlah jual maksimum per Item dalam `stock_uom`; default `0` (tanpa batas maksimum). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
+| 🟠 | `sales_qty_multiple` | Float | Kelipatan jumlah jual per Item dalam `stock_uom`; default `0` (aturan kelipatan tidak digunakan). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
 | 🟠 | `is_purchase_item` | Check | `1` = produk bisa dibeli (muncul di Request for Quotation/Purchase Order/Purchase Receipt). |
 | 🟠 | `purchase_uom` | Link → UOM | UOM default saat transaksi **beli** (bisa berbeda dari `stock_uom`; faktor konversi di `uoms`, §2.3/§5). |
 | 🟠 | `has_variants` | Check | `1` = Item ini **template** varian (wajib isi `attributes`, §2.5). `0`/kosong = Item tunggal. |
 | 🟠 | `is_fixed_asset` | Check | `1` = Item **aset tetap** (mis. mesin/kendaraan) yang dibeli untuk dikapitalisasi jadi **Asset** (modul Assets; `is_stock_item` ikut jadi `0`, butuh `asset_category`). Default `0` — untuk produk jualan biasa kirim `0`. |
 | 🟠 | `weight_per_unit` | Float | Berat per unit produk (dipakai hitung `total_weight` pada transaksi) -> berat yang digunakan untuk perhitungan logistik/ongkos kirim. |
 | 🟠 | `weight_uom` | Link → UOM | Satuan berat (mis. `Kg`, `Gram`) -> satuan produk yang digunakan untuk perhitungan logistik/ongkos kirim. |
-| 🟠 | `image` | AttachImage | **Foto utama** produk — disimpan sebagai **string URL file** (mis. `/files/kaos.jpg` atau URL lengkap). Foto tambahan (multi) disimpan di `tabFile` (§4.7). |
+| 🟠 | `image` | AttachImage | **Foto utama** produk — disimpan sebagai **string URL file** (mis. `/files/kaos.jpg` atau URL lengkap). Foto tambahan (multi) disimpan di `tabFile` (§4.8). |
 | 🟠 | `allow_negative_stock` | Check | `1` = izinkan stok menjadi negatif (transaksi tetap jalan walau stok kurang). Default `0`. |
 | 🟠 | `has_serial_no` | Check | `1` = tiap unit produk punya **nomor seri unik** (dilacak per unit via doctype `Serial No`; hanya untuk item stok). Default `0`. Menjadi **read-only** setelah Item punya riwayat stok (§2.1 no. 3). |
 | 🟠 | `has_batch_no` | Check | `1` = produk dikelola per **Batch** (stok & `batch_no` dilacak per batch; item ber-batch memakai doctype `Batch`). **Wajib diisi `1` jika `has_expiry_date` diisi `1`** — backend menolak bila kedaluwarsa diaktifkan tanpa batch. Menjadi **read-only** setelah Item punya riwayat stok (§2.1 no. 3). |
+| 🟠 | `create_new_batch` | Check | `1` = **setiap baris** transaksi masuk (mis. penerimaan) otomatis **membuat 1 Batch** baru — nomornya di-*generate* dengan pola bawaan `BATCH-00001` (§2.1 no. 12). Dipakai bersama `has_batch_no = 1`. Bila `0` padahal nomor batch belum ditentukan, backend melempar *"Batch ID is mandatory"*. |
+| 🟠 | `batch_number_series` | Data | **Opsional — pola nomor Batch khusus Item ini.** Bila diisi, ia **menang** atas pola `Stock Settings` (mis. `ROLL.-.YY.-.MM.-.#` → `ROLL-26-10-1`). **Kosong = pakai pola bawaan** `BATCH-00001` (§2.1 no. 12). **Jangan pakai placeholder `{...}`** — dokumen `Batch` tidak punya field `item_code`, jadi `{item_code}` menghasilkan kosong. |
 | 🟠 | `has_expiry_date` | Check | `1` = produk punya tanggal kedaluwarsa (per batch). **Jika diisi `1`, `has_batch_no` wajib ikut diisi `1`** (lihat baris `has_batch_no`). Memunculkan field `shelf_life_in_days`. |
 | 🟠 | `shelf_life_in_days` | Int | **Umur simpan dalam hari** — hanya relevan (muncul) saat `has_expiry_date = 1`. Berfungsi sebagai **preset/template**: ketika **Batch baru dibuat** untuk Item ini, `expiry_date` Batch dihitung **otomatis** oleh backend (mis. dari tanggal produksi/manufaktur + `shelf_life_in_days`). |
 | 🟠 | `reorder_levels` | Table (child `Item Reorder`) | **Batas stok per (item, warehouse)** — ambang **min & maks**. Baris: `warehouse` (Link→Warehouse, `reqd`); `warehouse_reorder_level` (Float = **nilai ambang minimum**, satuan `stock_uom`); `material_request_type` (`reqd` — Select `Purchase`/`Transfer`/`Material Issue`/`Manufacture`, menentukan cara restock; `Purchase` = beli ke supplier); `warehouse_reorder_qty` (Float, **opsional** — untuk alur pemesanan nanti, PRD stok §9); `max_stock_level` (Float, **opsional** — **custom field dari app `baseapp`**, nilai ambang maksimum, satuan `stock_uom`; hanya ada bila `baseapp` terpasang, lihat §4.1). Hanya relevan untuk item stok (`is_stock_item=1`). Cara simpan: §4.1 (contoh CREATE). |
@@ -89,16 +97,48 @@
 
 > Catatan: daftar di atas adalah **data yang wajib/diperlukan** menurut kebutuhan aplikasi
 > (per permintaan tim produk), bukan seluruh field Item. Field `reqd` sebenarnya oleh doctype hanya
-> `item_code`, `item_group`, dan `stock_uom` (ditambah `item_name` fallback) — sisanya opsional di
-> sisi backend, namun **frontend tetap disarankan mengirim** sesuai tabel di atas agar data konsisten.
+> `item_group` dan `stock_uom` — `item_code` **dibuat backend** (tidak wajib di form karena
+> `hidden`), sedangkan `item_name` menjadi **praktis wajib** karena kode produk berupa angka seri
+> (§2.1 no. 1). Sisanya opsional di sisi backend, namun **frontend tetap disarankan mengirim**
+> sesuai tabel di atas agar data konsisten.
 
 ### 2.1 Catatan penting
 
-1. **`name` = `item_code` (dibuat frontend, unik).** Karena `unique: 1`, duplikat `item_code` ditolak
-   di level database → cek duplikat sebelum CREATE (§4.1 Langkah 0). Autoname (naming series) hanya
-   aktif bila `Stock Settings → Item Naming By = "Naming Series"` — untuk aplikasi ini **frontend
-   yang menentukan `item_code`** dan mengirimnya di body. Mengubah `item_code` pada dokumen yang sudah
-   ada **tidak mengubah `name`** — gunakan `frappe.client.rename_doc` bila perlu rename.
+1. **`item_code` dibuat backend lewat naming series `YY.MM.######` — jangan kirim dari frontend.**
+   Item dikonfigurasi memakai **Naming Series** (diatur app `baseapp`:
+   `Stock Settings → Item Naming By = "Naming Series"` + opsi field `Item.naming_series`), sehingga
+   backend **selalu** membuat `item_code` sendiri dengan pola:
+
+   - `YY` = 2 digit tahun, `MM` = 2 digit bulan, `######` = counter 6 digit (**reset setiap bulan**).
+   - Item pertama bulan Sep 2026 → **`2609000001`**, berikutnya `2609000002`, dst.
+
+   **Yang harus dipahami frontend:**
+
+   - **`item_code` yang dikirim frontend ditimpa** (tidak berpengaruh). Karena itu **pre-check
+     duplikat tidak lagi diperlukan** (§4.1).
+   - **Termasuk varian — tidak ada pengecualian.** Item dengan `variant_of` terisi **juga** mendapat
+     kode seri sendiri, **bukan** `{kode template}-{abbr}` (perilaku bawaan ERPNext). Jadi item
+     tunggal, template dan varian semuanya memakai **satu counter bulanan yang sama** dan kodenya
+     selalu **10 digit**. Detail: §4.2.
+   - **Tidak ada duplikat.** Counter dikelola tabel `Series` dan dikunci saat dipakai, sehingga
+     `DuplicateEntryError` untuk `item_code` praktis tidak mungkin muncul dari sisi klien.
+   - **Nomor bisa melompat.** `set_new_name()` dijalankan **sebelum** validasi
+     (`frappe/model/document.py:479` vs `485`), jadi Item yang gagal disimpan tetap **memakai** satu
+     nomor seri. Lompatan nomor bukan error — jangan mengasumsikan nomor selalu berurutan tanpa celah.
+   - **`name` = `item_code`** → **simpan `name` dari respons CREATE**; itulah identitas item untuk
+     semua operasi berikutnya.
+   - Error *"Item Code is required"* **tidak akan muncul lagi** — field `item_code` kini `hidden` dan
+     tidak wajib di form (§7).
+   - Kode bisa **bertambah 1 karakter** saat counter melewati 6 digit (setelah `2609999999` menjadi
+     `26091000000`) — bukan error, hanya perlu diperhatikan bila kode dicetak sebagai barcode.
+   - Mengubah kode pada item yang sudah ada **tidak mengubah `name`**; bila benar-benar perlu,
+     gunakan `frappe.client.rename_doc`.
+   - **Item lama tidak berubah.** Aturan ini hanya berlaku untuk Item yang dibuat **setelah** versi
+     app `baseapp` ini terpasang. Item yang sudah ada tetap memakai kodenya semula — termasuk yang
+     berbentuk `{template}-{abbr}` seperti `BUB-PB-BLU-BIG`. Jadi frontend **tidak boleh** menyimpulkan
+     bentuk apa pun dari `item_code`; selalu pakai nilainya apa adanya dari `name`.
+   - **Konsekuensi penting:** karena kode produk kini berupa angka seri yang tidak deskriptif,
+     **`item_name` wajib dikirim** — kalau kosong, nama produk akan tersimpan sebagai `2609000001`.
 2. **`stock_uom` adalah pusat konversi.** Ubah `stock_uom` pada Item yang sudah punya transaksi stok
    **diblokir backend** (`check_stock_uom_with_bin`) — pastikan benar sejak awal. Baris `uoms` yang
    konversinya relatif ke `stock_uom` akan dikosongkan ulang bila `stock_uom` diganti (§2.3).
@@ -113,6 +153,229 @@
 6. **Master Item bersifat global** (tidak per company). Default per company diatur lewat child table
    `item_defaults` (satu baris per `company`, mis. `default_warehouse`). Nilai default diresolusi
    dengan urutan prioritas: **Company → Brand → Item Group → Item**.
+7. **Barcode default = `item_code` — dibuat otomatis backend saat CREATE.**
+   Diatur app `baseapp` (hook `Item.before_validate`), sehingga **tidak ada Item baru tanpa
+   barcode**.
+
+   | Kondisi saat CREATE | Hasil |
+   |---|---|
+   | `barcodes` **tidak dikirim** | backend menambah 1 baris: `barcode = item_code`, `uom = stock_uom`, `barcode_type` **kosong** |
+   | `"barcodes": []` (list kosong) | sama seperti di atas — list kosong dianggap "tidak ada barcode" |
+   | `barcodes` **dikirim** | payload dipakai apa adanya; **tidak** ditambahi baris `item_code` |
+
+   **Yang harus dipahami frontend:**
+
+   - **Hanya saat CREATE.** Item yang sudah ada **tidak** diperbaiki. `save` bersifat replace-all
+     (§4.6), jadi `save` tanpa key `barcodes` akan **menghapus** barisnya dan backend **tidak**
+     menambahkannya kembali — saat update, kirim seluruh baris yang diinginkan (§4.7).
+   - **`barcode_type` sengaja dikosongkan.** Bila diisi, backend menjalankan uji check digit
+     (`barcodenumber`) dan menolak semua nilai yang bukan tepat 8/12/13 digit **dengan check digit
+     yang benar**. `2609000001` (10 digit) akan gagal `InvalidBarcode` dan **seluruh insert Item ikut
+     gagal** — bukan hanya barcodenya. Kalau frontend perlu mencetak EAN-13, hitung dulu check
+     digit-nya: `899123456789` → `8991234567891` (sedangkan `8991234567890` **tidak valid**).
+   - **Cetak pakai Code 128 subset C.** Untuk 10 digit hasilnya ±90 modul, jauh lebih tipis dari
+     Code 39 (±156 modul, dan `CODE-39` memang lolos validasi backend). EAN-13 (95 modul) **tidak**
+     lebih hemat untuk panjang ini — hanya EAN-8 (67 modul) yang lebih tipis, tapi menuntut kode
+     7 digit.
+   - **Lebar barcode default seragam.** Karena varian juga memakai kode seri 10 digit
+     (§2.1 no. 1), semua barcode default berukuran sama. Barcode kiriman frontend boleh berapa pun
+     panjangnya — backend tidak membatasi — dan hanya item itulah yang lebar labelnya berbeda.
+   - **Barcode unik global.** Karena setiap Item otomatis punya barcode = `item_code`, mengirim
+     barcode manual yang sama dengan `item_code` Item lain ditolak: *"Barcode X already used in
+     Item Y"* (§7).
+   - **Sudah bisa langsung dipindai.** `scan_barcode()` mencari di `Item Barcode` lebih dulu
+     (`erpnext/stock/utils.py`), jadi memindai `2609000001` mengembalikan Item yang tepat.
+   - **Mengubah `abbr` tidak lagi me-rename varian.** ERPNext aslinya me-rename `item_code` varian
+     kembali ke bentuk `{kode template}-{abbr}` (`rename_variant_item_code`) setiap kali `abbr`
+     sebuah `Item Attribute Value` diubah; app `baseapp` mematikan jalur itu lewat override
+     controller `ItemAttribute.on_update` (`baseapp/overrides/item_attribute.py`). Jadi baris
+     `Item Barcode` tetap cocok dengan kode serinya — kode seri tidak pernah dihitung ulang. Catatan:
+     `abbr` kini selalu sama dengan `attribute_value` (§4.2 Langkah 1).
+8. **`item_name` harus unik di antara Item yang aktif — ERPNext tidak memeriksanya sendiri.**
+   app `baseapp` menambahkan aturan ini (hook `Item.validate` + endpoint pre-check §4.11), dengan
+   dua cabang:
+
+   | Kondisi saat CREATE/UPDATE | Hasil |
+   |---|---|
+   | Nama dipakai Item **aktif** (`disabled=0`) | **Ditolak** 417 — *"Item Name X is already used by active Item(s) Y"* |
+   | Nama hanya dipakai Item **non-aktif** (`disabled=1`) | **Diizinkan** — backend tidak menghalangi, keputusan lewat pertanyaan reaktifasi (§4.11) |
+   | Nama bebas | Lanjut seperti biasa |
+
+   **Yang harus dipahami frontend:**
+
+   - **Selalu pre-check dulu** (§4.11) sebelum CREATE/UPDATE. Untuk kasus "hanya non-aktif", backend
+     **sengaja tidak menolak** — jadi kalau frontend tidak bertanya, akan muncul dua Item bernama
+     sama (satu non-aktif, satu baru).
+   - **Perbandingan case-insensitive & mengabaikan spasi tepi.** `"Air Mineral 600ml"`,
+     `"air mineral 600ml"`, dan `"  Air Mineral 600ml  "` dianggap nama yang sama. Spasi **di tengah**
+     tetap dihitung: `"Air  Mineral"` ≠ `"Air Mineral"`.
+   - **Ini bukan aturan ERPNext bawaan.** Di ERPNext aslinya **tidak ada pengecekan sama sekali**:
+     hanya `item_code` yang `unique` (`item.json`), `Item.validate()` tidak melihat duplikat, dan
+     `item.js` juga tidak. Aturan ini hilang bila app `baseapp` tidak terpasang.
+   - **Item lama tidak dibersihkan.** Nama kembar yang sudah ada sebelum aturan ini dipasang tetap
+     dibiarkan; yang dicegah hanya penambahan baru.
+   - **`save` dan `set_value` dua-duanya menjalankan aturan ini.** `frappe.client.set_value`
+     memuat dokumen lalu memanggil `doc.save()` (`frappe/client.py:215`), sehingga `validate()`
+     tetap berjalan — **terverifikasi di site dev 2026-10-03**: mengubah `item_name` ke nama yang
+     sudah dipakai Item aktif lewat `set_value` ditolak 417. Yang benar-benar melewati hook
+     hanyalah **`frappe.db.set_value`** (level DB, dan tidak dapat dipanggil dari REST).
+9. **Menyaring daftar produk — paket dinamis / paket statis / aset — cukup **satu** panggilan
+   `frappe.client.get_list`.** Ketiga jenis produk adalah kolom **Check** yang bisa difilter langsung:
+
+   | Jenis produk | Cara dideteksi |
+   |---|---|
+   | Paket dinamis | `is_dynamic_product_bundle = 1` — custom field `baseapp` |
+   | Paket statis (`Product Bundle`) | `is_product_bundle = 1` — custom field `baseapp`, `read_only`, disinkronkan backend |
+   | Aset tetap | `is_fixed_asset = 1` — field standar ERPNext |
+
+   Karena ketiganya OR, pakai **`filters` + `or_filters`** dalam satu request:
+
+   ```bash
+   curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+     -H 'Authorization: Bearer <access_token>' \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "doctype": "Item",
+       "fields": ["name","item_name","is_dynamic_product_bundle","is_product_bundle","is_fixed_asset"],
+       "filters": [["disabled","=",0]],
+       "or_filters": [
+         ["is_dynamic_product_bundle","=",1],
+         ["is_product_bundle","=",1],
+         ["is_fixed_asset","=",1]
+       ],
+       "order_by": "name asc",
+       "limit_start": 0,
+       "limit_page_length": 50
+     }'
+   ```
+
+   **Yang harus dipahami frontend:**
+
+   - **`filters` di-AND, `or_filters` di-OR** — hasil OR lalu di-AND dengan `filters`.
+   - **`is_product_bundle` tidak boleh dikirim frontend.** Nilainya dikelola backend dari keberadaan
+     record `Product Bundle`, karena ERPNext sendiri **tidak** menandai Item sebagai bundle:
+     `item.json` tidak punya field bundle sama sekali, dan `product_bundle.py` tidak pernah menulis
+     balik ke Item (`validate_main_item()` hanya membaca `is_stock_item`/`is_fixed_asset` untuk
+     memvalidasi). `is_stock_item = 0` **bukan** pengganti: di site dev ada 12 item non-stok, 11 di
+     antaranya bundle dan 1 bukan.
+   - **Inilah alasan field ini harus ada.** `frappe.client.get_list` **tidak bisa** menjangkau tabel
+     lain — DSL filter Frappe hanya menyediakan `=`, `!=`, `<`, `>`, `<=`, `>=`, `in`, `not in`,
+     `like`, `ilike`, `not like`, `regex`, `between`, `is`, `timespan`
+     (`frappe/database/operator_map.py:139-159`), tanpa subquery/join. Jadi "Item yang punya baris di
+     `tabProduct Bundle`" tidak bisa diungkapkan tanpa kolom.
+   - **Ketiganya bisa tumpang tindih.** `is_dynamic_product_bundle` dan `is_product_bundle` diatur dua
+     alur berbeda; jangan mengasumsikan satu produk hanya masuk satu kategori.
+   - **`is_product_bundle` mengikuti definisi bawaan ERPNext.** Yang dihitung hanya Product Bundle
+     yang **aktif** (`disabled = 0`) — persis seperti
+     `erpnext.stock.doctype.packed_item.packed_item.is_product_bundle()`. Jadi menonaktifkan Product
+     Bundle (`frappe.client.set_value disabled=1` pada doctype `Product Bundle`) **langsung** membuat
+     flag Item-nya jadi `0`, dan menghapusnya juga. Karena itu field ini di-guard hook
+     `Product Bundle` dan ditandai `read_only` — **jangan pernah** ikut mengirim nilainya saat
+     `insert`/`save` Item.
+   - **Pagination: kirim `or_filters` juga ke `frappe.client.get_count`.** Parameter itu memang
+     **tidak terdaftar** di signature-nya (`frappe/client.py:79` hanya `doctype, filters, debug,
+     cache`), tapi tetap dibaca — karena `reportview.get_count()` membaca `frappe.form_dict`, yaitu
+     **body request itu sendiri**, sementara `get_count` hanya menimpa `doctype`/`filters`/`debug` dan
+     tidak membersihkan sisanya. **Terverifikasi di site dev 2026-10-03:** `get_list` dengan 3 kondisi
+     OR mengembalikan **6** baris, dan `get_count` dengan body yang sama juga mengembalikan **6**
+     (bukan 52 = jumlah seluruh item aktif).
+
+     ```bash
+     curl -X POST https://site-anda.com/api/method/frappe.client.get_count \
+       -H 'Authorization: Bearer <access_token>' \
+       -H 'Content-Type: application/json' \
+       -d '{
+         "doctype": "Item",
+         "filters": [["disabled","=",0]],
+         "or_filters": [
+           ["is_dynamic_product_bundle","=",1],
+           ["is_product_bundle","=",1],
+           ["is_fixed_asset","=",1]
+         ]
+       }'
+     ```
+
+     > ⚠️ Perilaku ini **tidak terdokumentasi** (efek samping `form_dict`, bukan API resmi), jadi
+     > jangan jadikan satu-satunya sandaran: **selalu kirim `filters` bersamaan** (boleh `[]`) dan
+     > siapkan fallback bila total halaman terasa janggal — `get_list` dengan
+     > `limit_page_length: 0` + `fields: ["name"]`, lalu hitung panjang array.
+     > Alternatif paling tahan lama: pisah jadi **tiga tab** di UI — tiap tab cuma butuh `filters`
+     > biasa, sehingga `frappe.client.get_count` standar sudah akurat tanpa bergantung pada perilaku
+     > di atas.
+   - **Paket yang sudah ada diisi lewat backfill.** Field ini diisi saat `Product Bundle` dibuat/
+     dihapus/diubah; untuk bundle yang sudah ada sebelum field ini dipasang, nilainya diisi oleh
+     patch app `baseapp` saat `bench migrate`.
+10. **Mengganti nama template (produk) otomatis mengganti nama semua variannya.**
+    Diatur app `baseapp` (hook `Item.on_update` → `baseapp.utils.sync_variant_item_names`). Ini
+    **melengkapi** ERPNext, yang sengaja tidak melakukannya: `copy_attributes_to_variant()`
+    (`erpnext/controllers/item_variant.py:449`) mencantumkan `item_name` di `exclude_fields`,
+    sehingga template bisa berganti nama sementara variannya tetap memakai nama template yang lama
+    (`KAOS-M` di bawah produk `T-SHIRT`).
+
+    | Yang diubah pada **template** | Efek ke `item_name` varian |
+    |---|---|
+    | `item_name` (mis. `KAOS` → `T-SHIRT`) | ✅ dihitung ulang: `KAOS-M` → **`T-SHIRT-M`** |
+    | `item_code`/`name` (rename dokumen) | ❌ tidak ada — nama varian tidak diturunkan dari kode |
+    | `item_group`, `stock_uom`, dst. | lewat mekanisme bawaan ERPNext (§4.6), bukan dari dokumen ini |
+
+    **Yang harus dipahami frontend:**
+
+    - **Pola nama sama dengan saat varian dibuat** — `{item_name template}-{abbr}`. Dihitung ulang
+      dengan fungsi yang sama (`make_variant_item_code`), jadi hasilnya identik dengan varian baru
+      (termasuk atribut numerik yang memakai nilainya, bukan abbr).
+    - **Berlaku untuk semua varian**, termasuk yang `item_name`-nya pernah diisi manual — nama
+      varian selalu diturunkan dari template.
+    - **Hanya saat nama berubah.** Varian yang sudah ada **tidak** dirapikan otomatis: kalau data
+      lama telanjur tidak sinkron, itu harus diperbaiki manual (ubah `item_name` variannya).
+    - **Bentrok nama membatalkan seluruh proses.** Bila nama hasil hitungan sudah dipakai Item
+      **aktif** lain — atau dua varian akan menghasilkan nama yang sama — backend mengembalikan
+      **417** (*"Variant Name Clash"*) dan **tidak ada** yang berubah, agar aturan unik `item_name`
+      (no. 8) tetap terjaga. Frontend sebaiknya menampilkan pesan error apa adanya, karena pesannya
+      menyebut varian mana yang bentrok.
+    - **`item_code` dan barcode varian tidak tersentuh** — hanya `item_name` yang ditulis
+      (`update_modified` Item juga tidak berubah).
+    - **Setting `Item Variant Settings → Do not update variants on save` tidak berlaku di sini** —
+      setting itu mengatur penyalinan *field* template ke varian, bukan penamaan.
+    - **Terverifikasi di site dev 2026-10-03:** template `ZZT KAOS` dengan 2 varian di-rename ke
+      `ZZT T-SHIRT` → varian menjadi `ZZT T-SHIRT-M` dan `ZZT T-SHIRT-B`; saat Item aktif bernama
+      `ZZT SHIRT-B` sudah ada, rename berikutnya ditolak dan seluruh data kembali utuh.
+11. **`min_sales_qty`, `max_sales_qty`, dan `sales_qty_multiple` adalah custom field bawaan app `baseapp`.**
+    Ketiganya bertipe `Float`, default `0`, dan memakai `stock_uom` sebagai satuan. Field muncul
+    setelah `baseapp` dipasang dan tersedia pada REST API Item. Field ini menyimpan konfigurasi
+    jumlah jual; validasi batas/kelipatan pada transaksi penjualan tidak dilakukan otomatis hanya
+    dengan menambahkan field ini.
+12. **Nomor Batch saat penerimaan — default ERPNext vs input user.** Aturannya hanya dua:
+
+    | Kondisi di dokumen penerimaan | `batch_id` yang dipakai |
+    |---|---|
+    | User **tidak** mengisi nomor batch | dibuat otomatis dengan pola bawaan ERPNext → `BATCH-00001`, `BATCH-00002`, … |
+    | User **mengisi** nomor batch | memakai input user apa adanya (mis. `PNM0107-001`) |
+
+    Item harus `has_batch_no = 1` **dan** `create_new_batch = 1` agar nomornya bisa dibuat — bila
+    `create_new_batch = 0` dan nomornya kosong, backend menolak *"Batch ID is mandatory"*.
+
+    **Pola otomatis (`BATCH-00001`) datang dari `Stock Settings`, bukan dari Item:**
+
+    | Field `Stock Settings` | Nilai | Arti |
+    |---|---|---|
+    | `use_naming_series` | **`1`** | saklar *"Have default Naming Series for Batch ID?"* — **wajib `1`** untuk pola ini; kalau `0` nomor batch menjadi **hash acak 7 karakter** (mis. `A3F91C2`) |
+    | `naming_series_prefix` | `BATCH-` | awal nomor, ditulis **apa adanya** — `LOT-` → `LOT-00001`, sedang `LOT` → `LOT00001` |
+
+    - Pola efektifnya `{prefix}.#####`, sehingga **satu counter dipakai untuk SEMUA Item** ber-batch
+      (bukan per Item).
+    - **`use_naming_series` hanya mengatur penamaan Batch** — satu-satunya pembacanya `Batch.autoname()`;
+      tidak memengaruhi penamaan Item, Serial No, Serial and Batch Bundle, atau dokumen lain.
+    - **`batch_number_series` di Item bersifat opsional** dan **menang** atas `Stock Settings`
+      (mis. `ROLL.-.YY.-.MM.-.#` → `ROLL-26-10-1`). Isi hanya bila Item tertentu perlu pola sendiri.
+      Token yang dikenali: `.YY.`/`.MM.`, `.#`, `.#####`; series wajib memuat titik. **Jangan pakai
+      placeholder `{...}`** — saat Batch dibuat, Frappe memakai `doc` = dokumen `Batch` yang **tidak
+      punya field `item_code`**, sehingga `{item_code}` menghasilkan kosong.
+    - Nomor batch yang **diketik user** tidak lewat `batch_number_series` (field itu statis di Item);
+      frontend membuat dokumen `Batch`-nya lebih dulu (§4.3 Langkah 3).
+    - Nama/nomor batch ada di field **`batch_id`**, dan pada versi ERPNext yang terpasang (`16.32.3`)
+      nilai itu **= `name` dokumen** (`Batch.autoname()` menetapkan `name = batch_id`). Pada baris
+      transaksi, `batch_no` diisi nilai tersebut.
+    - Contoh lengkap kedua aturan: **§4.3**.
 
 ### 2.2 Lokasi tabel penyimpanan (data Item & pendukungnya)
 
@@ -121,12 +384,14 @@
 | `tabItem` | `Item` | Master produk — **template & varian** dalam satu tabel (varian ditandai kolom `variant_of`, `has_variants`, `variant_based_on`). |
 | `tabItem Variant Attribute` | `Item Variant Attribute` | Child table `attributes` — atribut & nilai per Item (template: tanpa nilai; varian: dengan nilai). |
 | `tabItem Attribute` | `Item Attribute` | Master atribut (mis. `Ukuran`, `Warna`) — parent dari `tabItem Attribute Value`. |
-| `tabItem Attribute Value` | `Item Attribute Value` | Child table nilai atribut pada master (mis. `S`, `M`, `L` + kolom `abbr`). |
+| `tabItem Attribute Value` | `Item Attribute Value` | Child table nilai atribut pada master (mis. `Small`, `Medium`, `Large`; kolom `abbr` diisi otomatis **= `attribute_value`**, §4.2 Langkah 1). |
 | `tabUOM Conversion Detail` | `UOM Conversion Detail` | Child table `uoms` pada Item — faktor konversi UOM lain → `stock_uom` (§2.3, §5). |
 | `tabUOM Conversion Factor` | `UOM Conversion Factor` | Master global pasangan konversi antar-UOM (mis. `Gram`→`Kg`) — dipakai `get_uom_conv_factor` (§5). |
-| `tabItem Barcode` | `Item Barcode` | Child table `barcodes` — daftar barcode produk (§2.4, §4.6). |
-| `tabFile` | `File` | **Semua attachment** (foto multi produk), ter-link ke Item via `attached_to_doctype` + `attached_to_name` (§4.7). |
-| `tabBin` | `Bin` | **Stok per (item, warehouse)** — `actual_qty`, `projected_qty`, `stock_value`, dsb. (§4.9). |
+| `tabItem Barcode` | `Item Barcode` | Child table `barcodes` — daftar barcode produk (§2.4, §4.7). |
+| `tabItem Supplier` | `Item Supplier` | Child table `supplier_items` — daftar pemasok untuk Item (§2.7, §4.1/§4.4/§4.6). |
+| `tabFile` | `File` | **Semua attachment** (foto multi produk), ter-link ke Item via `attached_to_doctype` + `attached_to_name` (§4.8). |
+| `tabBin` | `Bin` | **Stok per (item, warehouse)** — `actual_qty`, `projected_qty`, `stock_value`, dsb. (§4.10). |
+| `tabBatch` | `Batch` | Master **nomor batch** — field `batch_id` (nomor yang dibaca user; pada versi terpasang = `name` dokumen, §2.1 no. 12) + `item` pemiliknya. Stok per batch tidak di sini, melainkan di Stock Ledger Entry / Serial and Batch Bundle. |
 | `tabItem Default` | `Item Default` | Child table `item_defaults` — default per company (`default_warehouse`, akun, dst.). |
 | `tabItem Tax` | `Item Tax` | Child table `taxes` — template pajak default (cross-ref: [prd_item_group.md §2.3](./prd_item_group.md)). |
 | `tabItem Reorder` | `Item Reorder` | Child table `reorder_levels` — batas stok (**min & maks**) per (item, warehouse). Kolom `max_stock_level` adalah **custom field dari `baseapp`**. Cara menyimpan di dokumen ini: §4.1; mekanisme reorder / order otomatis: PRD stok (§9). |
@@ -147,9 +412,13 @@
 
 - Field: `barcode` (Data, `reqd`), `barcode_type` (pilihan: `EAN`, `UPC-A`, `CODE-39`, `EAN-13`,
   `EAN-8`, `GS1`, `GTIN`, `ISBN`, `UPC`, dsb.), `uom` (opsional — barcode per UOM).
+- **Barcode default = `item_code`** — app `baseapp` menambahkannya otomatis saat CREATE bila
+  frontend tidak mengirim `barcodes` (§2.1 no. 7).
 - **Barcode bersifat unik global** — backend menolak barcode yang sudah dipakai Item lain
   (`DuplicateEntryError`/`InvalidBarcode`).
-- CRUD lengkap: **§4.6**.
+- **Panjang tidak dibatasi** — `barcode` bertipe `varchar(140)`, dan `barcode_type` yang dikosongkan
+  mematikan uji check digit.
+- CRUD lengkap: **§4.7**.
 
 ### 2.5 Child table `attributes` — `Item Variant Attribute` (+ master `Item Attribute`)
 
@@ -158,8 +427,13 @@
 - Pada **varian** (`variant_of` terisi): baris berisi `attribute` + `attribute_value` (nilai konkret),
   dan `attribute_value` tidak bisa diedit setelah varian dibuat.
 - Master `Item Attribute` (doctype terpisah) menyimpan daftar nilai lewat child table
-  `item_attribute_values` (kolom `attribute_value` + `abbr`). `abbr` dipakai membangun `item_code`
-  varian otomatis (§4.2).
+  `item_attribute_values` (kolom `attribute_value` + `abbr`). `abbr` dipakai membangun `item_name`
+  varian otomatis (§4.2) — bukan `item_code` lagi, karena kode varian kini dibuat backend.
+- **`abbr` selalu sama dengan `attribute_value` dan diisi otomatis backend** (app `baseapp`, hook
+  `Item Attribute.before_validate` → `baseapp.utils.sync_attribute_value_and_abbr`): frontend
+  **cukup mengirim `attribute_value`**. Di form Desk kolom `abbr` di-hide & tidak wajib (property
+  setter dari `baseapp`). Karena `abbr` = nilai atribut, `item_name` varian mengikuti **nilai**
+  tersebut (`Medium` → `Kaos Polos-Medium`). Detail & contoh: §4.2 Langkah 1.
 - Alur & contoh kasus lengkap: **§4.2**.
 
 ### 2.6 `_user_tags` (Tags)
@@ -170,6 +444,17 @@
 - Di form Desk dikelola lewat kontrol "Tags"; lewat API cukup dikirim sebagai field biasa pada
   `doc` (CREATE/UPDATE). Tidak ada enumerasi khusus — bebas teks.
 - Dapat dipakai untuk pencarian cepat (filter `like`), namun **tidak wajib** diisi.
+
+### 2.7 Pemasok per Item — child table `supplier_items` (`Item Supplier`)
+
+- Pemasok untuk suatu Item disimpan sebagai child table **`supplier_items`**, dengan doctype
+  **`Item Supplier`** (`tabItem Supplier`). Satu Item dapat memiliki beberapa pemasok.
+- Setiap baris wajib menunjuk `supplier` yang sudah ada di master **Supplier**. Field
+  `supplier_part_no` (opsional) menyimpan kode Item menurut pemasok.
+- Kelola daftar ini melalui dokumen induk `Item` (`insert`, `get`, dan `save`), bukan dengan
+  membuat atau menghapus `Item Supplier` sebagai dokumen mandiri. GET Item mengembalikan seluruh
+  baris `supplier_items`; saat UPDATE, kirim daftar lengkap yang ingin dipertahankan (replace-all).
+- Contoh CRUD lengkap: **§4.1, §4.4, dan §4.6**.
 
 ---
 
@@ -189,28 +474,10 @@ Detail lengkap setup OAuth Client ada di **[`prd_oauth.md`](../prd_oauth.md)**.
 
 ### 4.1 CREATE — Item tanpa varian
 
-**Langkah 0 — Pre-check (wajib sebelum CREATE)**
-
-Karena `name = item_code` dan `item_code` `unique: 1`, cek keberadaan sebelum insert:
-
-```bash
-curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
-  -H 'Authorization: Bearer <access_token>' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "doctype": "Item",
-    "fields": ["name"],
-    "filters": [["name","=","MIN-001"]],
-    "limit_page_length": 1
-  }'
-```
-
-**Hasil & aturan:**
-- `message` kosong (`[]`) → lanjut ke CREATE.
-- `message` terisi → blokir CREATE, tampilkan pesan: *"Item {item_code} sudah ada."*
-
-> Tanpa pre-check, ERPNext tetap melempar `DuplicateEntryError` saat insert duplikat (field `unique`).
-> Pre-check memberi pesan ramah & lebih cepat.
+> **Tidak ada pre-check duplikat.** `item_code` dibuat backend lewat naming series `YY.MM.######`
+> (§2.1 no. 1) dengan counter yang dikelola sistem, sehingga kode **tidak mungkin duplikat**.
+> Frontend cukup mengirim data produk — tidak perlu mengirim `item_code` maupun mengecek keberadaan
+> kode terlebih dahulu.
 
 **Payload minimum (data wajib) — `frappe.client.insert`:**
 
@@ -221,15 +488,18 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   -d '{
     "doc": {
       "doctype": "Item",
-      "item_code": "MIN-001",
+      "item_name": "Air Mineral 600ml",
       "item_group": "Minuman",
       "stock_uom": "Pcs"
     }
   }'
 ```
 
-> `item_name` kosong → backend menyalin `item_code`; `is_stock_item`/`is_sales_item`/`is_purchase_item`
-> default `0`.
+> **Tidak ada `item_code`** — backend membuatnya (§2.1 no. 1) dan mengembalikannya di respons.
+> `is_stock_item` / `is_sales_item` / `is_purchase_item` default `0`.
+>
+> ⚠️ Meski secara teknis opsional, **selalu kirim `item_name`**: karena `item_code` sekarang berupa
+> angka seri, item tanpa `item_name` akan tampil sebagai `2609000001` di semua dropdown & transaksi.
 
 **Contoh request (lengkap — produk stok yang dibeli & dijual):**
 
@@ -240,13 +510,15 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   -d '{
     "doc": {
       "doctype": "Item",
-      "item_code": "MIN-001",
       "item_name": "Air Mineral 600ml",
       "item_group": "Minuman",
       "is_stock_item": 1,
       "is_sales_item": 1,
       "is_purchase_item": 1,
       "stock_uom": "Pcs",
+      "min_sales_qty": 6,
+      "max_sales_qty": 24,
+      "sales_qty_multiple": 6,
       "purchase_uom": "Dus",
       "uoms": [
         { "uom": "Pcs", "conversion_factor": 1 },
@@ -263,6 +535,9 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
       "has_expiry_date": 1,
       "shelf_life_in_days": 180,
       "brand": "Aqua",
+      "supplier_items": [
+        { "supplier": "PT Distributor Utama", "supplier_part_no": "AQUA-600" }
+      ],
       "description": "Air mineral kemasan botol 600ml",
       "_user_tags": "best seller,baru",
       "valuation_rate": 3500,
@@ -279,16 +554,19 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 ```json
 {
   "message": {
-    "name": "MIN-001",
+    "name": "2609000001",
     "owner": "Administrator",
     "creation": "2026-09-01 09:20:00.000000",
-    "item_code": "MIN-001",
+    "item_code": "2609000001",
     "item_name": "Air Mineral 600ml",
     "item_group": "Minuman",
     "is_stock_item": 1,
     "is_sales_item": 1,
     "is_purchase_item": 1,
     "stock_uom": "Pcs",
+    "min_sales_qty": 6,
+    "max_sales_qty": 24,
+    "sales_qty_multiple": 6,
     "purchase_uom": "Dus",
     "uoms": [
       { "name": "abc001", "uom": "Pcs", "conversion_factor": 1 },
@@ -303,6 +581,9 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
     "has_batch_no": 1,
     "has_expiry_date": 1,
     "shelf_life_in_days": 180,
+    "supplier_items": [
+      { "name": "sup001", "supplier": "PT Distributor Utama", "supplier_part_no": "AQUA-600" }
+    ],
     "valuation_rate": 3500,
     "standard_rate": 5000,
     "item_defaults": [
@@ -312,13 +593,22 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 }
 ```
 
-> `name` = `MIN-001` → simpan nilai ini; dipakai untuk operasi berikutnya (dikirim di body).
+> `name` = `2609000001` (= `item_code`) → **simpan nilai ini dari respons**; dipakai sebagai `name`
+> pada semua operasi berikutnya (dikirim di body) dan untuk menghubungkannya ke dokumen lain
+> (stok, harga, transaksi).
+
+> **Catatan kode contoh:** contoh di §4.4–§4.10 memakai kode hasil generate yang sama dengan
+> §4.1/§4.2 — `2609000001` untuk Air Mineral (item tunggal), `2609000002` untuk template Kaos Polos,
+> dan `2609000003`–`2609000007` untuk variannya. Di implementasi nyata kode selalu diambil dari
+> `name` pada respons CREATE, bukan ditentukan frontend (§2.1 no. 1).
 
 > **Catatan `has_batch_no` / `has_expiry_date` / `shelf_life_in_days`:** ketiga field ini opsional
 > di sisi backend, tetapi bila `has_expiry_date` dikirim `1`, maka `has_batch_no` **wajib** ikut `1`
 > (backend menolak bila tidak). `shelf_life_in_days` (mis. `180`) berfungsi sebagai **preset** — saat
 > Batch baru dibuat untuk Item ini, `expiry_date` Batch dihitung otomatis dari tanggal produksi +
 > `shelf_life_in_days`. Setelah Item punya riwayat stok, `has_batch_no` tidak bisa diubah (§2.1 no. 3).
+> Untuk **penomoran Batch saat penerimaan** (otomatis `BATCH-00001` vs input user) lihat **§2.1 no. 12**,
+> dengan contoh lengkap di **§4.3**.
 
 > **Catatan `standard_rate`:** mengisi `standard_rate` saat CREATE **otomatis membuat Item Price**
 > pada Price List default selling di backend (`after_insert → add_price`). Detail pengelolaan harga
@@ -330,7 +620,6 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 ```json
 {
   "doctype": "Item",
-  "item_code": "SRV-001",
   "item_name": "Biaya Instalasi",
   "item_group": "Jasa",
   "is_stock_item": 0,
@@ -346,7 +635,6 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 ```json
 {
   "doctype": "Item",
-  "item_code": "RM-001",
   "item_name": "Gula Pasir 1kg",
   "item_group": "Bahan Baku",
   "is_stock_item": 1,
@@ -373,7 +661,6 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   -d '{
     "doc": {
       "doctype": "Item",
-      "item_code": "MIN-001",
       "item_group": "Minuman",
       "stock_uom": "Pcs",
       "reorder_levels": [
@@ -398,11 +685,30 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 >   bila `baseapp` terpasang & sudah di-`bench migrate`. Murni untuk pencatatan/notifikasi — tidak
 >   memicu logika stok apa pun.
 > - Untuk item yang sudah ada, gunakan `frappe.client.save` dengan seluruh baris `reorder_levels`
->   (replace-all); baris ini ikut terbaca pada `frappe.client.get` (§4.3).
+>   (replace-all); baris ini ikut terbaca pada `frappe.client.get` (§4.4).
 > - Menyimpan nilai di sini **belum memicu apa pun** di backend (tidak membuat Material Request
 >   otomatis) — mekanisme reorder & notifikasi diatur belakangan (PRD stok, §9).
 
 ### 4.2 CREATE — Item dengan varian
+
+> ⚠️ **Kode template juga dibuat backend — frontend tidak bisa menentukannya.** Template adalah item
+> non-varian, jadi ia **kena naming series `YY.MM.######`** seperti item biasa. `name`/`item_code`
+> template harus diambil dari **respons CREATE** (§2.1 no. 1); kode inilah yang dipakai di langkah
+> berikutnya (`item` pada `create_variant`, `variant_of` pada insert varian).
+>
+> **Varian juga dapat kode seri — `item_code` kiriman frontend tetap ditimpa.** Ini berbeda dari
+> perilaku bawaan ERPNext (yang membuat `{kode template}-{abbr}`, mis. `2609000004-Large`): app
+> `baseapp` menggantinya lewat hook `Item.before_insert` supaya lebar kode — dan karena itu lebar
+> **barcode yang dicetak** — selalu sama (10 digit).
+>
+> | Yang dilakukan frontend | Hasil |
+> |---|---|
+> | Tidak mengirim `item_code` | kode seri sendiri, mis. `2609000005` |
+> | Mengirim `item_code` sendiri (mis. `ABC-123`) | **tetap ditimpa** kode seri |
+> | `create_variant` menyarankan `{kode template}-{abbr}` | **diabaikan** — pakai `name` dari respons `insert` |
+>
+> `item_name` **tidak** ikut berubah: varian tetap bernama `{item_name template}-{abbr}` (mis.
+> `Kaos Polos-Large`), dan relasi ke template tetap tersimpan di `variant_of`.
 
 > **Konsep:** Satu **template** (`has_variants=1`, berisi daftar atribut tanpa nilai) + beberapa
 > **varian** (`variant_of=<template>`, berisi atribut + nilai konkret). Template & varian **disimpan
@@ -410,8 +716,17 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 > atribut/nilai di `tabItem Attribute` + `tabItem Attribute Value` (§2.2). Hanya **varian** yang bisa
 > ditransaksikan stok/jual — template hanya sebagai kerangka.
 
-**Contoh kasus:** Produk "Kaos Polos" punya atribut `Ukuran` (nilai `S`/`M`/`L`). Dibutuhkan 3 varian:
-`KAOS-POLOS-S`, `KAOS-POLOS-M`, `KAOS-POLOS-L`.
+**Contoh kasus:** Produk "Kaos Polos" punya atribut `Ukuran` (nilai `Small`/`Medium`/`Large`).
+Dibutuhkan 3 varian. Misalkan backend mengembalikan **`2609000002`** sebagai kode template, maka
+tiap varian mendapat kode seri **berikutnya dari counter yang sama**: `2609000003` (Small),
+`2609000004` (Medium), `2609000005` (Large) — **bukan** `2609000002-Small`. Yang tetap enak dibaca
+adalah `item_name`-nya: `Kaos Polos-Small`, `Kaos Polos-Medium`, `Kaos Polos-Large`.
+
+> **Penting — `abbr` = `attribute_value`.** Sejak app `baseapp` terpasang, kolom `abbr` pada child
+> table `item_attribute_values` **diisi otomatis backend** dan nilainya **selalu sama dengan
+> `attribute_value`** (Langkah 1 di bawah). Karena `abbr` yang menyusun `item_name` varian, nama
+> varian mengikuti **nilai** atributnya (`Small` → `Kaos Polos-Small`, bukan `Kaos Polos-S`).
+> `item_code` varian tidak terpengaruh — tetap kode seri (§2.1 no. 1).
 
 **Langkah 1 — Buat master Item Attribute (sekali saja, bisa dipakai banyak template):**
 
@@ -424,16 +739,23 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
       "doctype": "Item Attribute",
       "attribute_name": "Ukuran",
       "item_attribute_values": [
-        { "attribute_value": "Small", "abbr": "S" },
-        { "attribute_value": "Medium", "abbr": "M" },
-        { "attribute_value": "Large", "abbr": "L" }
+        { "attribute_value": "Small" },
+        { "attribute_value": "Medium" },
+        { "attribute_value": "Large" }
       ]
     }
   }'
 ```
 
-> `abbr` dipakai membangun `item_code` varian otomatis (mis. `M` → `KAOS-POLOS-M`). Tersimpan di
-> `tabItem Attribute` (+ `tabItem Attribute Value`).
+> **`abbr` tidak perlu dikirim.** app `baseapp` mengisinya otomatis **sama dengan `attribute_value`**
+> (hook `Item Attribute.before_validate` → `baseapp.utils.sync_attribute_value_and_abbr`). Di form
+> Desk kolom `abbr` juga **di-hide** dan **tidak wajib** (property setter dari `baseapp`), sehingga
+> user cukup mengisi Attribute Value. Bila `abbr` tetap dikirim dengan nilai berbeda, nilai kiriman
+> **ditimpa** oleh `attribute_value`.
+>
+> `abbr` tinggal dipakai menyusun `item_name` varian (mis. `Medium` → `Kaos Polos-Medium`);
+> `item_code` varian sendiri dibuat backend (§2.1 no. 1). Tersimpan di `tabItem Attribute`
+> (+ `tabItem Attribute Value`).
 
 **Langkah 2 — Buat template (`has_variants=1`, `attributes` tanpa nilai):**
 
@@ -444,7 +766,6 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   -d '{
     "doc": {
       "doctype": "Item",
-      "item_code": "KAOS-POLOS",
       "item_name": "Kaos Polos",
       "item_group": "Pakaian",
       "is_stock_item": 1,
@@ -459,6 +780,9 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 ```
 
 > Backend memaksa `attributes` wajib ada saat `has_variants=1` (*"Attribute table is mandatory"*).
+>
+> **Tidak ada `item_code`** di payload — respons CREATE mengembalikan kode template hasil generate
+> (mis. `2609000002`). **Simpan nilai ini**; langkah 3–4 di bawah memakainya.
 
 **Langkah 3a — Buat varian via method resmi `create_variant`:**
 
@@ -467,8 +791,8 @@ curl -X POST https://site-anda.com/api/method/erpnext.controllers.item_variant.c
   -H 'Authorization: Bearer <access_token>' \
   -H 'Content-Type: application/json' \
   -d '{
-    "item": "KAOS-POLOS",
-    "args": { "Ukuran": "M" },
+    "item": "2609000002",
+    "args": { "Ukuran": "Medium" },
     "use_template_image": false
   }'
 ```
@@ -479,23 +803,31 @@ curl -X POST https://site-anda.com/api/method/erpnext.controllers.item_variant.c
 {
   "message": {
     "doctype": "Item",
-    "item_code": "KAOS-POLOS-M",
-    "item_name": "Kaos Polos-M",
-    "variant_of": "KAOS-POLOS",
+    "item_code": "2609000002-Medium",
+    "item_name": "Kaos Polos-Medium",
+    "variant_of": "2609000002",
     "variant_based_on": "Item Attribute",
     "item_group": "Pakaian",
     "is_stock_item": 1,
     "is_sales_item": 1,
     "is_purchase_item": 1,
     "stock_uom": "Pcs",
-    "attributes": [ { "attribute": "Ukuran", "attribute_value": "M" } ]
+    "attributes": [ { "attribute": "Ukuran", "attribute_value": "Medium" } ]
   }
 }
 ```
 
 > `create_variant` mengembalikan dokumen **belum disimpan** dengan `item_code`/`item_name` otomatis
-> `{template}-{abbr}` dan field `reqd`/field terpilih (Item Variant Settings) tersalin dari template.
-> **Simpan** dengan `frappe.client.insert` (tambahkan `"doctype": "Item"` pada hasil di atas):
+> `{kode template}-{abbr}` dan field `reqd`/field terpilih (Item Variant Settings) tersalin dari
+> template.
+>
+> ⚠️ **`item_code` di atas hanya usulan — akan diganti saat disimpan.** app `baseapp` menimpanya
+> dengan kode seri (§2.1 no. 1), jadi **jangan** bersandar pada `item_code` dari respons ini maupun
+> mengirimkannya kembali; ambil `name` dari respons **insert**. Sebaliknya `item_name` (`Kaos Polos-Medium`)
+> dipertahankan apa adanya.
+>
+> **Simpan** dokumen hasil `create_variant` dengan `frappe.client.insert` (tambahkan
+> `"doctype": "Item"`). Varian Medium ini akan tersimpan sebagai **`2609000004`**:
 
 ```bash
 curl -X POST https://site-anda.com/api/method/frappe.client.insert \
@@ -504,22 +836,32 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   -d '{
     "doc": {
       "doctype": "Item",
-      "item_code": "KAOS-POLOS-M",
-      "item_name": "Kaos Polos-M",
-      "variant_of": "KAOS-POLOS",
+      "item_name": "Kaos Polos-Medium",
+      "variant_of": "2609000002",
       "variant_based_on": "Item Attribute",
       "item_group": "Pakaian",
       "is_stock_item": 1,
       "is_sales_item": 1,
       "is_purchase_item": 1,
       "stock_uom": "Pcs",
-      "attributes": [ { "attribute": "Ukuran", "attribute_value": "M" } ]
+      "attributes": [ { "attribute": "Ukuran", "attribute_value": "Medium" } ]
     }
   }'
 ```
 
+> **Contoh respons (HTTP 200):**
+>
+> ```json
+> { "message": { "name": "2609000004", "item_code": "2609000004",
+>   "item_name": "Kaos Polos-Medium", "variant_of": "2609000002",
+>   "attributes": [ { "attribute": "Ukuran", "attribute_value": "Medium" } ] } }
+> ```
+>
+> **Simpan `name` = `2609000004`** — inilah identitas varian untuk semua operasi berikutnya.
+> Bila `item_code` tetap dikirim walau bertentangan, nilainya **tetap ditimpa** (§2.1 no. 1).
+
 > **Pre-check opsional:** gunakan `erpnext.controllers.item_variant.get_variant` dengan
-> `{"template": "KAOS-POLOS", "args": {"Ukuran": "M"}}` — `message` berisi `name` varian yang sudah
+> `{"template": "2609000002", "args": {"Ukuran": "Medium"}}` — `message` berisi `name` varian yang sudah
 > ada (kalau belum ada → `null`/kosong), untuk menghindari `ItemVariantExistsError`.
 
 **Langkah 3b (alternatif) — Buat varian manual (`insert` dengan `variant_of`):**
@@ -531,15 +873,14 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   -d '{
     "doc": {
       "doctype": "Item",
-      "item_code": "KAOS-POLOS-L",
-      "item_name": "Kaos Polos-L",
+      "item_name": "Kaos Polos-Large",
       "item_group": "Pakaian",
       "is_stock_item": 1,
       "is_sales_item": 1,
       "is_purchase_item": 1,
       "stock_uom": "Pcs",
-      "variant_of": "KAOS-POLOS",
-      "attributes": [ { "attribute": "Ukuran", "attribute_value": "L" } ]
+      "variant_of": "2609000002",
+      "attributes": [ { "attribute": "Ukuran", "attribute_value": "Large" } ]
     }
   }'
 ```
@@ -547,6 +888,11 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 > Backend memvalidasi: template harus `has_variants=1`, atribut harus valid untuk template, dan
 > kombinasi atribut tidak boleh menghasilkan varian yang sudah ada
 > (*"Item variant {x} exists with same attributes"* — `ItemVariantExistsError`).
+>
+> Karena `item_code` tidak dikirim, varian ini mendapat kode seri **otomatis** (mis. `2609000005`).
+> `item_name` tetap `Kaos Polos-Large` karena `abbr` (= `attribute_value`) dipakai menyusunnya —
+> tapi **tetap kirim `item_name`**: kalau kosong, `Item.validate()` menyalin `item_code`, sehingga
+> nama produk jadi `2609000005` (§2.1 no. 1).
 
 **Langkah 4 — Verifikasi daftar varian dari template:**
 
@@ -557,7 +903,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   -d '{
     "doctype": "Item",
     "fields": ["name","item_name","variant_of"],
-    "filters": [["variant_of","=","KAOS-POLOS"]],
+    "filters": [["variant_of","=","2609000002"]],
     "order_by": "name asc",
     "limit_page_length": 0
   }'
@@ -568,22 +914,220 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 ```json
 {
   "message": [
-    { "name": "KAOS-POLOS-L", "item_name": "Kaos Polos-L", "variant_of": "KAOS-POLOS" },
-    { "name": "KAOS-POLOS-M", "item_name": "Kaos Polos-M", "variant_of": "KAOS-POLOS" },
-    { "name": "KAOS-POLOS-S", "item_name": "Kaos Polos-S", "variant_of": "KAOS-POLOS" }
+    { "name": "2609000005", "item_name": "Kaos Polos-Large", "variant_of": "2609000002" },
+    { "name": "2609000004", "item_name": "Kaos Polos-Medium", "variant_of": "2609000002" },
+    { "name": "2609000003", "item_name": "Kaos Polos-Small", "variant_of": "2609000002" }
   ]
 }
 ```
 
 > **Aturan penting varian:**
 > - `stock_uom` varian harus sama dengan template (kecuali `Item Variant Settings → Allow Different UOM`).
-> - `item_code`/`item_name` varian dibangun dari `abbr`; bila `abbr` diubah di master Item Attribute,
->   backend **otomatis me-rename** item_code varian terkait.
+> - `item_code` varian **selalu** kode seri buatan backend; `item_name` dibangun dari `abbr`
+>   (mis. `Medium` → `Kaos Polos-Medium`) — dan `abbr` itu sendiri **selalu sama dengan
+>   `attribute_value`** (Langkah 1).
+> - **Mengganti nama template ikut mengganti `item_name` semua variannya** (`Kaos Polos-Medium` →
+>   `T-Shirt-Medium`); mengganti `item_code` template **tidak**. Aturan lengkap: §2.1 no. 10.
+> - **Mengubah `abbr`/`attribute_value` tidak lagi me-rename varian.** ERPNext aslinya me-rename
+>   `item_code` varian kembali ke bentuk `{kode template}-{abbr}` (`rename_variant_item_code`);
+>   app `baseapp` mematikan jalur itu lewat override controller `ItemAttribute.on_update`
+>   (§2.1 no. 7), sehingga kode seri & baris `Item Barcode` tetap valid.
+> - Mengubah `attribute_value` yang **sedang dipakai varian** tetap **ditolak** ERPNext
+>   (*"The value X is already assigned to an existing Item Y…"*) kecuali
+>   `Item Variant Settings → Allow Rename Attribute Value` diaktifkan.
 > - Template **tidak boleh punya stok/transaksi** — semua transaksi memakai varian.
 > - `has_variants` pada template yang sudah dipakai varian **tidak boleh di-nonaktifkan** (ada
 >   validasi terkait).
 
-### 4.3 READ (satu record) & total count
+### 4.3 Item ber-batch — nomor otomatis vs input user (contoh dual satuan roll/Kg)
+
+**Aturan ringkas** (latar lengkap: §2.1 no. 12):
+
+| Kondisi di dokumen penerimaan | `batch_id` yang dipakai |
+|---|---|
+| User **tidak** mengisi nomor batch | otomatis, pola bawaan `Stock Settings` → `BATCH-00001`, `BATCH-00002`, … |
+| User **mengisi** nomor batch | input user apa adanya (mis. `PNM0107-001`) |
+
+**Konsep dual satuan.** Produk seperti tekstil punya **dua satuan sekaligus**: jumlah **roll** dan
+berat **Kg**. ERPNext hanya menyimpan **satu** `stock_uom`, jadi polanya:
+
+| Yang dilihat user | Yang disimpan backend |
+|---|---|
+| "5 roll" | **5 Batch** (1 roll = 1 Batch) |
+| "roll 1 = 10 Kg, roll 4 = 20 Kg" | **qty Batch** = berat roll tersebut (10 / 20 Kg) |
+| "total stok 70 Kg" | jumlah `actual_qty` seluruh Batch (`tabBin`) |
+
+- `stock_uom = Kg` → semua angka stok (masuk, keluar, sisa) dalam Kg.
+- **Jumlah roll = banyaknya Batch** yang stoknya masih `> 0`; **berat roll = qty Batch** itu sendiri.
+- Tidak perlu field berat per roll — berat sudah melekat pada Batch.
+
+> Contoh di seksi ini memakai Item `2609000008` (*Kain Roll Premium*) — kode tetap hasil *generate*
+> backend, bukan ditentukan frontend (§2.1 no. 1).
+
+**Field Item yang dipakai:**
+
+| Field | Nilai | Fungsi |
+|---|---|---|
+| `stock_uom` | `Kg` | satuan stok (berat) — satu-satunya satuan stok |
+| `has_batch_no` | `1` | aktifkan pelacakan Batch (= roll) |
+| `create_new_batch` | `1` | **wajib** — setiap baris transaksi masuk otomatis membuat 1 Batch |
+| `batch_number_series` | *(dikosongkan)* | biarkan kosong agar nomor memakai pola bawaan `BATCH-00001` (§2.1 no. 12) |
+
+**Langkah 1 — CREATE Item (`frappe.client.insert`):**
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Item",
+      "item_name": "Kain Roll Premium",
+      "item_group": "Tekstil",
+      "stock_uom": "Kg",
+      "is_stock_item": 1,
+      "is_sales_item": 1,
+      "is_purchase_item": 1,
+      "has_batch_no": 1,
+      "create_new_batch": 1
+    }
+  }'
+```
+
+> **`batch_number_series` sengaja tidak dikirim** → nomor batch memakai pola bawaan `BATCH-00001`
+> dari `Stock Settings` (§2.1 no. 12). Kirim field itu **hanya** bila Item ini butuh pola sendiri.
+>
+> **Tidak perlu `uoms` tambahan** — `Kg` sudah menjadi `stock_uom`, jadi tidak ada konversi yang harus
+> didaftarkan. Bila produk juga dijual per satuan lain (mis. `Meter`), tambahkan di `uoms` (§5).
+
+**Langkah 2 — Aturan 1: user TIDAK mengisi nomor batch (otomatis).**
+
+`create_new_batch = 1` membuat **setiap baris** penerimaan menghasilkan **tepat 1 Batch**, dan
+nomornya di-*generate* backend memakai pola `Stock Settings` (`BATCH-00001`, `BATCH-00002`, …).
+Menerima 3 roll @10 Kg + 2 roll @20 Kg = **5 baris**, `qty` = berat masing-masing roll — **tanpa**
+key `batch_no`:
+
+```json
+"items": [
+  { "item_code": "2609000008", "qty": 10, "warehouse": "Gudang Pusat - PTMJ" },
+  { "item_code": "2609000008", "qty": 10, "warehouse": "Gudang Pusat - PTMJ" },
+  { "item_code": "2609000008", "qty": 10, "warehouse": "Gudang Pusat - PTMJ" },
+  { "item_code": "2609000008", "qty": 20, "warehouse": "Gudang Pusat - PTMJ" },
+  { "item_code": "2609000008", "qty": 20, "warehouse": "Gudang Pusat - PTMJ" }
+]
+```
+
+Hasil: **5 Batch** (`BATCH-00001` … `BATCH-00005`) dengan qty 10 / 10 / 10 / 20 / 20 Kg →
+`tabBin` mencatat **70 Kg**.
+
+> **Terverifikasi di site dev (2026-10-06):** penerimaan tanpa `batch_no` pada Item ber-
+> `create_new_batch = 1` menghasilkan Batch `BATCH-00001` dengan `name` = `batch_id` = `BATCH-00001`
+> dan qty sesuai baris.
+>
+> Ilustrasi di atas hanya memuat array `items`. Alur lengkap dokumen penerimaan (Purchase Receipt),
+> submit, dan jurnalnya ada di PRD tersendiri (menyusul).
+
+**Langkah 3 — Aturan 2: user mengisi nomor batch (input user).**
+
+**3a. Pastikan Batch-nya sudah ada.** ERPNext **tidak** menerima `batch_no` yang belum terdaftar —
+submit akan gagal dengan `LinkValidationError: Could not find Row #1: Batch No: <nomor>`. Jadi buat
+dulu lewat dua panggilan:
+
+```bash
+# cek — nomornya sudah ada?
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Batch",
+    "fields": ["name","batch_id","item"],
+    "filters": [["batch_id","=","PNM0107-001"]],
+    "limit_page_length": 1
+  }'
+```
+
+Belum ada → buat (`frappe.client.insert`):
+
+```json
+{
+  "doc": {
+    "doctype": "Batch",
+    "batch_id": "PNM0107-001",
+    "item": "2609000008"
+  }
+}
+```
+
+> - Cukup kirim `batch_id` + `item` — `name` dokumen otomatis = `batch_id` (§2.1 no. 12).
+> - **Sudah ada & `item` = item kita** → tidak perlu apa-apa; Batch lama dipakai (mis. melanjutkan
+>   roll yang belum habis).
+> - **Sudah ada tapi `item` ≠ item kita** → **jangan dipakai**; backend akan menolak saat submit
+>   dengan *"Batch Nos X does not belong to Item Y"*. Minta user mengganti nomornya.
+> - Insert diulang untuk nomor yang sama → balasan `DuplicateEntryError`; perlakukan sebagai
+>   **sukses** (artinya Batch sudah terbuat dari percobaan sebelumnya).
+
+**3b. Kirim baris penerimaan dengan `batch_no`.**
+
+```json
+"items": [
+  {
+    "item_code": "2609000008",
+    "qty": 10,
+    "uom": "Kg",
+    "warehouse": "Gudang Pusat - PTMJ",
+    "use_serial_batch_fields": 1,
+    "batch_no": "PNM0107-001"
+  }
+]
+```
+
+> `use_serial_batch_fields = 1` membuat rincian batch dibaca langsung dari field `batch_no` pada baris
+> (ERPNext lalu membuat Serial and Batch Bundle saat submit). Field ini **sudah aktif** di
+> `Stock Settings` site dev. Alternatifnya kirim `serial_and_batch_bundle` bila field itu dimatikan.
+
+**Aman untuk dicoba ulang (koneksi putus / error saat posting).** Urutan di atas sengaja idempoten:
+
+| Langkah | Kalau diulang |
+|---|---|
+| `get_list` cek nomor | aman (read-only) |
+| `insert` Batch | balasan `DuplicateEntryError` → anggap **sukses**, lanjut |
+| Kirim dokumen penerimaan | **belum idempoten** — pastikan dokumen belum pernah masuk sebelum mengirim ulang (cek daftar penerimaan supplier / no. surat jalan), karena ERPNext tidak punya *idempotency key* |
+
+> Batch yang sudah terbuat tetapi penerimaannya batal **tidak masalah**: Batch tanpa stok boleh ada,
+> dan saat dicoba ulang nomor yang sama dipakai kembali (aturan "sudah ada → pakai ulang").
+
+**Penjualan (sebagian) roll.** Jual 1 roll utuh (10 Kg) → pilih Batch roll itu, `qty = 10`. Jual
+sebagian (mis. 6 Kg dari roll 10 Kg) → Batch yang sama, `qty = 6`; sisa 4 Kg tetap di Batch itu.
+Payload barisnya sama seperti 3b (kirim `batch_no`), hanya dokumennya dokumen penjualan — detail ada
+di PRD penjualan tersendiri (menyusul).
+
+**Cara user memilih roll:** tampilkan daftar Batch milik Item ini (`batch_id` + sisa qty); Batch
+dengan sisa `> 0` = roll yang masih ada.
+
+**Validasi backend yang perlu diketahui frontend:**
+
+| Kondisi | Hasil |
+|---|---|
+| `batch_no` belum ada di master `Batch` | ❌ `LinkValidationError: Could not find Row #1: Batch No: <nomor>` |
+| `batch_no` milik Item lain | ❌ `Batch Nos <nomor> does not belong to Item <item>` |
+| Transaksi **keluar** dengan nomor yang belum ada | ❌ `Batch No <nomor> does not exists` — Batch hanya boleh dibuat pada transaksi **masuk** |
+| `create_new_batch = 0` & `batch_no` kosong | ❌ `Batch ID is mandatory` |
+
+> Alternatif satu panggilan untuk 3a: `erpnext.stock.doctype.serial_and_batch_bundle.serial_and_batch_bundle.is_serial_batch_no_exists`
+> dengan `{item_code, type_of_transaction: "Inward", batch_no}` — persis yang dipakai Desk. Ia
+> idempoten (nomor yang sudah ada tidak error), tetapi **responsnya kosong** sehingga frontend tidak
+> bisa memverifikasi `item`-nya; kalau nomor itu milik Item lain, kegagalan baru muncul saat submit.
+
+**Batasan penting:**
+
+- **Satu `stock_uom` saja.** "Roll" bukan satuan stok, melainkan **jumlah Batch** — tidak ada field
+  "jumlah roll" di `tabItem`.
+- **Batch yang stoknya habis tetap ada** (riwayat). Jumlah roll aktif = jumlah Batch dengan sisa
+  `> 0`, bukan `frappe.client.get_count` atas seluruh dokumen `Batch`.
+- Menambah roll = menambah baris (1 baris = 1 Batch). Untuk **satu baris berisi beberapa roll
+  sekaligus**, Batch harus dibuat/diisi manual (tidak dibahas di sini).
+
+### 4.4 READ (satu record) & total count
 
 **Langkah 1 — Ambil detail Item (`frappe.client.get`):**
 
@@ -593,14 +1137,28 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Item",
-    "name": "MIN-001"
+    "name": "2609000001"
   }'
 ```
 
 > Respons `message` berisi seluruh field Item (seperti respons CREATE), termasuk child table
-> `uoms`, `barcodes`, `attributes`, `reorder_levels`, `item_defaults`, `taxes`. (Catatan: `uoms`
-> pada respons menampilkan baris yang tersimpan — baris `stock_uom` dengan `conversion_factor=1`
+> `uoms`, `barcodes`, `supplier_items`, `attributes`, `reorder_levels`, `item_defaults`, `taxes`.
+> (Catatan: `uoms` pada respons menampilkan baris yang tersimpan — baris `stock_uom` dengan
+> `conversion_factor=1`
 > otomatis ditambahkan backend bila belum ada.)
+
+**Contoh potongan respons — pemasok Item:**
+
+```json
+{
+  "message": {
+    "name": "2609000001",
+    "supplier_items": [
+      { "name": "sup001", "supplier": "PT Distributor Utama", "supplier_part_no": "AQUA-600" }
+    ]
+  }
+}
+```
 
 **Total count — `frappe.client.get_count`** (untuk pagination / lazy loading):
 
@@ -620,9 +1178,11 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_count \
 { "message": 128 }
 ```
 
-> `message` = jumlah record yang cocok → dipakai menghitung total halaman pada lazy loading (§4.4).
+> `message` = jumlah record yang cocok → dipakai menghitung total halaman pada lazy loading (§4.5).
+> Bila query-nya memakai `or_filters`, **kirim juga key `or_filters` di body** pada request yang sama —
+> `frappe.client.get_count` membacanya dari body walau tidak ada di signature (§2.1 no. 9).
 
-### 4.4 READ (daftar) — `frappe.client.get_list`
+### 4.5 READ (daftar) — `frappe.client.get_list`
 
 ```bash
 # Daftar — halaman 1, produk aktif yang bisa dijual
@@ -644,7 +1204,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 ```json
 {
   "message": [
-    { "name": "MIN-001", "item_name": "Air Mineral 600ml", "item_group": "Minuman",
+    { "name": "2609000001", "item_name": "Air Mineral 600ml", "item_group": "Minuman",
       "stock_uom": "Pcs", "image": "/files/min-001.jpg", "standard_rate": 5000, "disabled": 0 }
   ]
 }
@@ -652,13 +1212,207 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 
 > Halaman berikutnya naikkan `limit_start` kelipatan `50`; `limit_page_length=0` = ambil **semua**
 > record. Filter umum: `disabled=0` (aktif), `is_sales_item=1`, `is_stock_item=1`, `has_variants=0`
-> (non-template), `variant_of=<template>` (daftar varian), `item_group=<leaf>`.
+> (non-template), `has_variants=1` (template), `variant_of is not set` (item non-varian — item tunggal
+> **dan** template; lihat §4.5.1), `variant_of=<template>` (daftar varian), `item_group=<leaf>`,
+> dan **jenis produk**: `is_dynamic_product_bundle=1` (paket dinamis), `is_product_bundle=1`
+> (paket statis), `is_fixed_asset=1` (aset) — gabungkan ketiganya dengan `or_filters` (§2.1 no. 9).
 
-### 4.5 UPDATE — `frappe.client.save` & `frappe.client.set_value`
+#### 4.5.1 Daftar item + seluruh variannya (2 request + merge di frontend)
+
+**Kebutuhan:** menampilkan daftar produk di mana tiap **template** ikut membawa daftar variannya —
+mis. "Kaos Polos" beserta variannya. Karena `item_code` sekarang angka seri (`2609000006`), yang
+enak ditampilkan ke user adalah **`item_name`**-nya (`Kaos Polos-Biru`, `Kaos Polos-Merah`).
+
+**Kenapa harus 2 request:** `frappe.client.get_list` **tidak bisa** mengembalikan array varian
+bersarang. Varian **bukan child table** (§2.2) — varian adalah **record `Item` terpisah** di tabel
+yang sama, dihubungkan lewat kolom `variant_of`. Jadi polanya: **request 1** mengambil semua item
+non-varian (item tunggal **+** template), **request 2** mengambil semua varian dari template pada
+halaman itu, lalu **frontend** menggabungkan keduanya (`group by variant_of`). Ini generalisasi dari
+§4.2 Langkah 4 (yang baru menangani satu template).
+
+> **Request 1 — semua item non-varian (item tunggal + template).**
+> Kunci filter: **`["variant_of","is","not set"]`** → menangkap `variant_of` yang NULL **maupun** `''`.
+> Item tunggal dan template keduanya tidak punya `variant_of`, jadi keduanya ikut terambil. Sertakan
+> `has_variants` di `fields` agar frontend bisa membedakan **template** (`has_variants=1`) dari
+> **item tunggal** (`has_variants=0`).
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["name","item_name","item_group","stock_uom","image","standard_rate","disabled","has_variants","variant_of"],
+    "filters": [["disabled","=",0],["variant_of","is","not set"]],
+    "order_by": "name asc",
+    "limit_start": 0,
+    "limit_page_length": 50
+  }'
+```
+
+> Filter tambahan disesuaikan konteks UI — mis. `["is_sales_item","=",1]` (katalog jual/POS) atau
+> `["is_stock_item","=",1]` (hanya produk stok). Contoh di atas sengaja netral: **semua item aktif
+> yang bukan varian**.
+
+**Contoh respons (HTTP 200) — item tunggal + template bercampur:**
+
+```json
+{
+  "message": [
+    { "name": "2609000008", "item_name": "Biaya Instalasi", "item_group": "Jasa",
+      "stock_uom": "Nos", "image": "", "standard_rate": 150000, "disabled": 0,
+      "has_variants": 0, "variant_of": "" },
+
+    { "name": "2609000002", "item_name": "Kaos Polos", "item_group": "Pakaian",
+      "stock_uom": "Pcs", "image": "/files/kaos.jpg", "standard_rate": 50000, "disabled": 0,
+      "has_variants": 1, "variant_of": "" },
+
+    { "name": "2609000001", "item_name": "Air Mineral 600ml", "item_group": "Minuman",
+      "stock_uom": "Pcs", "image": "/files/min-001.jpg", "standard_rate": 5000, "disabled": 0,
+      "has_variants": 0, "variant_of": "" }
+  ]
+}
+```
+
+> **Request 2 — semua varian dari template di halaman tersebut.**
+> Kirim **hanya `name` yang `has_variants=1`** (lihat catatan penting no. 1). Pakai
+> `limit_page_length: 0` karena jumlah varian per halaman kecil; jika template-nya sangat banyak,
+> pecah daftar `in` menjadi beberapa batch (lihat catatan penting no. 3).
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["name","item_name","variant_of","stock_uom","image","standard_rate","disabled"],
+    "filters": [["variant_of","in",["2609000002"]],["disabled","=",0]],
+    "order_by": "variant_of asc, name asc",
+    "limit_page_length": 0
+  }'
+```
+
+**Contoh respons (HTTP 200) — daftar varian (flat, `variant_of` = template-nya):**
+
+```json
+{
+  "message": [
+    { "name": "2609000006", "item_name": "Kaos Polos-Biru", "variant_of": "2609000002",
+      "stock_uom": "Pcs", "image": "/files/kaos-biru.jpg", "standard_rate": 50000, "disabled": 0 },
+    { "name": "2609000007", "item_name": "Kaos Polos-Merah", "variant_of": "2609000002",
+      "stock_uom": "Pcs", "image": "/files/kaos-merah.jpg", "standard_rate": 50000, "disabled": 0 }
+  ]
+}
+```
+
+> **Opsional — nilai atribut varian (mis. Colour: Merah/Biru) tanpa request ketiga.** Karena
+> `attributes` **adalah** child table, request 2 bisa menambahkan nested child query pada `fields`:
+>
+> ```json
+> "fields": ["name","item_name","variant_of","image","standard_rate",
+>            { "attributes": ["attribute","attribute_value"] }]
+> ```
+>
+> → tiap baris varian ikut membawa `"attributes": [ { "attribute": "Colour", "attribute_value": "Merah" } ]`.
+> **Terverifikasi di site dev (Frappe v16, 2026-09-26)** — respons nyata sebuah varian:
+>
+> ```json
+> { "name": "BUB-PB-BLU-BIG", "item_name": "Produk Bervarian - Blue - Big", "variant_of": "BUB-PB",
+>   "attributes": [ { "attribute": "Color", "attribute_value": "Blue" },
+>                   { "attribute": "Size",  "attribute_value": "Big" } ] }
+> ```
+>
+> Catatan: (a) pada baris **template**, `attribute_value` bernilai `null` (§2.5 — template hanya
+> mendaftar atribut); (b) sintaks `{ "<child_table>": [ ... ] }` hanya berlaku untuk **child table
+> asli** — di Item: `attributes`, `uoms`, `barcodes`, `reorder_levels`, `item_defaults`, `taxes`;
+> **tidak** untuk varian (varian bukan child table); (c) alternatif lain: `fields` string bertitik
+> (`"attributes.attribute_value"`) juga jalan, tetapi hasilnya **flat** — satu baris per baris child
+> sehingga item bisa muncul berulang.
+
+> **Merge di frontend** — gabungkan respons request 2 ke respons request 1 dengan `group by variant_of`.
+
+```js
+// 1) Request 1
+const items = (await api1({ limit_start: 0, limit_page_length: 50 })).message;
+
+// 2) Ambil nama template di halaman ini saja
+const templateNames = items.filter(i => i.has_variants == 1).map(i => i.name);
+
+// 3) Request 2 — WAJIB di-skip kalau daftar template kosong (lihat catatan penting no. 1)
+const variantRows = templateNames.length ? (await api2(templateNames)).message : [];
+
+// 4) Group by variant_of
+const byTemplate = new Map();
+for (const v of variantRows) {
+  if (!byTemplate.has(v.variant_of)) byTemplate.set(v.variant_of, []);
+  byTemplate.get(v.variant_of).push(v);
+}
+
+// 5) Tempelkan ke baris request 1 (nama key hasil gabungan bebas — ditentukan UI, mis. "variants")
+const result = items.map(i => ({
+  ...i,
+  variants: i.has_variants == 1 ? (byTemplate.get(i.name) || []) : null,
+}));
+```
+
+**Contoh hasil gabungan yang dipakai UI:**
+
+```json
+[
+  { "name": "2609000008", "item_name": "Biaya Instalasi", "has_variants": 0, "variants": null },
+  {
+    "name": "2609000002", "item_name": "Kaos Polos", "item_group": "Pakaian",
+    "stock_uom": "Pcs", "image": "/files/kaos.jpg", "standard_rate": 50000,
+    "has_variants": 1,
+    "variants": [
+      { "name": "2609000006", "item_name": "Kaos Polos-Biru", "variant_of": "2609000002",
+        "image": "/files/kaos-biru.jpg", "standard_rate": 50000 },
+      { "name": "2609000007", "item_name": "Kaos Polos-Merah", "variant_of": "2609000002",
+        "image": "/files/kaos-merah.jpg", "standard_rate": 50000 }
+    ]
+  },
+  { "name": "2609000001", "item_name": "Air Mineral 600ml", "has_variants": 0, "variants": null }
+]
+```
+
+**Kontrak untuk UI:**
+
+| Kondisi | Arti |
+|---|---|
+| `variants: null` | Item tunggal (`has_variants=0`) — memang tidak punya varian. |
+| `variants: []` | Template (`has_variants=1`) yang **belum punya varian** atau semua variannya nonaktif. |
+| `variants: [ ... ]` | Daftar varian template tersebut (objek `Item` utuh, minimal `name` + `item_name`). |
+
+**Catatan penting:**
+
+1. **Jangan pernah mengirim `["variant_of","in",[]]` (list kosong).** Di Frappe, list kosong pada
+   operator `in` **tidak** berarti "tidak ada hasil", melainkan diubah menjadi `IN ('')` →
+   `variant_of IN ('') OR variant_of IS NULL`, sehingga request 2 akan **mengembalikan item
+   non-varian** (item tunggal + template) seolah-olah varian. Selalu **lewati request 2** bila daftar
+   template kosong. (Terverifikasi di site dev 2026-09-26: `["variant_of","in",[]]` mengembalikan
+   item dengan `variant_of: null` — bukan hasil kosong.)
+2. **`variant_of is not set` menangkap NULL dan `''`.** Template juga tidak punya `variant_of`, jadi
+   ikut terambil di request 1 — ini yang diinginkan. (Padanan `has_variants=0` **bukan** penggantinya:
+   filter itu **mengecualikan** template.)
+3. **Batasi request 2 per halaman, jangan seluruh dataset.** Kalau request 1 tidak dipaginasi
+   (`limit_page_length=0`) dan template-nya banyak, pecah `in` menjadi batch ±100–200 nama per request
+   agar query & payload tetap wajar.
+4. **Urutan stabil.** Request 1 pakai `order_by: "name asc"` (agar pagination tidak melompat/duplikat),
+   request 2 pakai `order_by: "variant_of asc, name asc"` agar pengelompokan deterministik.
+5. **Varian nonaktif.** Dengan `["disabled","=",0]` di request 2, template yang seluruh variannya
+   dinonaktifkan akan tampil dengan `variants: []`. Sesuai §4.9, menonaktifkan template juga
+   menonaktifkan seluruh variannya, sehingga filter ini konsisten.
+6. **Total halaman (pagination).** Pakai `frappe.client.get_count` (§4.4) dengan `filters` yang
+   **identik** dengan request 1.
+7. **Alternatif tanpa merge di frontend:** bila UI tidak ingin menggabungkan sendiri, pola ini perlu
+   dijadikan satu endpoint custom (whitelisted, mis. di app `baseapp`) yang mengembalikan template +
+   array varian dalam satu respons — di luar cakupan dokumen ini karena bukan `frappe.client.*`.
+
+### 4.6 UPDATE — `frappe.client.save` & `frappe.client.set_value`
 
 Update memakai `save`: kirim dokumen (hasil `frappe.client.get` yang dimodifikasi); `name` ada di
-body. Child table (`uoms`, `barcodes`, `attributes`, `reorder_levels`, `item_defaults`, `taxes`)
-berlaku **replace-all** — kirim seluruh baris yang diinginkan.
+body. Child table (`uoms`, `barcodes`, `supplier_items`, `attributes`, `reorder_levels`,
+`item_defaults`, `taxes`) berlaku **replace-all** — kirim seluruh baris yang diinginkan.
 
 ```bash
 curl -X POST https://site-anda.com/api/method/frappe.client.save \
@@ -667,8 +1421,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
   -d '{
     "doc": {
       "doctype": "Item",
-      "name": "MIN-001",
-      "item_code": "MIN-001",
+      "name": "2609000001",
+      "item_code": "2609000001",
       "item_name": "Air Mineral 600ml",
       "item_group": "Minuman",
       "is_stock_item": 1,
@@ -679,6 +1433,9 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
       "uoms": [
         { "uom": "Pcs", "conversion_factor": 1 },
         { "uom": "Dus", "conversion_factor": 12 }
+      ],
+      "supplier_items": [
+        { "supplier": "PT Distributor Utama", "supplier_part_no": "AQUA-600" }
       ],
       "image": "/files/min-001.jpg",
       "standard_rate": 5500
@@ -691,10 +1448,40 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
 > **Catatan:**
 > - `save` membangun ulang dokumen dari dict — kirim dokumen yang konsisten/lengkap (idealnya hasil
 >   GET yang diubah). Child table bersifat replace-all.
+> - `supplier_items` dikelola dengan cara yang sama: pertahankan baris yang masih berlaku dan kirim
+>   seluruh daftar pemasok yang diinginkan. Untuk menghapus satu pemasok dari Item, hilangkan baris
+>   tersebut dari daftar sebelum `save`; untuk menghapus semua pemasok, kirim `"supplier_items": []`.
+> - Ubah `item_name` pada **template** (`has_variants=1`) → **semua varian ikut berganti nama**
+>   (`KAOS-M` → `T-SHIRT-M`), baik lewat `save` maupun `set_value`. Bila salah satu nama varian
+>   bentrok dengan Item aktif lain, seluruh permintaan ditolak 417 dan tidak ada yang berubah
+>   (§2.1 no. 10).
 > - Ubah `standard_rate` di sini **tidak** otomatis mengubah Item Price yang sudah ada (hanya saat
 >   CREATE). Pengelolaan harga: [prd_item_price.md](./prd_item_price.md).
 > - Ubah `item_group` → pindah kategori produk (tidak ada efek samping stok).
 > - Ubah `stock_uom` pada Item ber-stok **ditolak backend**.
+
+**DELETE pemasok dari Item — `frappe.client.save`:**
+
+Tidak ada delete mandiri untuk baris child `Item Supplier`. Ambil dokumen Item dengan GET, hapus
+dari `doc.supplier_items` baris pemasok yang ingin dilepas, lalu kirim kembali **dokumen lengkap**
+tersebut ke `frappe.client.save`. Contoh, bila hasil GET berisi dua pemasok dan
+`PT Distributor Utama` akan dihapus, pertahankan semua field Item dari respons GET dan sisakan hanya
+pemasok yang tidak dihapus. Berikut **potongan** field `doc` yang berubah:
+
+```json
+{
+  "doctype": "Item",
+  "name": "2609000001",
+  "item_code": "2609000001",
+  "supplier_items": [
+    { "supplier": "PT Pemasok Kedua", "supplier_part_no": "SKU-002" }
+  ]
+}
+```
+
+Kirim objek tersebut sebagai `"doc"` ke `frappe.client.save`, bersama field lain dari dokumen hasil
+GET. Untuk melepas **semua** pemasok, set `"supplier_items": []`. Baris lain yang tidak ingin diubah
+harus tetap disertakan karena seluruh child table diganti sesuai payload.
 
 **Perubahan kecil — `frappe.client.set_value`** (lebih aman untuk satu-dua field):
 
@@ -705,7 +1492,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Item",
-    "name": "MIN-001",
+    "name": "2609000001",
     "fieldname": { "disabled": 1 }
   }'
 ```
@@ -717,12 +1504,12 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Item",
-    "name": "MIN-001",
+    "name": "2609000001",
     "fieldname": { "item_group": "Air Mineral", "standard_rate": 6000 }
   }'
 ```
 
-### 4.6 Barcode — CRUD
+### 4.7 Barcode — CRUD
 
 Barcode disimpan di child table **`barcodes`** (doctype `Item Barcode`, tabel `tabItem Barcode`),
 satu Item boleh punya **banyak barcode** (mis. per UOM). Backend memvalidasi barcode **unik global**.
@@ -736,16 +1523,27 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   -d '{
     "doc": {
       "doctype": "Item",
-      "item_code": "MIN-001",
+      "item_name": "Air Mineral 600ml",
       "item_group": "Minuman",
       "stock_uom": "Pcs",
       "barcodes": [
-        { "barcode": "8991234567890", "barcode_type": "EAN-13" },
-        { "barcode": "8991234567891", "barcode_type": "EAN-13", "uom": "Dus" }
+        { "barcode": "8991234567891", "barcode_type": "EAN-13" },
+        { "barcode": "8991234567808", "barcode_type": "EAN-13", "uom": "Dus" }
       ]
     }
   }'
 ```
+
+> **Tanpa `item_code`** — kode dibuat backend (§2.1 no. 1); `barcodes` boleh ikut di payload CREATE yang sama.
+>
+> **`barcodes` bersifat opsional.** Bila tidak dikirim (atau dikirim `[]`), backend otomatis
+> menambahkan satu baris `barcode = item_code` dengan `uom = stock_uom` dan `barcode_type` kosong
+> (§2.1 no. 7). Kirim `barcodes` hanya bila produk memang punya barcode pabrik sendiri.
+>
+> ⚠️ **`barcode_type` yang diisi memicu uji check digit.** `8991234567890` **ditolak** dengan
+> `InvalidBarcode` — check digit yang benar untuk `899123456789` adalah `1`, jadi nilai validnya
+> `8991234567891`. Contoh di atas sudah memakai nilai yang valid. Karena `item_code` (10 digit) tidak
+> mungkin lolos uji EAN/UPC, baris barcode default selalu memakai `barcode_type` kosong.
 
 **READ — `barcodes` ikut dalam respons `frappe.client.get`:**
 
@@ -753,7 +1551,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 curl -X POST https://site-anda.com/api/method/frappe.client.get \
   -H 'Authorization: Bearer <access_token>' \
   -H 'Content-Type: application/json' \
-  -d '{ "doctype": "Item", "name": "MIN-001" }'
+  -d '{ "doctype": "Item", "name": "2609000001" }'
 ```
 
 **Contoh respons (bagian `barcodes`):**
@@ -761,10 +1559,10 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get \
 ```json
 {
   "message": {
-    "name": "MIN-001",
+    "name": "2609000001",
     "barcodes": [
-      { "name": "xyz001", "barcode": "8991234567890", "barcode_type": "EAN-13", "uom": "" },
-      { "name": "xyz002", "barcode": "8991234567891", "barcode_type": "EAN-13", "uom": "Dus" }
+      { "name": "xyz001", "barcode": "8991234567891", "barcode_type": "EAN-13", "uom": "" },
+      { "name": "xyz002", "barcode": "8991234567808", "barcode_type": "EAN-13", "uom": "Dus" }
     ]
   }
 }
@@ -780,13 +1578,13 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
   -d '{
     "doc": {
       "doctype": "Item",
-      "name": "MIN-001",
-      "item_code": "MIN-001",
+      "name": "2609000001",
+      "item_code": "2609000001",
       "item_group": "Minuman",
       "stock_uom": "Pcs",
       "barcodes": [
-        { "barcode": "8991234567890", "barcode_type": "EAN-13" },
-        { "barcode": "8991234567893", "barcode_type": "EAN-13", "uom": "Pcs" }
+        { "barcode": "8991234567891", "barcode_type": "EAN-13" },
+        { "barcode": "8991234567815", "barcode_type": "EAN-13", "uom": "Pcs" }
       ]
     }
   }'
@@ -803,13 +1601,13 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
 >   -d '{
 >     "doctype": "Item",
 >     "fields": ["name","item_name","stock_uom"],
->     "filters": [["barcodes.barcode","=","8991234567890"]],
+>     "filters": [["barcodes.barcode","=","8991234567891"]],
 >     "limit_page_length": 1
 >   }'
 > ```
 > `barcodes.barcode` adalah **child filter** — didukung `frappe.client.get_list` (join child table).
 
-### 4.7 Foto produk — CRUD (`image` + multi foto di `tabFile`)
+### 4.8 Foto produk — CRUD (`image` + multi foto di `tabFile`)
 
 **Model penyimpanan:**
 - **Foto utama** → field `image` pada Item, disimpan sebagai **string URL file** (mis. `/files/min-001.jpg`).
@@ -827,7 +1625,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.attach_file \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Item",
-    "docname": "MIN-001",
+    "docname": "2609000001",
     "filename": "foto-belakang.jpg",
     "filedata": "<isi file dalam base64>",
     "is_private": 0
@@ -845,8 +1643,8 @@ Satu file fisik cukup di-upload **sekali** (mis. ke template), lalu dibuat **rec
 per varian** yang memakainya — record baru menunjuk `file_url` yang sama **tanpa re-upload isi file**.
 Dengan begitu tiap varian (Item terpisah) punya daftar foto sendiri di `tabFile`.
 
-Contoh kasus: 5 foto di-upload ke template `KAOS-POLOS` → **3 foto** untuk varian `KAOS-POLOS-M`,
-**2 foto** untuk varian `KAOS-POLOS-L`.
+Contoh kasus: 5 foto di-upload ke template `2609000002` → **3 foto** untuk varian `2609000004`,
+**2 foto** untuk varian `2609000005`.
 
 **Langkah 1 — Upload 5 foto ke template (`frappe.client.attach_file`, ulangi per foto):**
 
@@ -856,7 +1654,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.attach_file \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Item",
-    "docname": "KAOS-POLOS",
+    "docname": "2609000002",
     "filename": "kaos-depan.jpg",
     "filedata": "<isi file dalam base64>",
     "is_private": 0
@@ -877,13 +1675,13 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
       "file_name": "kaos-depan.jpg",
       "file_url": "/files/kaos-depan.jpg",
       "attached_to_doctype": "Item",
-      "attached_to_name": "KAOS-POLOS-M",
+      "attached_to_name": "2609000004",
       "is_private": 0
     }
   }'
 ```
 
-> Lakukan hal yang sama untuk varian 2 (`attached_to_name: "KAOS-POLOS-L"`) dengan `file_url` 2 foto
+> Lakukan hal yang sama untuk varian 2 (`attached_to_name: "2609000005"`) dengan `file_url` 2 foto
 > lainnya. Isi file **tidak di-upload ulang** — record `File` hanyalah metadata yang menunjuk file
 > yang sama. `file_url` bisa diambil dari respons Langkah 1.
 
@@ -898,7 +1696,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
     "fields": ["name","file_name","file_url","file_size","is_private"],
     "filters": [
       ["attached_to_doctype","=","Item"],
-      ["attached_to_name","=","KAOS-POLOS-M"]
+      ["attached_to_name","=","2609000004"]
     ],
     "order_by": "creation asc",
     "limit_page_length": 0
@@ -933,7 +1731,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
     "fields": ["name","file_name","file_url","file_size","is_private"],
     "filters": [
       ["attached_to_doctype","=","Item"],
-      ["attached_to_name","=","MIN-001"]
+      ["attached_to_name","=","2609000001"]
     ],
     "order_by": "creation asc",
     "limit_page_length": 0
@@ -969,11 +1767,11 @@ curl -X POST https://site-anda.com/api/method/frappe.client.delete \
 > **Hapus foto utama:** set `image` menjadi `""` via `set_value` (nilai string pada field `image`,
 > bukan hapus File).
 
-### 4.8 Non-aktif / hapus
+### 4.9 Non-aktif / hapus
 
 **Aturan bisnis (wajib diikuti frontend):**
 
-1. **Non-aktif = soft-delete.** Set `disabled=1` via `frappe.client.set_value` (contoh di §4.5).
+1. **Non-aktif = soft-delete.** Set `disabled=1` via `frappe.client.set_value` (contoh di §4.6).
    Item non-aktif tidak muncul di transaksi baru; riwayat tetap tersimpan. Aktifkan kembali dengan
    `disabled=0`.
 2. **Template mengikuti varian-nya.** Jika yang dinonaktifkan adalah **template** (`has_variants=1`),
@@ -1002,7 +1800,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   -d '{
     "doctype": "Item",
     "fields": ["name"],
-    "filters": [["variant_of","=","KAOS-POLOS"]],
+    "filters": [["variant_of","=","2609000002"]],
     "limit_page_length": 0
   }'
 ```
@@ -1019,7 +1817,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
     "doctype": "Bin",
     "fields": ["item_code","warehouse","actual_qty","stock_uom"],
     "filters": [
-      ["item_code","in",["KAOS-POLOS","KAOS-POLOS-S","KAOS-POLOS-M","KAOS-POLOS-L"]],
+      ["item_code","in",["2609000002","2609000003","2609000004","2609000005"]],
       ["actual_qty",">",0]
     ],
     "order_by": "item_code asc, warehouse asc",
@@ -1032,14 +1830,14 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 ```json
 {
   "message": [
-    { "item_code": "KAOS-POLOS-M", "warehouse": "Toko Cikarang - PTMJ", "actual_qty": 12, "stock_uom": "Pcs" },
-    { "item_code": "KAOS-POLOS-L", "warehouse": "Gudang Pusat - PTMJ", "actual_qty": 30, "stock_uom": "Pcs" }
+    { "item_code": "2609000004", "warehouse": "Toko Cikarang - PTMJ", "actual_qty": 12, "stock_uom": "Pcs" },
+    { "item_code": "2609000005", "warehouse": "Gudang Pusat - PTMJ", "actual_qty": 30, "stock_uom": "Pcs" }
   ]
 }
 ```
 
 > - Respons berupa **baris per (item, warehouse)** dengan `actual_qty > 0`. Frontend mengagregasi
->   total per `item_code` untuk dialog konfirmasi (mis. `KAOS-POLOS-M` = 12 Pcs, `KAOS-POLOS-L` = 30 Pcs).
+>   total per `item_code` untuk dialog konfirmasi (mis. `2609000004` = 12 Pcs, `2609000005` = 30 Pcs).
 > - `message` kosong (`[]`) → tidak ada stok → **lewati Langkah 3–4**, langsung Langkah 5.
 
 **Langkah 3 — Konfirmasi user (frontend):**
@@ -1070,8 +1868,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
       "posting_time": "09:30:00",
       "set_posting_time": 1,
       "items": [
-        { "item_code": "KAOS-POLOS-M", "warehouse": "Toko Cikarang - PTMJ", "qty": 0 },
-        { "item_code": "KAOS-POLOS-L", "warehouse": "Gudang Pusat - PTMJ", "qty": 0 }
+        { "item_code": "2609000004", "warehouse": "Toko Cikarang - PTMJ", "qty": 0 },
+        { "item_code": "2609000005", "warehouse": "Gudang Pusat - PTMJ", "qty": 0 }
       ]
     }
   }'
@@ -1113,7 +1911,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Item",
-    "name": "KAOS-POLOS-M",
+    "name": "2609000004",
     "fieldname": { "disabled": 1 }
   }'
 ```
@@ -1124,7 +1922,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Item",
-    "name": "KAOS-POLOS",
+    "name": "2609000002",
     "fieldname": { "disabled": 1 }
   }'
 ```
@@ -1136,7 +1934,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
   dipakai** — cukup non-aktifkan.
 - Khusus **template** (`has_variants=1`): tidak bisa dihapus bila masih punya varian.
 
-### 4.9 tabBin — info stok per (Item, Warehouse)
+### 4.10 tabBin — info stok per (Item, Warehouse)
 
 **Bin** (doctype `Bin`, tabel **`tabBin`**) adalah **snapshot stok** — satu record per kombinasi
 **`item_code` + `warehouse`** (unik). **Tidak diedit manual oleh frontend** — nilainya dikelola
@@ -1169,7 +1967,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   -d '{
     "doctype": "Bin",
     "fields": ["item_code","warehouse","actual_qty","projected_qty","ordered_qty","reserved_qty","stock_value","valuation_rate"],
-    "filters": [["item_code","=","MIN-001"]],
+    "filters": [["item_code","=","2609000001"]],
     "order_by": "warehouse asc",
     "limit_page_length": 0
   }'
@@ -1180,7 +1978,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 ```json
 {
   "message": [
-    { "item_code": "MIN-001", "warehouse": "Gudang Pusat - PTMJ", "actual_qty": 120,
+    { "item_code": "2609000001", "warehouse": "Gudang Pusat - PTMJ", "actual_qty": 120,
       "projected_qty": 132, "ordered_qty": 24, "reserved_qty": 12,
       "stock_value": 420000, "valuation_rate": 3500 }
   ]
@@ -1192,6 +1990,69 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > (`{item_code, warehouse, company}` → `actual_qty`/`projected_qty`/`reserved_qty`) dan
 > `erpnext.stock.get_item_details.get_projected_qty` (`{item_code, warehouse}`).
 > Bin **tidak boleh dibuat/diubah lewat API aplikasi** — cukup dibaca.
+
+### 4.11 Pre-check `item_name` — `baseapp.api.check_item_name`
+
+> **Endpoint custom dari app `baseapp`** (bukan `frappe.client.*`). Panggil **sebelum** CREATE
+> (§4.1) dan sebelum mengubah nama lewat UPDATE, karena backend hanya menolak duplikat yang masih
+> **aktif** — keputusan untuk kasus item non-aktif ada di tangan user (§2.1 no. 8).
+
+```bash
+curl -X POST https://site-anda.com/api/method/baseapp.api.check_item_name \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "item_name": "Air Mineral 600ml",
+    "exclude": "2609000001"
+  }'
+```
+
+> `exclude` = `name` Item yang sedang diedit, supaya tidak cocok dengan dirinya sendiri.
+> **Omit saat CREATE.**
+
+**Contoh respons (HTTP 200):**
+
+```json
+{
+  "message": {
+    "item_name": "Air Mineral 600ml",
+    "normalized": "air mineral 600ml",
+    "status": "duplicate_inactive",
+    "active": [],
+    "inactive": [ { "name": "2609000005", "item_name": "Air Mineral 600ml", "disabled": 1 } ]
+  }
+}
+```
+
+**Arti `status` & tindakan frontend:**
+
+| `status` | Arti | Tindakan |
+|---|---|---|
+| `ok` | Nama bebas | Lanjut CREATE/UPDATE |
+| `duplicate_active` | Ada Item **aktif** dengan nama itu (`active` tidak kosong) | Tampilkan alert — *"Nama X sudah dipakai Item Y"* — dan minta user mengganti nama. Kalau tetap dikirim, backend menolak 417 (§7) |
+| `duplicate_inactive` | Hanya Item **non-aktif** yang memakainya (`inactive` tidak kosong) | Tanya user: *"Item Y (non-aktif) sudah memakai nama ini. Reaktifkan item lama, atau buat item baru?"* — lihat di bawah |
+
+> Kalau keduanya ada, `status` = `duplicate_active` (yang memblokir menang), tapi `inactive` tetap
+> diisi sehingga frontend masih bisa menawarkan reaktifasi.
+
+**Alur untuk `duplicate_inactive`:**
+
+1. **User memilih "Reaktifkan item lama"** → **jangan** CREATE. Cukup aktifkan kembali Item lama:
+
+   ```bash
+   curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
+     -H 'Authorization: Bearer <access_token>' \
+     -H 'Content-Type: application/json' \
+     -d '{ "doctype": "Item", "name": "2609000005", "fieldname": { "disabled": 0 } }'
+   ```
+
+   Selanjutnya pakai `name` Item lama tersebut sebagai identitas produk.
+
+2. **User memilih "Buat item baru"** → lanjut CREATE seperti biasa (§4.1). Backend **mengizinkan**
+   karena duplikatnya non-aktif, sehingga akan ada dua Item bernama sama (satu non-aktif, satu aktif).
+
+> **Catatan:** `normalized` di respons hanya untuk debug — frontend **tidak perlu** menghitungnya
+> sendiri. Perbandingan dijamin sama dengan yang dipakai validator backend (§2.1 no. 8).
 
 ---
 
@@ -1221,7 +2082,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   -d '{
     "doc": {
       "doctype": "Item",
-      "item_code": "RM-002",
+      "item_name": "Gula Pasir 1kg",
       "item_group": "Bahan Baku",
       "stock_uom": "Pcs",
       "uoms": [
@@ -1460,15 +2321,23 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 | 403 | Role tidak punya akses (bukan `Item Manager` utk tulis) | `{"message": "Not permitted"}` |
 | 404 | Resource tidak ditemukan | `{"exc_type":"DoesNotExistError","message":"Resource Not Found"}` |
 | 417 | Field wajib kosong (`reqd`) | `{"exc_type":"MandatoryError","message":"item_group is mandatory"}` / `"stock_uom is mandatory"` |
-| 417 | Duplikat `item_code` (`unique`) | `{"exc_type":"DuplicateEntryError","message":"... already exists"}` |
-| 417 | Barcode duplikat global / tipe invalid | `{"exc_type":"DuplicateEntryError"|"InvalidBarcode","message":"..."}` |
-| 417 | Varian sudah ada dgn kombinasi atribut sama | `{"exc_type":"ItemVariantExistsError","message":"Item variant KAOS-POLOS-M exists with same attributes"}` |
+| 417 | Duplikat `item_code` (`unique`) | **Tidak lagi relevan** — kode dibuat backend dari counter naming series, jadi tidak mungkin duplikat (§2.1 no. 1). |
+| 417 | `item_name` sudah dipakai Item **aktif** | `{"exc_type":"ValidationError","message":"Item Name Air Mineral 600ml is already used by active Item(s) 2609000001."}` — pre-check dulu (§4.11). Duplikat dengan Item **non-aktif** **tidak** diblokir (§2.1 no. 8) |
+| 417 | Ganti nama **template** yang membuat nama varian bentrok | `{"exc_type":"ValidationError","message":"Cannot rename variant 2609000004 to T-SHIRT-M: that Item Name is already used by active Item(s) 2609000009."}` — varian yang bentrok disebutkan di pesan; **rename template dibatalkan**, tidak ada yang berubah (§2.1 no. 10) |
+| 417 | Barcode duplikat global | `{"exc_type":"ValidationError","message":"Barcode 2609000003 already used in Item 2609000003"}` — keunikan dicek lintas **semua** Item (§2.4) |
+| 417 | `barcode_type` diisi tapi nilainya bukan 8/12/13 digit dengan check digit valid | `{"exc_type":"InvalidBarcode","message":"Barcode 8991234567890 is not a valid EAN-13 code"}` — **seluruh insert Item gagal**; untuk kode `item_code` kosongkan `barcode_type` (§2.1 no. 7) |
+| 417 | Varian sudah ada dgn kombinasi atribut sama | `{"exc_type":"ItemVariantExistsError","message":"Item variant 2609000004 exists with same attributes"}` — pesan memakai `name` varian yang sudah ada |
 | 417 | Nilai atribut tidak valid utk template | `{"exc_type":"InvalidItemAttributeValueError","message":"..."}` |
 | 417 | Template tidak boleh punya stok / `has_variants` salah | `{"exc_type":"ValidationError","message":"..."}` |
 | 417 | Ubah `stock_uom` pada item ber-stok | `{"exc_type":"ValidationError","message":"..."}` |
 | 417 | `conversion_factor` stock_uom ≠ 1 / `uoms` duplikat | `{"exc_type":"ValidationError","message":"..."}` (lihat §5.4) |
 | 417 | Hapus Item yang sudah dipakai transaksi/stok | `{"exc_type":"LinkExistsError","message":"Cannot delete because of linked records"}` |
 | 417 | `attributes` kosong saat `has_variants=1` | `{"exc_type":"ValidationError","message":"Attribute table is mandatory"}` |
+
+> **Catatan `item_code` (naming series):** karena `item_code` dibuat backend (§2.1 no. 1), error
+> **`"Item Code is required"`** (`ValidationError` dari `field:item_code` saat kode kosong) **tidak
+> akan muncul lagi** di konfigurasi ini — dulu bisa terjadi karena kode wajib dikirim frontend.
+> `MandatoryError` yang masih relevan hanya `item_group` dan `stock_uom`.
 
 > **Catatan:** karena seluruh pemanggilan memakai `/api/method/...`, hasil sukses dibungkus di
 > `message` (bukan `data`). Body error tetap berbentuk `{ "exc_type": ..., "exception": ..., "message": ... }`.
@@ -1478,33 +2347,46 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 
 ## 8. Koleksi Postman
 
-Seluruh pemanggilan di atas tersedia dalam **satu koleksi Postman** yang siap import:
-`docs/postman/postman_erpnext_api.json` (Collection v2.1). Koleksi ini berisi seluruh modul API
-ERPNext (OAuth 2.0 + Supplier + Customer + Contact + Address + Lead + Employee + User + Warehouse
-+ POS Profile + Item Group + **Item**).
+Spesifikasi di atas **direncanakan** masuk ke satu koleksi Postman yang siap import:
+`docs/postman/postman_erpnext_api.json` (Collection v2.1). Koleksi itu saat ini berisi seluruh modul
+API ERPNext yang sudah jadi (OAuth 2.0 + Supplier + Customer + Contact + Address + Lead + Employee
++ User + Warehouse + POS Profile + Item Group) — **folder `11. Item` belum dibuat**.
 
-Folder **`11. Item`** berisi **39 request** yang mencakup:
-- Pre-check & CREATE (minimum, lengkap, jasa, bahan baku) — `11.1`, `11.1b`–`11.3b`
-- CREATE varian: master Item Attribute, template, `create_variant` + simpan, pre-check `get_variant`,
-  manual, daftar varian — `11.4`–`11.8`
+> **Status: folder `11. Item` belum ada di koleksi.** Koleksi saat ini melompat dari `10. Item Group`
+> ke `12. Stock Reconciliation`; daftar di bawah adalah **rencana** isinya, sudah disesuaikan dengan
+> naming series (§2.1 no. 1).
+
+Folder **`11. Item`** direncanakan berisi **±44 request** yang mencakup:
+- Pre-check nama Item — `baseapp.api.check_item_name` (§4.11): kasus `ok` / `duplicate_active` /
+  `duplicate_inactive` + reaktifasi item lama lewat `set_value` — `11.0`, `11.0b`
+- CREATE (minimum, lengkap, jasa, bahan baku) — `11.1`–`11.3b`. **Tanpa pre-check duplikat
+  `item_code` & tanpa `item_code`** di payload (kode dibuat backend — lihat §2.1 no. 1 dan §4.1)
+- CREATE varian: master Item Attribute, template (**tanpa `item_code`**), `create_variant` + simpan,
+  pre-check `get_variant`, manual, daftar varian — `11.4`–`11.8`
 - READ single / count / list — `11.9`–`11.11`
 - UPDATE (`save`) & `set_value` — `11.12`–`11.13`
 - Barcode: create / read / update / scan — `11.14`–`11.17`
 - Foto: upload (`attach_file`), tag ke varian (`insert` File), GET per varian, hapus — `11.18`–`11.21`
-- Non-aktif (§4.8): GET varian template, cek stok > 0 (`tabBin`), zero stok (insert + submit Stock
+- Non-aktif (§4.9): GET varian template, cek stok > 0 (`tabBin`), zero stok (insert + submit Stock
   Reconciliation), non-aktif varian & template — `11.22`–`11.25b`
 - tabBin (stok) — `11.26`
 - UOM: `uoms`, `get_uom_conv_factor`, `UOM Conversion Factor` global — `11.27`–`11.29`
 - GET pendukung UI: Item Group leaf, UOM, Brand, Item Attribute, Warehouse/Company, Item Tax
   Template — `11.30`–`11.35`
+- Ganti nama template → verifikasi `item_name` varian ikut berubah, plus kasus bentrok yang ditolak
+  (§2.1 no. 10) — `11.36`, `11.36b`
+- Batch (§2.1 no. 12, §4.3): penerimaan 5 roll **tanpa** nomor (auto `BATCH-00001`…), penerimaan
+  **dengan** nomor dari user (cek `get_list` → `insert` Batch → kirim `batch_no` di baris), penjualan
+  sebagian per batch — `11.37`–`11.40`
 
 **Variabel yang perlu diisi** (Collection Variables):
-- `item_id` / `item_code` — name hasil CREATE (mis. `MIN-001`)
-- `item_template` — template varian (mis. `KAOS-POLOS`)
-- `item_variant` / `item_variant_2` — varian (mis. `KAOS-POLOS-M`, `KAOS-POLOS-L`)
+- `item_id` / `item_code` — `name`/`item_code` **hasil CREATE**, diambil dari respons (mis. `2609000001`) — **bukan** dikirim frontend
+- `item_name` — **wajib dikirim** saat CREATE (identitas produk yang dibaca user)
+- `item_template` — kode template varian **hasil CREATE** (mis. `2609000002`)
+- `item_variant` / `item_variant_2` — varian **hasil CREATE**, masing-masing kode seri sendiri (mis. `2609000005`, `2609000006`) — **bukan** bentuk `{template}-{abbr}`
 - `item_attribute` / `item_attribute_value` — master atribut & nilainya (mis. `Ukuran`, `M`)
 - `item_group` — leaf Item Group (mis. `Minuman`)
-- `item_barcode` — barcode (mis. `8991234567890`)
+- `item_barcode` — barcode hasil CREATE (default = `item_code`, mis. `2609000001`; atau barcode kiriman frontend, mis. `8991234567891`)
 - `file_name` / `file_url` / `file_id` — foto (dari respons `attach_file` / `insert` File)
 - `stock_reco_id` — name Stock Reconciliation (mis. `MAT-RECO-00001`)
 - `company` / `warehouse` — company & warehouse default (mis. `PT Maju Jaya`, `Toko Cikarang - PTMJ`)
@@ -1523,8 +2405,8 @@ test script.
    - **Stok:** Opening Stock, Stock Ledger Entry, Stock Entry (Receipt/Issue/Transfer), Stock
      Reconciliation (mekanisme lanjutan: akun, posting date, reposting), **mekanisme reorder &
      notifikasi re-stock** — termasuk cara mengisi stok awal saat item baru dibuat (`opening_stock` +
-     `valuation_rate`, atau via Stock Entry). Di file ini: info baca `tabBin` (§4.9), **alur zero
-     stok via Stock Reconciliation saat non-aktif** (§4.8), dan **penyimpanan ambang stok minimum
+     `valuation_rate`, atau via Stock Entry). Di file ini: info baca `tabBin` (§4.10), **alur zero
+     stok via Stock Reconciliation saat non-aktif** (§4.9), dan **penyimpanan ambang stok minimum
      `reorder_levels`** (ringkasan §2 & contoh CREATE §4.1).
    - **Price List / Item Price:** **sudah tersedia** → [prd_item_price.md](./prd_item_price.md)
      (doctype `Price List` + `Item Price`): pengelolaan `standard_rate`, harga per Price List
@@ -1545,3 +2427,6 @@ test script.
    > `item_group`/`brand` (dasar `apply_on` pada Pricing Rule).
    > Field Item untuk paket dinamis: `is_dynamic_product_bundle` (custom field `baseapp`) —
    > lihat [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md).
+   > Field Item untuk paket statis: `is_product_bundle` (custom field `baseapp`, disinkronkan dari
+   > doctype `Product Bundle`) — lihat §2.1 no. 9 dan
+   > [prd_item_product_bundle.md](./prd_item_product_bundle.md).

@@ -6,7 +6,8 @@
 
 - **Modul:** Base App (custom app `baseapp`) — path `baseapp.base_app.doctype`
 - **Doctype:** field `Item.is_dynamic_product_bundle` + 3 doctype baru:
-  `Dynamic Product Bundle Option`, `Dynamic Product Bundle Item`, `Dynamic Product Bundle Item Group`
+  `Dynamic Product Bundle Option` (soft-delete `disabled`, pola sama `Product Bundle`),
+  `Dynamic Product Bundle Item`, `Dynamic Product Bundle Item Group`
 - **Versi API:** `/api/method/...` (API v1) — method whitelisted `frappe.client.*`, `name` dikirim di **body**
 - **Autentikasi:** OAuth 2.0 — Authorization Code + Refresh Token
 - **Format body:** JSON
@@ -15,6 +16,13 @@
 > **Prasyarat:** app **`baseapp`** (module *Base App*) harus terpasang di site — field
 > `is_dynamic_product_bundle` dan ketiga doctype di dokumen ini **disediakan oleh app tersebut**
 > (tidak ada di ERPNext standar). Bila app belum terpasang, endpoint akan gagal `404 DoesNotExistError`.
+
+> ⚠️ **Status implementasi — spesifikasi target.** Field **`disabled`** pada
+> `Dynamic Product Bundle Option` (§2.2) **belum diterapkan** di `baseapp` saat dokumen ini dibuat
+> (perubahan: tambah soft-delete `disabled` pada `Dynamic Product Bundle Option`). Sebelum perubahan
+> di-deploy: jangan mengirim `disabled` pada `insert`/`save`/`set_value` dan jangan memakai filter
+> `["disabled", ...]` pada `get_list` — sampai saat itu penyaringan "non-aktif" cukup di sisi UI.
+> Bagian lain dokumen ini sesuai kondisi nyata saat ini.
 
 ---
 
@@ -29,6 +37,7 @@
 | Nama pilihan isian paket | `Dynamic Product Bundle Option.option_name` |
 | No urut | `Dynamic Product Bundle Option.seq` |
 | Tipe filter (item / item group) | `Dynamic Product Bundle Option.filter_type` |
+| Non-aktif (soft-delete) pilihan | `Dynamic Product Bundle Option.disabled` (Check, default `0`, pola sama `Product Bundle.disabled`) |
 | Daftar item yang boleh dipilih / komponen tetap | doctype **`Dynamic Product Bundle Item`** |
 | `parent` (spec awal) | → **`Dynamic Product Bundle Item.bundle_option`** (Link ke Option; **kosong = komponen tetap**) |
 | Daftar item group yang boleh dipilih | doctype **`Dynamic Product Bundle Item Group`** |
@@ -38,6 +47,8 @@
 > **[prd_item_product_bundle.md](./prd_item_product_bundle.md)**. Fitur di dokumen ini
 > **berbeda** — paket **dinamis** yang pilihannya ditentukan kasir. Keduanya tidak saling mengisi;
 > jangan mencampur `Product Bundle` dengan `Dynamic Product Bundle*`.
+> Satu pola yang **disamakan**: **soft-delete `disabled`** — `Product Bundle.disabled` pada paket
+> statis, `Dynamic Product Bundle Option.disabled` pada pilihan isian paket dinamis (§2.2, §4.5).
 
 ### 1.2 Daftar endpoint
 
@@ -61,6 +72,7 @@
 | 16 | `frappe.client.get_list` | Daftar UOM yang terdaftar pada sebuah Item (§7.2) | `Item` / `UOM Conversion Detail` | body (filters) |
 | 17 | `frappe.client.get_list` | Daftar Item Group (dropdown) + resolve sub-tree (§6.5/§7.3) | `Item Group` | body (filters) |
 | 18 | `frappe.client.get_list` | Daftar Item berdasarkan `item_group` (leaf) (§6.5/§7.4) | `Item` | body (filters) |
+| 19 | `frappe.client.set_value` | Non-aktifkan / aktifkan kembali pilihan (`disabled`, §4.2/§4.5) | `Dynamic Product Bundle Option` | body |
 
 > **Konvensi pemanggilan (penting):** seluruh operasi memakai method whitelisted **`frappe.client.*`**
 > dengan `name` (dan filter) dikirim lewat **body JSON**, bukan di URL path — `name` dapat mengandung
@@ -109,6 +121,7 @@ Legenda status: 🔴 **WAJIB** · 🟠 **DISARANKAN** · ⚪ **Otomatis / read-o
 | 🟠 | `seq` | Int | No urut tampil di kasir. Default `0`. Urutkan list dengan `order_by: "seq asc"`. |
 | 🟠 | `min_qty` | Float | Batas **total qty minimal** yang wajib dipilih kasir dari pilihan ini. `0` = tidak wajib. |
 | 🟠 | `max_qty` | Float | Batas **total qty maksimal** dari pilihan ini. `0` = tanpa batas. |
+| 🟠 | `disabled` | Check | `1` = pilihan **non-aktif** — tidak boleh dipilih kasir & disaring dari daftar aktif (`["disabled","=",0]`). Default `0`. Definisi **sama** dengan `Product Bundle.disabled`: `in_standard_filter: 1`, `no_copy: 1`, label *Disabled*. **Spesifikasi target** — lihat catatan di awal dokumen. |
 | ⚪ **Otomatis** | `name` | — | `"{option_name} - {bundle_item}"` (autoname `format:`). Contoh: `Daging - PAKET-BENTO-ANAK`. Jangan dikirim. |
 
 ### 2.3 `Dynamic Product Bundle Item` — komponen tetap **dan** item pilihan
@@ -164,9 +177,13 @@ Legenda status: 🔴 **WAJIB** · 🟠 **DISARANKAN** · ⚪ **Otomatis / read-o
      (contoh perhitungan di §5.4 & §6.6).
 6. **Role yang dibutuhkan** (v16): ketiga doctype → baca/tulis/buat/hapus = **`Item Manager`** dan
    **`System Manager`**. Mengubah flag di Item juga butuh hak tulis Item (`Item Manager`).
-7. **Delete.** Boleh dihapus, **kecuali masih direferensikan** — Option yang masih dipakai baris
-   `Dynamic Product Bundle Item`/`Dynamic Product Bundle Item Group` → `LinkExistsError` (§4.5).
-   Ketiga doctype **tidak punya field `disabled`** (tanpa soft-delete).
+7. **Non-aktif & delete (pola sama `Product Bundle`).** `Dynamic Product Bundle Option` punya
+   **soft-delete** `disabled` → **disarankan non-aktifkan (`disabled = 1`) daripada hapus**;
+   `disabled` boleh diubah **kapan saja**, termasuk saat option masih punya baris (§4.5). Opsi
+   non-aktif **tidak boleh dipilih kasir** dan disaring lewat `["disabled","=",0]` (§6.2).
+   Dua doctype lain (`Dynamic Product Bundle Item`, `Dynamic Product Bundle Item Group`)
+   **tidak punya `disabled`** (tanpa soft-delete). Delete: baris item/item group boleh dihapus;
+   Option **diblokir** (`LinkExistsError`) selama masih direferensikan baris (§4.5).
 
 ---
 
@@ -270,6 +287,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
       "seq": 1,
       "min_qty": 2,
       "max_qty": 2,
+      "disabled": 0,
       "filter_type": "Item Group"
     }
   }'
@@ -291,6 +309,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
     "seq": 1,
     "min_qty": 2.0,
     "max_qty": 2.0,
+    "disabled": 0,
     "filter_type": "Item Group"
   }
 }
@@ -308,14 +327,26 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get \
   -H 'Content-Type: application/json' \
   -d '{ "doctype": "Dynamic Product Bundle Option", "name": "Daging - PAKET-BENTO-ANAK" }'
 
-# Daftar semua pilihan sebuah paket (urut seq) — inti alur kasir
+# Daftar umum — termasuk pilihan non-aktif (untuk layar admin)
 curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   -H 'Authorization: Bearer <access_token>' \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Dynamic Product Bundle Option",
-    "fields": ["name","option_name","seq","min_qty","max_qty","filter_type"],
+    "fields": ["name","option_name","seq","min_qty","max_qty","disabled","filter_type"],
     "filters": [["bundle_item","=","PAKET-BENTO-ANAK"]],
+    "order_by": "seq asc",
+    "limit_page_length": 0
+  }'
+
+# Hanya pilihan aktif — untuk alur kasir (pola sama Product Bundle: disabled = 0)
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Dynamic Product Bundle Option",
+    "fields": ["name","option_name","seq","min_qty","max_qty","disabled","filter_type"],
+    "filters": [["bundle_item","=","PAKET-BENTO-ANAK"],["disabled","=",0]],
     "order_by": "seq asc",
     "limit_page_length": 0
   }'
@@ -364,6 +395,28 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
 > konsisten (baris item lama akan ditolak saat save berikutnya bila option menjadi `Item Group`).
 > Sebaiknya hapus/ganti baris terkait lebih dulu.
 
+**Non-aktif / aktifkan kembali (soft-delete) — `frappe.client.set_value`:**
+
+```bash
+# Non-aktifkan
+curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Dynamic Product Bundle Option",
+    "name": "Mainan - PAKET-BENTO-ANAK",
+    "fieldname": { "disabled": 1 }
+  }'
+```
+
+```json
+{ "message": { "name": "Mainan - PAKET-BENTO-ANAK", "disabled": 1 } }
+```
+
+> Aktifkan kembali: `{ "disabled": 0 }` dengan pola yang sama. Opsi non-aktif **tidak boleh dipilih
+> kasir** dan disaring lewat `["disabled","=",0]` (§6.2). Boleh dilakukan **kapan saja**, termasuk
+> saat option masih punya baris item/item group (baris tetap tersimpan). Aturan lengkap: §4.5.
+
 **DELETE:**
 
 ```bash
@@ -373,7 +426,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.delete \
   -d '{ "doctype": "Dynamic Product Bundle Option", "name": "Mainan - PAKET-BENTO-ANAK" }'
 ```
 
-> Diblokir bila masih direferensikan baris item/item group (§4.5).
+> Diblokir bila masih direferensikan baris item/item group (§4.5). **Aturan produk: jangan hapus,
+> non-aktifkan** (`disabled = 1`) — pola sama seperti `Product Bundle`.
 
 ### 4.3 CRUD — `Dynamic Product Bundle Item`
 
@@ -546,15 +600,44 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > Duplikat (`bundle_option` + `item_group` sama) ditolak backend. UPDATE/DELETE memakai pola yang sama
 > (`save` / `set_value` / `delete`).
 
-### 4.5 Hapus — aturan & keterbatasan
+### 4.5 Non-aktif (`disabled`) & hapus — aturan & keterbatasan
+
+> Pola **sama** dengan `Product Bundle`
+> ([prd_item_product_bundle.md §4.5](./prd_item_product_bundle.md)): ada soft-delete `disabled`, dan
+> **non-aktifkan lebih disarankan daripada hapus**.
+
+**Non-aktif / aktifkan kembali — `Dynamic Product Bundle Option.disabled`:**
+
+```bash
+# Non-aktifkan
+curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{ "doctype": "Dynamic Product Bundle Option", "name": "Mainan - PAKET-BENTO-ANAK", "fieldname": { "disabled": 1 } }'
+```
+
+- Opsi `disabled = 1` **tidak boleh dipilih kasir** dan harus disaring dari daftar pilihan
+  (`get_list` + `["disabled","=",0]`, §6.2) — sama seperti paket statis non-aktif yang tidak
+  dikenali lagi di transaksi.
+- **Boleh diubah kapan saja**, termasuk saat option masih memiliki baris
+  `Dynamic Product Bundle Item`/`Dynamic Product Bundle Item Group`: barisnya **tetap tersimpan**
+  (hanya tidak berlaku); backend tidak memblokir dan tidak menyentuh baris.
+- Aktifkan kembali: `{ "disabled": 0 }` dengan pola yang sama.
+- Riwayat transaksi lama **tidak** terpengaruh.
+- ⚠️ Field ini **spesifikasi target** di `baseapp` (catatan awal dokumen) — sebelum dideploy, jangan
+  mengirim/memfilter `disabled`.
+- Dua doctype lain (`Dynamic Product Bundle Item`, `Dynamic Product Bundle Item Group`)
+  **tidak punya `disabled`** → tanpa soft-delete.
+
+**HAPUS — `frappe.client.delete`:**
 
 - Baris `Dynamic Product Bundle Item` / `Dynamic Product Bundle Item Group`: **boleh dihapus**
   (tidak ada child dan tidak direferensikan dokumen lain).
 - `Dynamic Product Bundle Option`: **diblokir** (`LinkExistsError`) selama masih ada baris yang
   menunjuk ke option tersebut — hapus/ganti dulu barisnya.
-- Ketiga doctype **tidak punya field `disabled`** → **tidak ada operasi non-aktif**. Bila sebuah
-  paket ingin "dimatikan", hilangkan paket dari daftar jual (mis. `Item.disabled = 1` via
-  `frappe.client.set_value`) — bukan dengan menon-aktifkan option.
+- **Aturan produk: jangan hapus, non-aktifkan** (`disabled = 1`). Untuk "mematikan" paket secara
+  keseluruhan, gunakan pula `Item.disabled = 1` pada item paketnya (`frappe.client.set_value`) —
+  sama seperti `Product Bundle`.
 
 ---
 
@@ -568,9 +651,9 @@ dan komponen tetap **1 nasi putih**.
 | Doctype | `option_name` / `bundle_item` / `item_group` | Field penting | Arti |
 |---|---|---|---|
 | `Item` | `PAKET-BENTO-ANAK` | `is_dynamic_product_bundle = 1` | Item paket |
-| `Option` | `Daging` | `seq=1`, `min_qty=2`, `max_qty=2`, `filter_type=Item Group` | Pilih total 2 dari group sayur/daging |
-| `Option` | `Sayur` | `seq=2`, `min_qty=1`, `max_qty=1`, `filter_type=Item Group` | Pilih 1 sayur |
-| `Option` | `Mainan` | `seq=3`, `min_qty=1`, `max_qty=1`, `filter_type=Item` | Pilih 1 mainan |
+| `Option` | `Daging` | `seq=1`, `min_qty=2`, `max_qty=2`, `disabled=0`, `filter_type=Item Group` | Pilih total 2 dari group sayur/daging |
+| `Option` | `Sayur` | `seq=2`, `min_qty=1`, `max_qty=1`, `disabled=0`, `filter_type=Item Group` | Pilih 1 sayur |
+| `Option` | `Mainan` | `seq=3`, `min_qty=1`, `max_qty=1`, `disabled=0`, `filter_type=Item` | Pilih 1 mainan |
 | `Dynamic Product Bundle Item` | `NASI-PUTIH` | `bundle_option` **kosong**, `min_qty=1`, `max_qty=1`, `uom=Nos` | **Komponen tetap** |
 | `Dynamic Product Bundle Item` | `MAINAN-ROBOT` | `bundle_option=Mainan - PAKET-BENTO-ANAK`, `min_qty=0`, `max_qty=1` | Pilihan mainan (opsional) |
 | `Dynamic Product Bundle Item` | `MAINAN-DINOSAURUS` | `bundle_option=Mainan - PAKET-BENTO-ANAK`, `min_qty=0`, `max_qty=1` | Pilihan mainan (opsional) |
@@ -602,13 +685,13 @@ dan komponen tetap **1 nasi putih**.
 **Langkah 2 — 3 pilihan isian paket** (buat berurutan, simpan `name` dari tiap respons):
 
 ```json
-{ "doctype": "Dynamic Product Bundle Option", "bundle_item": "PAKET-BENTO-ANAK", "option_name": "Daging", "seq": 1, "min_qty": 2, "max_qty": 2, "filter_type": "Item Group" }
+{ "doctype": "Dynamic Product Bundle Option", "bundle_item": "PAKET-BENTO-ANAK", "option_name": "Daging", "seq": 1, "min_qty": 2, "max_qty": 2, "disabled": 0, "filter_type": "Item Group" }
 ```
 ```json
-{ "doctype": "Dynamic Product Bundle Option", "bundle_item": "PAKET-BENTO-ANAK", "option_name": "Sayur", "seq": 2, "min_qty": 1, "max_qty": 1, "filter_type": "Item Group" }
+{ "doctype": "Dynamic Product Bundle Option", "bundle_item": "PAKET-BENTO-ANAK", "option_name": "Sayur", "seq": 2, "min_qty": 1, "max_qty": 1, "disabled": 0, "filter_type": "Item Group" }
 ```
 ```json
-{ "doctype": "Dynamic Product Bundle Option", "bundle_item": "PAKET-BENTO-ANAK", "option_name": "Mainan", "seq": 3, "min_qty": 1, "max_qty": 1, "filter_type": "Item" }
+{ "doctype": "Dynamic Product Bundle Option", "bundle_item": "PAKET-BENTO-ANAK", "option_name": "Mainan", "seq": 3, "min_qty": 1, "max_qty": 1, "disabled": 0, "filter_type": "Item" }
 ```
 
 > `name` yang terbentuk: `Daging - PAKET-BENTO-ANAK`, `Sayur - PAKET-BENTO-ANAK`,
@@ -655,10 +738,10 @@ dan komponen tetap **1 nasi putih**.
 ### 5.3 Verifikasi hasil (GET per paket)
 
 ```bash
-# Opsi (urut seq) → Daging, Sayur, Mainan
+# Opsi (urut seq, termasuk yang non-aktif) → Daging, Sayur, Mainan
 curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
-  -d '{ "doctype": "Dynamic Product Bundle Option", "fields": ["name","option_name","seq","min_qty","max_qty","filter_type"], "filters": [["bundle_item","=","PAKET-BENTO-ANAK"]], "order_by": "seq asc", "limit_page_length": 0 }'
+  -d '{ "doctype": "Dynamic Product Bundle Option", "fields": ["name","option_name","seq","min_qty","max_qty","disabled","filter_type"], "filters": [["bundle_item","=","PAKET-BENTO-ANAK"]], "order_by": "seq asc", "limit_page_length": 0 }'
 
 # Semua komponen (perhatikan bundle_option null = komponen tetap)
 curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
@@ -704,7 +787,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 `frappe.client.get_list` doctype `Item` dengan filter `is_dynamic_product_bundle = 1`
 (contoh lengkap di §4.1).
 
-### 6.2 Langkah 1 — ambil opsi paket (urut `seq`)
+### 6.2 Langkah 1 — ambil opsi paket (hanya yang aktif, urut `seq`)
 
 ```bash
 curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
@@ -712,12 +795,16 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   -H 'Content-Type: application/json' \
   -d '{
     "doctype": "Dynamic Product Bundle Option",
-    "fields": ["name","option_name","seq","min_qty","max_qty","filter_type"],
-    "filters": [["bundle_item","=","PAKET-BENTO-ANAK"]],
+    "fields": ["name","option_name","seq","min_qty","max_qty","disabled","filter_type"],
+    "filters": [["bundle_item","=","PAKET-BENTO-ANAK"],["disabled","=",0]],
     "order_by": "seq asc",
     "limit_page_length": 0
   }'
 ```
+
+> Filter `["disabled","=",0]` menyembunyikan pilihan yang dinon-aktifkan (§4.5) — **wajib** di alur
+> kasir, pola sama seperti `Product Bundle`. Untuk layar admin yang perlu menampilkan/mengaktifkan
+> kembali opsi non-aktif, hilangkan filter ini (§4.2).
 
 ### 6.3 Langkah 2 — komponen tetap (selalu ikut)
 
@@ -820,7 +907,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 
 ```mermaid
 flowchart TD
-    A["GET Item: is_dynamic_product_bundle = 1"] --> B["GET Option by item<br/>order_by seq asc"]
+    A["GET Item: is_dynamic_product_bundle = 1"] --> B["GET Option by item<br/>filters: disabled = 0<br/>order_by seq asc"]
     B --> C{"filter_type?"}
     C -->|Item| D["GET Dynamic Product Bundle Item<br/>filters: bundle_option = option"]
     C -->|Item Group| E["GET Dynamic Product Bundle Item Group<br/>filters: bundle_option = option"]
@@ -835,7 +922,8 @@ flowchart TD
 ### 6.7 Urutan pemanggilan yang disarankan (efisien)
 
 1. `Item` (flag `1`) — daftar paket.
-2. `Option` by `bundle_item`, `order_by seq asc` — dapat daftar opsi + `filter_type` + min/max.
+2. `Option` by `bundle_item` + `["disabled","=",0]`, `order_by seq asc` — dapat daftar opsi **aktif**
+   + `filter_type` + min/max (§6.2).
 3. `Dynamic Product Bundle Item` by `bundle_item` (semua) — sekaligus dapat **komponen tetap**
    (`bundle_option` kosong) dan **item pilihan** (`bundle_option` terisi). Cukup **satu** panggilan
    bila daftar komponen tidak besar.
@@ -952,6 +1040,11 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > **Catatan:** karena seluruh pemanggilan memakai `/api/method/...`, hasil sukses dibungkus di
 > `message` (bukan `data`). Body error tetap berbentuk
 > `{ "exc_type": ..., "exception": ..., "message": ... }`.
+>
+> ⚠️ **`disabled` belum tersedia di `baseapp` (spesifikasi target).** Mengirim `disabled` pada
+> `insert`/`save`/`set_value` atau memakai filter `["disabled", ...]` **sebelum perubahan di-deploy**
+> akan gagal (field/kolom belum ada — error SQL, mis. `Unknown column 'disabled'`). Setelah dideploy,
+> operasi non-aktif/aktifkan (§4.5) **tidak pernah** diblokir backend — tidak ada entri error khusus.
 
 ---
 
@@ -964,7 +1057,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > - **Folder:** `16. Dynamic Product Bundle` (nomor `15` sudah dipakai folder
 >   `15. Price List & Item Price`; nomor `11` masih disiapkan untuk `Item`)
 > - Cakupan request: aktifkan flag Item; dropdown Item paket; CRUD Option (pre-check, minimum,
->   lengkap, READ, list, count, update, set_value, delete); CRUD Item (komponen tetap, item pilihan,
+>   lengkap, READ, list, count, update, set_value, non-aktif / aktifkan kembali (`disabled`), delete);
+>   CRUD Item (komponen tetap, item pilihan,
 >   READ per paket/per opsi, update, delete); CRUD Item Group (create, READ, update, delete);
 >   dropdown UOM per item; dropdown Item Group; resolve leaf sub-tree; Item by item group.
 > - **Variabel baru yang disiapkan:** `bundle_item` (mis. `PAKET-BENTO-ANAK`),
