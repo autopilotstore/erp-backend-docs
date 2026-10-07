@@ -835,18 +835,24 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
 > **Catatan jangan terbalik:** `Price List` (master) **tidak boleh** dihapus → non-aktifkan `enabled = 0`
 > (§4.4); `Item Price` (baris harga) **boleh** dihapus (§4.8).
 
-### 4.9 Item Price otomatis dari `Item.standard_rate`
+### 4.9 Item Price otomatis saat Item dibuat
 
-Bila frontend membuat Item dengan `standard_rate` terisi, backend (`Item.after_insert → add_price`)
-**otomatis membuat baris Item Price** (satu baris per baris `item_defaults`) dengan urutan penentuan
-price list:
+Bila Item dibuat, ERPNext (`Item.after_insert → add_price`) tetap membuat Item Price dari
+`standard_rate` sesuai price list default (satu baris per baris `item_defaults`). Selain itu, custom app
+`baseapp` memastikan harga umum untuk UOM stok di kedua price list standar sesuai pemetaan berikut:
 
-1. `Item.item_defaults[].default_price_list` (bila dikirim saat CREATE Item),
-2. jika kosong → `Selling Settings.selling_price_list`,
-3. jika kosong → Price List bernama `Standard Selling`.
+Untuk perilaku bawaan ERPNext, price list ditentukan dari `Item.item_defaults[].default_price_list`;
+jika kosong, dipakai `Selling Settings.selling_price_list`, lalu fallback ke `Standard Selling`.
 
-Nilai yang dipakai: `uom = Item.stock_uom`, `currency` = mata uang default situs,
-`price_list_rate = standard_rate`, `brand` = brand Item.
+| Price List | Field Item | Field Item Price |
+|---|---|---|
+| `Standard Selling` | `valuation_rate` | `price_list_rate` |
+| `Standard Buying` | `standard_rate` | `price_list_rate` |
+
+Baris khusus customer/supplier, batch, UOM selain `Item.stock_uom`, atau masa berlaku yang tidak aktif
+tidak dipakai sebagai baris master. Rate positif membuat baris bila belum ada; Item Price Standard Selling
+yang dibuat bawaan ERPNext akan diselaraskan dengan `valuation_rate`. Baris bawaan untuk price list selain
+`Standard Selling`/`Standard Buying` tetap dibuat seperti semula dan tidak disinkronkan ke rate Item.
 
 ```json
 {
@@ -870,10 +876,13 @@ Nilai yang dipakai: `uom = Item.stock_uom`, `currency` = mata uang default situs
 > 2 baris bermacam `default_price_list` → 2 baris Item Price. Lihat [prd_item.md](./prd_item.md) untuk
 > penyimpanan `item_defaults` saat CREATE Item.
 
-> **Terverifikasi:** `standard_rate` tanpa `item_defaults` → harga masuk `Standard Selling`;
-> dengan `item_defaults.default_price_list` → harga masuk price list tersebut; `uom` = `stock_uom`.
-> **Mengubah `standard_rate` pada Item yang sudah ada TIDAK mengubah Item Price** (§2.3 no. 9) —
-> gunakan §4.7 atau §4.10.
+> **Catatan sinkronisasi baseapp:** saat `price_list_rate` pada baris umum dengan UOM stok di
+> `Standard Selling` diedit, `Item.valuation_rate` ikut diperbarui; perubahan di `Standard Buying`
+> memperbarui `Item.standard_rate`. Harga khusus customer/supplier, batch, UOM lain, dan baris
+> kedaluwarsa/tanggal mendatang tidak mengubah rate Item.
+>
+> Mengubah field rate pada Item yang sudah ada tidak otomatis mengubah Item Price; perubahan rate master
+> dilakukan melalui Item Price (§4.7) atau bulk update (§4.10).
 > Selain itu `Stock Settings.auto_insert_price_list_rate_if_missing = 1` dapat **menambah Item Price
 > otomatis** saat transaksi diisi rate untuk price list yang belum punya harga (§2.3 no. 10).
 

@@ -88,10 +88,10 @@
 | 🟠 | `brand` | Link → Brand | Merek produk (opsional; bisa jadi sumber default via `brand_defaults`). |
 | 🟠 | `description` | TextEditor | Deskripsi produk (HTML). Backend membersihkan HTML bila kosong/rapi. |
 | 🟠 | `_user_tags` | Tags (kolom sistem) | **Tag** produk, dipisah koma (mis. `"best seller,baru"`). Bukan field definisi doctype — kolom sistem yang tersedia di semua tabel (§2.6). |
-| 🟠 | `valuation_rate` | Currency | **Nilai persediaan per unit** (biaya masuk stok; dipakai hitung `stock_value` di `tabBin`). Bisa diisi 0 untuk item baru / zero valuation. |
-| 🟠 | `standard_rate` | Currency | **Harga jual standar**. Mengisi field ini saat CREATE **otomatis membuat Item Price** di backend (detail: [prd_item_price.md §4.9](./prd_item_price.md)). |
+| 🟠 | `valuation_rate` | Currency | **Nilai persediaan per unit** (biaya masuk stok; dipakai hitung `stock_value` di `tabBin`). Bisa diisi 0 untuk item baru / zero valuation. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada `Standard Selling`; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini (detail: [prd_item_price.md §4.9](./prd_item_price.md)). |
+| 🟠 | `standard_rate` | Currency | **Standard Rate Item**. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada `Standard Buying`; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini. ERPNext tetap dapat membuat Item Price tambahan dari `standard_rate` pada Price List selling default. Detail: [prd_item_price.md §4.9](./prd_item_price.md). |
 | ⚪ **Otomatis — jangan dikirim** | `name` | — | `name = item_code`. |
-| ⚪ **Read-only / dikelola sistem** | `valuation_rate` (stok berjalan), `last_purchase_rate`, `total_projected_qty` | — | Nilai dihitung/di-update dari transaksi stok. |
+| ⚪ **Dikelola sistem** | `valuation_rate` (stok berjalan), `last_purchase_rate`, `total_projected_qty` | — | Nilai dihitung/di-update dari transaksi stok. Selain itu, hook baseapp menyinkronkan `valuation_rate` dengan Item Price `Standard Selling` sesuai aturan di atas. |
 | ⚪ **Set saat varian** | `variant_of`, `variant_based_on`, `attributes` | — | Lihat §4.2. |
 | ✖️ **Bukan bagian scope** | `opening_stock`, `taxes`, `item_defaults`, dst. | — | Field lanjutan boleh dipakai, tetapi mekanisme **stok** (opening stock, auto-reorder) dan **price list** didokumentasikan di PRD terpisah (§9). Penyimpanan ambang `reorder_levels` sudah dicakup di dokumen ini (lihat baris `reorder_levels` di atas & §4.1). |
 
@@ -610,10 +610,14 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 > Untuk **penomoran Batch saat penerimaan** (otomatis `BATCH-00001` vs input user) lihat **§2.1 no. 12**,
 > dengan contoh lengkap di **§4.3**.
 
-> **Catatan `standard_rate`:** mengisi `standard_rate` saat CREATE **otomatis membuat Item Price**
-> pada Price List default selling di backend (`after_insert → add_price`). Detail pengelolaan harga
-> (Item Price, Price List, bulk price) ada di **[prd_item_price.md](./prd_item_price.md)** — di dokumen
-> ini cukup kirim `standard_rate` sebagai harga jual standar awal.
+> **Catatan harga:** saat CREATE, ERPNext dapat membuat Item Price selling dari `standard_rate` pada
+> Price List default selling (`after_insert → add_price`). Selain itu, baseapp menyinkronkan
+> `valuation_rate` ke harga umum UOM stok pada `Standard Selling`, dan `standard_rate` ke harga umum UOM
+> stok pada `Standard Buying`. Perubahan `price_list_rate` pada baris umum yang masih berlaku di kedua
+> daftar tersebut memperbarui field Item terkait. Perubahan `standard_rate` pada Item yang sudah ada
+> tidak otomatis mengubah Item Price. `Standard Selling` dan `Standard Buying` tidak boleh dihapus
+> karena diperlukan sinkronisasi baseapp; nonaktifkan jika tidak ingin dipakai. Detail pengelolaan harga
+> ada di **[prd_item_price.md](./prd_item_price.md)**.
 
 **Varian A — Produk jasa (non-stok, tidak dibeli):**
 
@@ -1455,8 +1459,10 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
 >   (`KAOS-M` → `T-SHIRT-M`), baik lewat `save` maupun `set_value`. Bila salah satu nama varian
 >   bentrok dengan Item aktif lain, seluruh permintaan ditolak 417 dan tidak ada yang berubah
 >   (§2.1 no. 10).
-> - Ubah `standard_rate` di sini **tidak** otomatis mengubah Item Price yang sudah ada (hanya saat
->   CREATE). Pengelolaan harga: [prd_item_price.md](./prd_item_price.md).
+> - Ubah `standard_rate` pada Item yang sudah ada **tidak** otomatis mengubah Item Price. Perubahan
+>   harga yang akan disinkronkan ke `standard_rate` atau `valuation_rate` dilakukan melalui baris
+>   Item Price umum UOM stok pada `Standard Buying` atau `Standard Selling`. Pengelolaan harga:
+>   [prd_item_price.md](./prd_item_price.md).
 > - Ubah `item_group` → pindah kategori produk (tidak ada efek samping stok).
 > - Ubah `stock_uom` pada Item ber-stok **ditolak backend**.
 

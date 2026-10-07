@@ -9,8 +9,11 @@ Dokumen ini mencatat perilaku yang ditemukan pada implementasi aplikasi saat ini
 ## 2. Tujuan
 
 - Menyeragamkan konfigurasi ERPNext dan data master awal pada setiap site.
+- Menetapkan kebijakan password awal: policy aktif dengan skor minimum `1`.
 - Mendukung kode Item berurutan yang juga dapat dipakai sebagai barcode.
 - Menjaga nama Item aktif tetap unik dan membantu UI menangani duplikasi.
+- Menyinkronkan rate Item dengan Item Price pada `Standard Selling` dan `Standard Buying`.
+- Melindungi Price List standar yang dibutuhkan sinkronisasi agar tidak dapat dihapus.
 - Menyediakan penanda Item untuk Product Bundle statis dan dinamis.
 - Menyediakan struktur konfigurasi untuk pilihan komponen paket dinamis.
 - Menambahkan data pendukung untuk negara, tarif pajak, dan reorder Item.
@@ -22,9 +25,10 @@ Dokumen ini mencatat perilaku yang ditemukan pada implementasi aplikasi saat ini
 
 - Custom field dan Property Setter pada DocType ERPNext.
 - Tiga DocType untuk konfigurasi Dynamic Product Bundle.
-- Hook dokumen untuk Contact, Item, Item Attribute, dan Product Bundle.
+- Hook dokumen untuk Contact, Item, Item Price, Price List, Item Attribute, dan Product Bundle.
 - Override controller Item Attribute untuk mencegah perubahan kode varian ketika singkatan atribut diubah.
 - Endpoint pemeriksaan nama Item.
+- Penetapan nilai Single pada `System Settings` untuk kebijakan password saat instalasi.
 - Sinkronisasi dan seed konfigurasi/master data saat instalasi dan migrasi.
 - Patch untuk site yang sudah memasang aplikasi.
 
@@ -128,6 +132,9 @@ Validasi relasi tambahan di luar field wajib/Link tersebut dan eksekusi pilihan 
 - Nama Item dibandingkan tanpa membedakan kapitalisasi dan mengabaikan spasi di awal/akhir. Nama yang sudah dipakai Item aktif menolak penyimpanan; nama yang hanya dipakai Item nonaktif tetap diperbolehkan.
 - Saat nama Item template varian berubah, nama varian dihitung ulang dengan algoritme ERPNext. Kode Item/barcode varian tidak berubah. Bila ditemukan benturan nama aktif atau dua varian baru akan mendapat nama sama, perubahan template ditolak sebelum nama varian ditulis.
 - Sinkronisasi nama varian hanya berjalan saat nama template berubah dan berlangsung sinkron. Varian yang sudah tidak konsisten tidak diperbaiki otomatis kecuali template-nya diubah.
+- Saat Item baru dibuat, rate pada `valuation_rate` disinkronkan ke `price_list_rate` di `Standard Selling`, sedangkan `standard_rate` disinkronkan ke `price_list_rate` di `Standard Buying`. Baris yang dipakai adalah harga umum untuk `stock_uom`; harga khusus customer/supplier, batch, UOM lain, atau yang belum/sudah tidak berlaku tidak dipakai.
+- Ketika `price_list_rate` berubah pada Item Price umum dengan UOM stok yang masih berlaku di `Standard Selling` atau `Standard Buying`, baseapp memperbarui `Item.valuation_rate` atau `Item.standard_rate` sesuai pemetaan tersebut. Mengubah rate pada Item yang sudah ada tidak menjalankan sinkronisasi balik ke Item Price.
+- Price List bernama `Standard Selling` dan `Standard Buying` ditolak saat dihapus karena dibutuhkan sinkronisasi rate. Daftar tersebut dapat dinonaktifkan bila tidak ingin dipakai.
 
 ### 5.3 Atribut varian
 
@@ -169,11 +176,40 @@ Referensi `item_group` dan `other_item_group` pada seluruh tabel DocType yang te
 
 **Peringatan:** proses ini menghapus seluruh Item Group lain, termasuk grup buatan pengguna. Proses sengaja tidak dijalankan setiap migrasi untuk mencegah penghapusan grup baru setelah go-live.
 
+### 5.7 Kebijakan password
+
+Saat instalasi — dan lewat patch untuk site yang sudah memasang aplikasi — `System Settings`
+disetel menjadi:
+
+| Field | Nilai | Bawaan Frappe |
+|---|---|---|
+| `enable_password_policy` | `1` | `1` |
+| `minimum_password_score` | **`1`** | `2` |
+
+- Nilai ditulis langsung ke `tabSingles` (`frappe.db.set_single_value`), bukan lewat `save()`,
+  sehingga `SystemSettings.validate()` tidak dijalankan.
+- **Keduanya ditulis bersamaan karena skor hanya berlaku bila policy aktif.** `User.test_password_strength()`
+  berhenti lebih awal (`return {}`) saat `enable_password_policy` nonaktif
+  (`frappe/core/doctype/user/user.py:995-998`), dan `SystemSettings.validate()` mengosongkan skor
+  pada **setiap** penyimpanan selama policy nonaktif
+  (`frappe/core/doctype/system_settings/system_settings.py:122-127`) — termasuk penyimpanan lewat REST
+  API, karena `frappe.client.save` dan `frappe.client.set_value` sama-sama menjalankan `validate()`.
+  Menulis skor saja akan sia-sia dan cepat hilang.
+- `enable_password_policy` ditulis eksplisit meski bawaan Frappe sudah `1`, agar skor tidak
+  kosong lagi bila ada yang pernah menonaktifkan policy.
+- Cache dibersihkan setelah penulisan supaya policy langsung berlaku tanpa perlu restart;
+  pembacaan runtime lewat `get_system_settings()` dapat masih memakai salinan lama selama cache
+  belum dibersihkan.
+- **Skor `1` berarti hanya password paling lemah yang ditolak** (skor `0`). Password yang sudah ada
+  tidak diubah dan tidak ada pengguna yang dipaksa mengganti password.
+- **Satu kali saja.** Tidak dijalankan ulang setiap migrasi, sehingga perubahan policy yang
+  disengaja setelah go-live tidak ditimpa.
+
 ## 6. Hook dan Endpoint
 
 ### 6.1 Siklus instalasi/migrasi
 
-- `after_install`: menjalankan `enforce_baseapp_settings`, konsolidasi Item Group, aktivasi Item Naming Series, dan backfill `is_product_bundle`.
+- `after_install`: menjalankan `enforce_baseapp_settings`, konsolidasi Item Group, aktivasi Item Naming Series, penetapan kebijakan password, dan backfill `is_product_bundle`.
 - `after_migrate`: menjalankan `enforce_baseapp_settings` secara idempoten.
 - Patch yang tercantum di `patches.txt` menangani site yang sudah memasang aplikasi; patch yang terkait instalasi fresh tidak mengulang perubahan destruktif/perubahan satu kali pada setiap migrasi.
 
@@ -183,9 +219,12 @@ Referensi `item_group` dan `other_item_group` pada seluruh tabel DocType yang te
 |---|---|---|---|
 | Contact | `validate` | `set_contact_status_open` | Mengisi status `Open` jika kosong. |
 | Item | `before_insert` | `assign_variant_item_code` | Memberi kode serial pada varian sebelum proses autoname. |
+| Item | `after_insert` | `sync_standard_item_prices` | Menyinkronkan rate Item ke Item Price umum UOM stok di `Standard Selling` dan `Standard Buying`. |
 | Item | `before_validate` | `set_default_item_barcode` | Menambahkan barcode default saat Item baru belum memilikinya. |
 | Item | `validate` | `prevent_duplicate_item_name` | Menolak nama Item yang sudah digunakan Item aktif. Dilewati selama install, migrate, dan patch. |
 | Item | `on_update` | `sync_variant_item_names` | Memperbarui nama varian setelah nama template berubah. |
+| Item Price | `on_update` | `sync_item_rate_from_standard_price` | Menyinkronkan perubahan harga umum UOM stok pada Price List standar ke field rate Item yang dipetakan. |
+| Price List | `on_trash` | `prevent_standard_price_list_deletion` | Menolak penghapusan `Standard Selling` dan `Standard Buying`. |
 | Item Attribute | `before_validate` | `sync_attribute_value_and_abbr` | Memvalidasi nilai atribut dan menyelaraskan `abbr`. |
 | Product Bundle | `on_update` | `sync_item_product_bundle_flag` | Menyegarkan flag Item saat bundle dibuat/diubah/diaktifkan/dinonaktifkan. |
 | Product Bundle | `on_trash` | `clear_item_product_bundle_flag` | Menghapus flag Item yang terkait saat bundle dihapus. |
@@ -216,6 +255,7 @@ Patch yang terdaftar di `baseapp/patches.txt`:
 | `disable_lead_contact_auto_creation` | Menonaktifkan auto-creation Contact dari Lead. |
 | `collapse_item_groups` | Menjalankan konsolidasi Item Group satu kali. |
 | `enable_item_naming_series` | Mengaktifkan format dan mode Naming Series Item satu kali. |
+| `set_minimum_password_score` | Mengaktifkan kebijakan password dan menetapkan skor minimum `1` satu kali. |
 | `backfill_is_product_bundle` | Menghitung ulang flag Product Bundle pada Item yang sudah ada. |
 
 Field kustom dan pengaturan yang memang perlu selalu ditegakkan diselaraskan oleh `after_migrate`. Pengaturan Naming Series dan konsolidasi Item Group sengaja tidak ditegakkan terus-menerus.
@@ -230,10 +270,13 @@ Field kustom dan pengaturan yang memang perlu selalu ditegakkan diselaraskan ole
 6. Endpoint pemeriksaan nama membedakan duplikasi aktif, nonaktif, dan nama bebas serta mengecualikan Item yang sedang diedit.
 7. Atribut non-numerik tidak memerlukan input `abbr`; `abbr` tersimpan sama dengan `attribute_value`, dan perubahan singkatan tidak mengganti kode Item varian.
 8. Flag `Item.is_product_bundle` sesuai dengan keberadaan Product Bundle aktif dan diperbarui saat bundle diubah atau dihapus.
-9. Dynamic Product Bundle dapat dikonfigurasi dengan opsi, Item komponen, dan pembatasan Item Group sesuai field dan hak akses yang ditentukan.
-10. Batas `max_stock_level` tersimpan sebagai data informasional tanpa mengubah perhitungan stok ERPNext.
-11. Konsolidasi Item Group memindahkan referensi ke `Non Category`, mengubah default Stock Settings, dan tidak berjalan berulang pada migrasi berikutnya.
-12. Seed akun hanya dilakukan saat parent account tersedia; site/company lain tetap dapat diproses jika satu seed gagal.
+9. Pembuatan Item menyinkronkan `valuation_rate` ke `Standard Selling` dan `standard_rate` ke `Standard Buying` untuk harga umum UOM stok; perubahan harga yang berlaku pada Item Price kedua daftar memperbarui field Item terkait.
+10. Penghapusan `Standard Selling` atau `Standard Buying` ditolak; keduanya dapat dinonaktifkan.
+11. Dynamic Product Bundle dapat dikonfigurasi dengan opsi, Item komponen, dan pembatasan Item Group sesuai field dan hak akses yang ditentukan.
+12. Batas `max_stock_level` tersimpan sebagai data informasional tanpa mengubah perhitungan stok ERPNext.
+13. Konsolidasi Item Group memindahkan referensi ke `Non Category`, mengubah default Stock Settings, dan tidak berjalan berulang pada migrasi berikutnya.
+14. Seed akun hanya dilakukan saat parent account tersedia; site/company lain tetap dapat diproses jika satu seed gagal.
+15. Instalasi menetapkan `System Settings` menjadi `enable_password_policy = 1` dan `minimum_password_score = 1`; kebijakan langsung berlaku tanpa restart, dan tidak dijalankan ulang pada migrasi berikutnya.
 
 ## 9. Catatan Implementasi
 
