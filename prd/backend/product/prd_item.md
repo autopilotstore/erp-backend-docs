@@ -88,7 +88,7 @@
 | 🟠 | `reorder_levels` | Table (child `Item Reorder`) | **Batas stok per (item, warehouse)** — ambang **min & maks**. Baris: `warehouse` (Link→Warehouse, `reqd`); `warehouse_reorder_level` (Float = **nilai ambang minimum**, satuan `stock_uom`); `material_request_type` (`reqd` — Select `Purchase`/`Transfer`/`Material Issue`/`Manufacture`, menentukan cara restock; `Purchase` = beli ke supplier); `warehouse_reorder_qty` (Float, **opsional** — untuk alur pemesanan nanti, PRD stok §9); `max_stock_level` (Float, **opsional** — **custom field dari app `baseapp`**, nilai ambang maksimum, satuan `stock_uom`; hanya ada bila `baseapp` terpasang, lihat §4.1). Hanya relevan untuk item stok (`is_stock_item=1`). Cara simpan: §4.1 (contoh CREATE). |
 | 🟠 | `brand` | Link → Brand | Merek produk (opsional; bisa jadi sumber default via `brand_defaults`). |
 | 🟠 | `description` | TextEditor | Deskripsi produk (HTML). Backend membersihkan HTML bila kosong/rapi. |
-| 🟠 | `hashtags` | Table (child `Item Hashtag`) | **Hashtag produk** — satu baris = satu hashtag, ditulis **tanpa `#`** dan huruf kecil (mis. `promo`, `best-seller`). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `description`); hanya ada bila app tersebut terpasang. **Inilah field untuk tag/hashtag — bukan `_user_tags`.** Berbeda dari `_user_tags` (satu kolom teks dipisah koma), `hashtags` bisa dicari **persis**: filter `= promo` tidak ikut menarik `promo2026`. Format, normalisasi, & cara filter: §2.8. CRUD + pola satu halaman (template & semua varian): §4.12. |
+| 🟠 | `hashtags` | Table (child `Item Hashtag`) | **Hashtag produk** — satu baris = satu hashtag, tiap baris **Link ke master `Hashtag`**, ditulis **tanpa `#`** dan huruf kecil (mis. `promo`, `best-seller`). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `description`); hanya ada bila app tersebut terpasang. **Inilah field untuk tag/hashtag — bukan `_user_tags`.** Berbeda dari `_user_tags` (satu kolom teks dipisah koma), `hashtags` bisa dicari **persis**: filter `= promo` tidak ikut menarik `promo2026`. Nilai yang belum terdaftar di master **ditolak backend**. Master `Hashtag` (daftar pilihan & CRUD): §4.12f. Format, normalisasi, & cara filter: §2.8. CRUD + pola satu halaman (template & semua varian): §4.12. |
 | ⛔ **Jangan dipakai** | `_user_tags` | Tags (kolom sistem) | Kolom sistem Frappe yang otomatis ada di semua tabel — **bukan tempat menyimpan hashtag produk**, karena isinya satu kolom teks dipisah koma sehingga pencarian persis tidak mungkin (§2.6). Pakai `hashtags` di atas. |
 | 🟠 | `valuation_rate` | Currency | **Nilai persediaan per unit** (harga modal / biaya masuk stok; dipakai hitung `stock_value` di `tabBin`). Bisa diisi 0 untuk item baru / zero valuation. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada **`Standard Buying`**; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini (detail: [prd_item_price.md §4.9](./prd_item_price.md)). |
 | 🟠 | `standard_rate` | Currency | **Standard Selling Rate** — label field ERPNext; ini **harga jual**. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada **`Standard Selling`**; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini. ERPNext sendiri juga membuat Item Price dari `standard_rate` pada Price List selling default (`Item.after_insert → add_price`). Detail: [prd_item_price.md §4.9](./prd_item_price.md). |
@@ -391,7 +391,8 @@
 | `tabUOM Conversion Factor` | `UOM Conversion Factor` | Master global pasangan konversi antar-UOM (mis. `Gram`→`Kg`) — dipakai `get_uom_conv_factor` (§5). |
 | `tabItem Barcode` | `Item Barcode` | Child table `barcodes` — daftar barcode produk (§2.4, §4.7). |
 | `tabItem Supplier` | `Item Supplier` | Child table `supplier_items` — daftar pemasok untuk Item (§2.7, §4.1/§4.4/§4.6). |
-| `tabItem Hashtag` | `Item Hashtag` | Child table `hashtags` — **hashtag produk**, satu baris per hashtag (kolom `hashtag`, Data + **index**). Dipakai untuk pencarian **persis** (§2.8, §4.12). |
+| `tabItem Hashtag` | `Item Hashtag` | Child table `hashtags` — **hashtag produk**, satu baris per hashtag (kolom `hashtag`, **Link → `Hashtag`** + **index**). Dipakai untuk pencarian **persis** (§2.8, §4.12). |
+| `tabHashtag` | `Hashtag` | **Master hashtag** — `name` = hashtag itu sendiri (mis. `promo`). Sumber dropdown hashtag dan target Link baris `Item Hashtag` serta `Dynamic Product Bundle Hashtag` (§2.8, §4.12f). |
 | `tabFile` | `File` | **Semua attachment** (foto multi produk), ter-link ke Item via `attached_to_doctype` + `attached_to_name` (§4.8). |
 | `tabBin` | `Bin` | **Stok per (item, warehouse)** — `actual_qty`, `projected_qty`, `stock_value`, dsb. (§4.10). |
 | `tabBatch` | `Batch` | Master **nomor batch** — field `batch_id` (nomor yang dibaca user; pada versi terpasang = `name` dokumen, §2.1 no. 12) + `item` pemiliknya. Stok per batch tidak di sini, melainkan di Stock Ledger Entry / Serial and Batch Bundle. |
@@ -485,12 +486,26 @@ menampilkan `#promo2026`), hashtag disimpan di **child table**, bukan di kolom t
 
 | Field | Tipe | Wajib | Keterangan |
 |---|---|---|---|
-| `hashtag` | Data (`varchar(140)`) + **index** | ya (`reqd=1`) | Isi hashtag **tanpa tanda `#`**, huruf kecil, tanpa spasi. Contoh: `promo`, `best-seller`, `new_arrival`. |
+| `hashtag` | **Link → `Hashtag`** (+ **index**) | ya (`reqd=1`) | Menunjuk satu dokumen master `Hashtag`. Nilainya adalah **nama dokumen** master tsb: huruf kecil, tanpa `#`, tanpa spasi. Contoh: `promo`, `best-seller`, `new_arrival`. |
 
 Field pada Item bernama `hashtags` — tipe **Table → `Item Hashtag`**, custom field dari app
 `baseapp` (fieldname tanpa prefix `custom_`, posisi setelah `description`; lihat
-[prd_baseapp.md §4.1/§4.4](../baseapp/prd_baseapp.md)). Yang punya daftar sendiri: **template
+[prd_baseapp.md §4.1/§4.5](../baseapp/prd_baseapp.md)). Yang punya daftar sendiri: **template
 maupun setiap varian**.
+
+**Master `Hashtag` — sumber daftar nilainya.** `Item Hashtag.hashtag` **bukan** teks bebas lagi,
+melainkan **Link ke master `Hashtag`** (doctype biasa, `name` = hashtag itu sendiri, pola sama
+seperti `Brand`). Konsekuensinya untuk frontend:
+
+- **Dropdown diambil dari master**, bukan dari nilai yang kebetulan sudah dipakai Item —
+  `frappe.client.get_list` doctype `Hashtag`, `fields: ["name"]` (§4.12f, §6.8).
+- **User hanya boleh memilih yang sudah terdaftar.** Mengirim hashtag yang belum ada di master
+  **ditolak** (lihat tabel di bawah), kecuali pada jalur instalasi/migrasi/patch.
+- **Menambah/mengganti/menghapus hashtag master** memakai CRUD biasa di doctype `Hashtag`
+  (`frappe.client.insert`/`save`/`rename_doc`/`delete`) — §4.12f.
+- `rename_doc` pada master ikut memperbaiki semua baris Item yang menunjuk hashtag tsb; menghapus
+  master **diblokir** (`LinkExistsError`) selama masih dirujuk Item (atau
+  `Dynamic Product Bundle Hashtag`).
 
 **Aturan isi — dirapikan backend otomatis**
 
@@ -503,13 +518,19 @@ disimpan, jadi yang tersimpan selalu bentuk kanonik:
 | `""` atau `"#"` | *(baris dibuang)* | baris kosong tidak disimpan |
 | `"promo"` dikirim 2× | `promo` (1 baris) | duplikat dibuang, yang pertama dipertahankan |
 | `"promo 2026"` / `"promo!"` / `"Promo#2026"` | **ditolak (417)** | nilai valid harus cocok pola `^[a-z0-9_-]{1,50}$` |
+| `"#Promo"` (belum ada di master `Hashtag`) | **ditolak (417)** | nilai sudah bersih (`promo`) tetapi belum terdaftar → buat dulu di master (§4.12f) |
 
 Karena itu frontend **boleh** mengirim apa adanya dari input user (dengan/tanpa `#`, huruf besar),
-selama karakternya termasuk yang diizinkan. Contoh pesan error:
+selama karakternya termasuk yang diizinkan **dan** hashtag tsb sudah ada di master `Hashtag`. Pesan
+error untuk nilai yang tidak valid:
 
 ```
 ValidationError: Row #1: hashtag promo 2026 is not valid.
 Use lowercase letters, digits, - and _ only (max 50 characters).
+```
+
+```
+ValidationError: Row #1: hashtag promo belum terdaftar. Buat dulu di master Hashtag.
 ```
 
 Nomor baris pada pesan mengikuti **urutan baris pada payload yang dikirim**, sehingga frontend bisa
@@ -2184,8 +2205,9 @@ curl -X POST https://site-anda.com/api/method/baseapp.api.check_item_name \
 ### 4.12 Hashtag — CRUD & pola satu halaman (template + semua varian)
 
 Bentuk field & aturannya di **§2.8**. Ringkas: `hashtags` adalah **child table** (satu baris = satu
-hashtag), nilainya dirapikan backend (tanpa `#`, huruf kecil), bersifat **replace-all** saat simpan,
-dan **tidak diwariskan** dari template ke varian.
+hashtag) yang tiap barisnya **Link ke master `Hashtag`**, nilainya dirapikan backend (tanpa `#`,
+huruf kecil), bersifat **replace-all** saat simpan, dan **tidak diwariskan** dari template ke varian.
+Hashtag yang belum terdaftar di master **ditolak** (§2.8, §4.12f).
 
 #### a. Tulis hashtag saat CREATE
 
@@ -2372,6 +2394,53 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > frontend. Ini konsekuensi dari child table yang di-JOIN (§2.8).
 >
 > **Daftar hashtag yang sudah pernah dipakai** (untuk autocomplete / saran filter): **§6.8**.
+
+#### f. Master `Hashtag` — CRUD (daftar pilihan hashtag)
+
+Sejak `Item Hashtag.hashtag` menjadi **Link ke master `Hashtag`**, nilai yang boleh dipakai tidak lagi
+"apa pun yang pernah ditulis" — melainkan **isi master**. Frontend mengambil dropdown dari sini, dan
+user menambah/mengubah/menghapus hashtag lewat CRUD di bawah.
+
+```bash
+# daftar (dropdown) — name = hashtag itu sendiri
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Hashtag",
+    "fields": ["name"],
+    "order_by": "name asc",
+    "limit_page_length": 0
+  }'
+
+# tambah hashtag baru
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{ "doc": { "doctype": "Hashtag", "hashtag": "promohariini" } }'
+
+# ubah nama hashtag — ikut memperbaiki semua Item / DPB Hashtag yang menunjuknya
+curl -X POST https://site-anda.com/api/method/frappe.client.rename_doc \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{ "doctype": "Hashtag", "old_name": "promo", "new_name": "promo-baru" }'
+
+# hapus hashtag — DIBLOKIR selama masih dirujuk Item / Dynamic Product Bundle Hashtag
+curl -X POST https://site-anda.com/api/method/frappe.client.delete \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{ "doctype": "Hashtag", "name": "promo-baru" }'
+```
+
+- **`name` = hashtag itu sendiri** (`autoname: field:hashtag`), jadi nilai yang dipakai di baris
+  `hashtags` = nama dokumen master — pola sama seperti `Brand`.
+- Nilai wajib huruf kecil, tanpa `#`, cocok pola `^[a-z0-9_-]{1,50}$`. Normalisasi otomatis hanya
+  berlaku pada input yang dikirim lewat **dokumen Item** (§2.8); membuat master baru berarti
+  mengirim nilainya sudah bersih.
+- `Hashtag` adalah doctype **normal** (bukan child) — jadi `get_list`, `get_count`, `rename_doc`,
+  `Frappe` desk, dan permission-nya berjalan seperti master lain.
+- Role: **`Item Manager`** dan **`System Manager`** (selaras dengan doctype Dynamic Product Bundle —
+  [prd_baseapp.md §4.5](../baseapp/prd_baseapp.md)).
 
 ---
 
@@ -2630,56 +2699,45 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > pernah menunjuk node group, hanya leaf. Bila UI memakai tree picker, gunakan pola (b). Detail tree
 > Item Group & aturan leaf: [prd_item_group.md §4 & §5](./prd_item_group.md).
 
-### 6.8 Daftar hashtag yang sudah pernah dipakai (autocomplete)
+### 6.8 Daftar hashtag untuk dropdown — master `Hashtag`
 
-Untuk mengisi kotak saran hashtag di form produk / saringan katalog: ambil daftar **hashtag unik**
-dari Item, lewat field child-nya + `group_by` (bukan `distinct`, yang tidak tersedia di
-`frappe.client.get_list`).
+Sejak `Item Hashtag.hashtag` menjadi **Link ke master `Hashtag`** (§2.8), sumber daftar hashtag adalah
+**master-nya**, bukan lagi kumpulan nilai yang kebetulan dipakai Item. Cukup satu `get_list` biasa —
+`Hashtag` adalah doctype normal yang punya permission sendiri (tidak seperti child doctype):
 
 ```bash
-# Semua hashtag yang sudah dipakai (untuk dropdown saran)
+# dropdown semua hashtag
 curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   -H 'Authorization: Bearer <access_token>' \
   -H 'Content-Type: application/json' \
   -d '{
-    "doctype": "Item",
-    "fields": ["hashtags.hashtag"],
-    "filters": [["hashtags.hashtag","is","set"]],
-    "group_by": "hashtags.hashtag",
-    "limit_page_length": 50
+    "doctype": "Hashtag",
+    "fields": ["name"],
+    "order_by": "name asc",
+    "limit_page_length": 0
   }'
 ```
 
-**Contoh respons (HTTP 200) — 5 hashtag unik:**
+**Contoh respons (HTTP 200):**
 
 ```json
-{ "message": [
-  { "hashtag": "baru" },
-  { "hashtag": "minuman" },
-  { "hashtag": "promo" },
-  { "hashtag": "promo2026" },
-  { "hashtag": "kaos" }
-] }
+{ "message": [ { "name": "baru" }, { "name": "minuman" }, { "name": "promo" } ] }
 ```
 
 ```bash
-# Autocomplete saat user mengetik "prom": filter like + group_by (tetap 1 baris per hashtag)
-#   "filters": [["hashtags.hashtag","like","%prom%"]]
-#   "group_by": "hashtags.hashtag"
+# autocomplete saat user mengetik "prom"
+#   "filters": [["name","like","%prom%"]]
+
+# jumlah hashtag (pagination) — doctype normal, jadi get_count akurat
+#   { "doctype": "Hashtag", "filters": [] }
 ```
 
-**Hasil uji di site dev (2026-10-08):**
-
-| Query | Hasil |
-|---|---|
-| `fields=["hashtags.hashtag"]` + `group_by=hashtags.hashtag` + `filters=[["hashtags.hashtag","is","set"]]` | `baru`, `promo`, `promo2026` — tiap nilai muncul **sekali** ✅ |
-| `filters=[["hashtags.hashtag","like","%promo%"]]` + `group_by` | `promo`, `promo2026` — cocok untuk **saran saat mengetik** |
-| `doctype: "Item Hashtag"` (query langsung ke child doctype) | ⛔ **tidak bisa** — `frappe.client.get_list` mengembalikan `name` saja (child doctype tanpa definisi permission → semua field selain `name` dibuang). Pakai `group_by` di atas |
-
-> Di sini `like` **memang** dipakai secara sengaja: untuk saran autocomplete, menarik `promo2026` saat
-> user mengetik `prom` itu diinginkan. Yang memakai `=` persis adalah **saringan katalog** (§4.12e).
-> Hasil saran tetap bisa dibatasi ke hashtag yang benar-benar ada dengan memilih nilainya (bukan
-> mengetik bebas).
+> **Tidak perlu lagi** trik lama `fields: ["hashtags.hashtag"]` + `group_by: "hashtags.hashtag"`
+> pada doctype `Item`. Trik itu dipakai waktu hashtag masih berupa teks bebas di child table; sekarang
+> daftar resminya ada di master, sehingga satu query sederhana sudah cukup.
+>
+> ⛔ **Jangan** query langsung ke child doctype `Item Hashtag` (`frappe.client.get_list` mengembalikan
+> `name` saja karena child doctype tidak punya definisi permission) — tetap berlaku.
 
 ---
 

@@ -18,15 +18,15 @@ Dokumen ini mencatat perilaku yang ditemukan pada implementasi aplikasi saat ini
 - Menyediakan struktur konfigurasi untuk pilihan komponen paket dinamis.
 - Menambahkan data pendukung untuk negara, tarif pajak, dan reorder Item.
 - Menambahkan konfigurasi batas kuantitas penjualan pada Item.
-- Menyediakan penyimpanan hashtag produk yang dapat difilter secara persis (child table `Item Hashtag`).
+- Menyediakan penyimpanan hashtag produk yang dapat difilter secara persis: master `Hashtag` + child table `Item Hashtag`.
 
 ## 3. Ruang Lingkup
 
 ### Termasuk
 
 - Custom field dan Property Setter pada DocType ERPNext.
-- Tiga DocType untuk konfigurasi Dynamic Product Bundle.
-- Satu DocType child table (`Item Hashtag`) beserta field `Item.hashtags` dan normalisasi isinya.
+- DocType untuk konfigurasi Dynamic Product Bundle: `Dynamic Product Bundle Option`, `Item`, `Item Group`, `Brand`, dan `Hashtag`.
+- Master `Hashtag` serta DocType child table (`Item Hashtag`) beserta field `Item.hashtags` dan normalisasi isinya.
 - Hook dokumen untuk Contact, Item, Item Price, Price List, dan Item Attribute.
 - Override controller Item Attribute untuk mencegah perubahan kode varian ketika singkatan atribut diubah.
 - Endpoint pemeriksaan nama Item.
@@ -60,7 +60,7 @@ Dokumen ini mencatat perilaku yang ditemukan pada implementasi aplikasi saat ini
 | `Item` | `min_sales_qty` | Float | Batas kuantitas jual minimum per Item dalam Stock UOM; default `0` berarti tidak ada batas minimum. |
 | `Item` | `max_sales_qty` | Float | Batas kuantitas jual maksimum per Item dalam Stock UOM; default `0` berarti tidak ada batas maksimum. |
 | `Item` | `sales_qty_multiple` | Float | Kelipatan kuantitas jual per Item dalam Stock UOM; default `0` berarti aturan kelipatan tidak digunakan. |
-| `Item` | `hashtags` | Table → `Item Hashtag` | Daftar hashtag produk — **satu baris = satu hashtag**, ditulis tanpa `#` dan huruf kecil. Bukan field `reqd` (boleh kosong) dan isinya dirapikan otomatis saat `validate` (§5.8). Setiap Item — template maupun varian — punya daftar sendiri. |
+| `Item` | `hashtags` | Table → `Item Hashtag` | Daftar hashtag produk — **satu baris = satu hashtag**, ditulis tanpa `#` dan huruf kecil. Bukan field `reqd` (boleh kosong) dan isinya dirapikan otomatis saat `validate` (§5.8). Setiap Item — template maupun varian — punya daftar sendiri. Tiap baris **Link ke master `Hashtag`** (§4.5), jadi hanya nilai yang terdaftar yang bisa dipakai. |
 | `Item Reorder` | `max_stock_level` | Float | Ambang stok maksimum per Item dan gudang; non-negatif. Informasional/notifikasi saja dan tidak mengubah logika stok ERPNext. |
 
 Field-field tersebut dibuat secara idempoten saat `after_migrate` dan instalasi. Tiga field kuantitas
@@ -79,7 +79,7 @@ Perubahan `Contact.status` dan visibilitas/keharusan `abbr` ditegakkan kembali p
 
 ### 4.3 DocType Dynamic Product Bundle
 
-Ketiga DocType berada di modul `Base App`. Hak akses Create, Read, Write, Delete, Export, Print, dan Share diberikan kepada `System Manager` dan `Item Manager`; `System Manager` juga memiliki Import dan Email. Perubahan dilacak (`track_changes`).
+Kelima DocType berada di modul `Base App`. Hak akses Create, Read, Write, Delete, Export, Print, dan Share diberikan kepada `System Manager` dan `Item Manager`; `System Manager` juga memiliki Import dan Email. Perubahan dilacak (`track_changes`).
 
 #### `Dynamic Product Bundle Option`
 
@@ -119,6 +119,46 @@ Membatasi pilihan opsi bertipe `Item Group` pada grup Item tertentu beserta subg
 | `bundle_option` | Link → Dynamic Product Bundle Option | Opsi pilihan; wajib. |
 | `item_group` | Link → Item Group | Grup yang anggotanya dan subgrup turunannya boleh dipilih; wajib dan tersedia di filter standar. |
 
+#### `Dynamic Product Bundle Brand`
+
+Filter **tambahan** di dalam satu pilihan bertipe `Item Group` — bukan tipe filter tersendiri
+(`filter_type` tetap `Item` / `Item Group`).
+
+| Field | Tipe | Keterangan |
+|---|---|---|
+| `bundle_item` | Link → Item | Item paket pemilik baris; wajib dan tersedia di filter standar. |
+| `bundle_option` | Link → Dynamic Product Bundle Option | Opsi pemilik baris; wajib, dan opsinya **harus** bertipe `Item Group`. |
+| `brand` | Link → Brand | Brand yang item-itemnya boleh dipilih kasir; wajib dan tersedia di filter standar. |
+
+Aturan validasi: `bundle_item` harus bertanda `is_dynamic_product_bundle`; `bundle_option.bundle_item`
+harus sama dengan `bundle_item`; `bundle_option.filter_type` harus `Item Group`; dan pasangan
+(`bundle_option`, `brand`) tidak boleh duplikat.
+
+#### `Dynamic Product Bundle Hashtag`
+
+Sama seperti `Dynamic Product Bundle Brand`, tetapi menunjuk master `Hashtag` (§4.5).
+
+| Field | Tipe | Keterangan |
+|---|---|---|
+| `bundle_item` | Link → Item | Item paket pemilik baris; wajib dan tersedia di filter standar. |
+| `bundle_option` | Link → Dynamic Product Bundle Option | Opsi pemilik baris; wajib, dan opsinya **harus** bertipe `Item Group`. |
+| `hashtag` | Link → Hashtag | Hashtag yang item-itemnya boleh dipilih kasir; wajib dan tersedia di filter standar. |
+
+Aturan validasinya identik: paket bertanda flag, opsi milik paket yang sama, `filter_type =
+Item Group`, dan pasangan (`bundle_option`, `hashtag`) tidak boleh duplikat.
+
+**Cara ketiga tabel digabung** (dipakai frontend saat membaca pilihan untuk kasir):
+
+```
+item group (A OR B) AND brand (C OR D) AND hashtag (E OR F)
+```
+
+- **OR di dalam satu tabel**, **AND antar tabel**. Tabel yang **tidak punya baris** berarti tidak ada
+  batasan — klausa itu dihilangkan.
+- Item group punya sub-tree, jadi daftar group diselesaikan dulu ke **leaf** turunannya.
+- Backend **tidak** menyusun query ini: aplikasi hanya menyimpan barisnya; frontend yang merangkai
+  filter `get_list`.
+
 Validasi relasi tambahan di luar field wajib/Link tersebut dan eksekusi pilihan komponen pada transaksi tidak ditemukan di aplikasi ini.
 
 ### 4.4 DocType Item Hashtag
@@ -130,12 +170,31 @@ langsung lewat `frappe.client.get_list` dengan `doctype` = `Item Hashtag` (Frapp
 
 | Field | Tipe | Keterangan |
 |---|---|---|
-| `hashtag` | Data | Satu hashtag; wajib, terindeks (`search_index`), tampil di list view. Ditulis tanpa `#`, huruf kecil, cocok pola `^[a-z0-9_-]{1,50}$`. |
+| `hashtag` | Link → `Hashtag` | Satu hashtag; wajib, terindeks (`search_index`), tampil di list view. Nilainya = **nama dokumen master `Hashtag`** (tanpa `#`, huruf kecil, pola `^[a-z0-9_-]{1,50}$`). |
 
 Nama dokumen acak (`hash`). Karena `hashtags` adalah child table pada Item, daftar hashtag sebuah
 Item disimpan lewat dokumen Item (`insert`/`save`) dan bersifat **replace-all**: baris yang tidak ikut
 terkirim akan terhapus. Filter memakai operator `=` pada field child-nya, mis.
 `[["hashtags.hashtag","=","promo"]]`.
+
+Karena `hashtag` kini **Link** ke master, baris yang menunjuk hashtag tidak terdaftar ditolak Frappe
+(`LinkValidationError`), dan `baseapp.utils.normalize_item_hashtags` sudah menolaknya lebih dulu
+dengan pesan yang menyebut nomor barisnya (§5.8).
+
+### 4.5 DocType Hashtag (master)
+
+Master hashtag produk. Doctype **normal** (bukan child table) di modul `Base App`, dengan
+`autoname: field:hashtag` → **`name` = hashtag itu sendiri** (mis. `promo`), pola sama seperti doctype
+`Brand`. Ini target Link dari `Item Hashtag.hashtag` **dan** `Dynamic Product Bundle Hashtag.hashtag`,
+sekaligus sumber dropdown hashtag bagi frontend.
+
+| Field | Tipe | Keterangan |
+|---|---|---|
+| `hashtag` | Data | Satu hashtag; wajib, unik, terindeks, tampil di list view, dan menjadi nama dokumen. Ditulis tanpa `#`, huruf kecil, pola `^[a-z0-9_-]{1,50}$`. |
+
+- Hak akses penuh (`read`/`write`/`create`/`delete`, plus `export`/`print`/`report`/`share`/`email`) untuk **`Item Manager`** dan **`System Manager`**; `System Manager` juga `import` — selaras dengan doctype Dynamic Product Bundle (§4.3).
+- `allow_rename = 1` dan `quick_entry = 1`; perubahan dilacak (`track_changes`). Rename dokumen ikut memperbaiki semua baris Item/DPB yang menunjuknya, dan penghapusan diblokir (`LinkExistsError`) selama masih dirujuk.
+- Tidak ada validasi di controller: penulisan lewat dokumen Item dinormalkan `normalize_item_hashtags` (§5.8); penulisan lewat master memakai nilai apa adanya (frontend mengirim nilai yang sudah bersih).
 
 ## 5. Perilaku Bisnis
 
@@ -256,6 +315,7 @@ disetel menjadi:
   (replace-all); mengirim daftar kosong menghapus semuanya. `frappe.client.set_value` **tidak** dapat
   menulis child table, jadi perubahan harus lewat `insert`/`save` dokumen Item.
 - Tidak ada backfill dari `_user_tags` atau sumber lain: hashtag hanya terisi lewat dokumen Item.
+- **Nilainya sekarang berasal dari master `Hashtag`** (`Item Hashtag.hashtag` = Link → `Hashtag`, §4.5): hashtag yang belum terdaftar ditolak di luar jalur install/migrate/patch, dan daftar pilihan diambil dari master — bukan dari nilai yang kebetulan sudah dipakai Item. Nilai yang sudah ada sebelum perubahan diselamatkan patch `backfill_hashtag_master` (§7).
 
 ## 6. Hook dan Endpoint
 
@@ -273,7 +333,7 @@ disetel menjadi:
 | Item | `before_insert` | `assign_variant_item_code` | Memberi kode serial pada varian sebelum proses autoname. |
 | Item | `after_insert` | `sync_standard_item_prices` | Menyinkronkan rate Item ke Item Price umum UOM stok di `Standard Selling` dan `Standard Buying`. |
 | Item | `before_validate` | `set_default_item_barcode` | Menambahkan barcode default saat Item baru belum memilikinya. |
-| Item | `validate` | `normalize_item_hashtags` | Menormalkan hashtag Item (buang `#`, spasi luar, duplikat, dan baris kosong) dan menolak nilai yang tidak sesuai pola beserta nomor barisnya. Tolakan dilewati selama install, migrate, dan patch. |
+| Item | `validate` | `normalize_item_hashtags` | Menormalkan hashtag Item (buang `#`, spasi luar, duplikat, dan baris kosong) dan menolak nilai yang tidak sesuai pola beserta nomor barisnya. Menolak juga hashtag yang belum terdaftar di master `Hashtag`; pada jalur install/migrate/patch baris masternya dibuat otomatis. Tolakan lain dilewati selama install, migrate, dan patch. |
 | Item | `validate` | `prevent_duplicate_item_name` | Menolak nama Item yang sudah digunakan Item aktif. Dilewati selama install, migrate, dan patch. |
 | Item | `on_update` | `sync_variant_item_names` | Memperbarui nama varian setelah nama template berubah. |
 | Item Price | `on_update` | `sync_item_rate_from_standard_price` | Menyinkronkan perubahan harga umum UOM stok pada Price List standar ke field rate Item yang dipetakan. |
@@ -306,12 +366,14 @@ Patch yang terdaftar di `baseapp/patches.txt`:
 | `collapse_item_groups` | Menjalankan konsolidasi Item Group satu kali. |
 | `enable_item_naming_series` | Mengaktifkan format dan mode Naming Series Item satu kali. |
 | `set_minimum_password_score` | Mengaktifkan kebijakan password dan menetapkan skor minimum `1` satu kali. |
+| `backfill_hashtag_master` | Membuat baris master `Hashtag` untuk setiap nilai yang sudah ada di `tabItem Hashtag`, sebelum kolom `hashtag` menjadi Link. Idempoten: nilai yang sudah punya master dilewati. |
 Field kustom dan pengaturan yang memang perlu selalu ditegakkan diselaraskan oleh `after_migrate`. Pengaturan Naming Series dan konsolidasi Item Group sengaja tidak ditegakkan terus-menerus.
 
 Field `Item.hashtags` dan DocType `Item Hashtag` **tidak** memerlukan patch tersendiri: keduanya
-dibuat ulang secara idempoten oleh `enforce_baseapp_settings()` pada setiap `after_migrate`, dan tidak
-ada data lama yang perlu di-backfill. Site yang sudah memasang aplikasi cukup menjalankan migrasi
-biasa untuk mendapatkan field tersebut.
+dibuat ulang secara idempoten oleh `enforce_baseapp_settings()` pada setiap `after_migrate`. Yang
+memerlukan patch adalah **master `Hashtag`**: nilai yang sudah terlanjur tersimpan di
+`tabItem Hashtag` sebelum kolomnya berubah menjadi Link harus dibuatkan baris masternya
+(`backfill_hashtag_master` di atas). Site yang sudah memasang aplikasi cukup menjalankan migrasi biasa.
 
 > **Catatan penomoran dokumen:** §5 punya dua sub-bab bernomor `5.6` (`Master data dan akun awal` dan
 > `Penyederhanaan Item Group`). Penomoran itu dibiarkan apa adanya agar referensi lama tidak patah;
@@ -336,6 +398,8 @@ biasa untuk mendapatkan field tersebut.
 15. Instalasi menetapkan `System Settings` menjadi `enable_password_policy = 1` dan `minimum_password_score = 1`; kebijakan langsung berlaku tanpa restart, dan tidak dijalankan ulang pada migrasi berikutnya.
 16. Field `Item.is_manufactured_item` dibuat ulang secara idempoten pada instalasi/migrasi, tersedia sebagai filter standar, dan nilainya dipertahankan apa adanya (bukan turunan BOM).
 17. DocType `Item Hashtag` dan field `Item.hashtags` dibuat ulang secara idempoten pada instalasi/migrasi; hashtag dengan `#`, huruf besar, baris kosong, dan duplikat tersimpan dalam bentuk kanonik, nilai di luar pola `^[a-z0-9_-]{1,50}$` ditolak beserta nomor barisnya, filter `=` hanya mengembalikan Item dengan hashtag tersebut (bukan yang mengandungnya), dan hashtag varian tidak diwarisi dari template.
+18. Master `Hashtag` tersedia dengan `name` = hashtag, dapat di-CRUD lewat `frappe.client.*`, dan baris `Item Hashtag` hanya boleh menunjuk nilai yang ada di master; rename master memperbaiki baris yang menunjuknya dan penghapusan master diblokir selama masih dirujuk.
+19. `Dynamic Product Bundle Brand` dan `Dynamic Product Bundle Hashtag` dapat dikonfigurasi per pilihan bertipe `Item Group` (paket bertanda flag, opsi milik paket yang sama, tanpa duplikat), dan menolak baris pada opsi bertipe `Item`.
 
 ## 9. Catatan Implementasi
 

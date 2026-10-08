@@ -5,9 +5,11 @@
 > diperuntukkan bagi tim **UI/Frontend**.
 
 - **Modul:** Base App (custom app `baseapp`) — path `baseapp.base_app.doctype`
-- **Doctype:** field `Item.is_dynamic_product_bundle` + 3 doctype baru:
+- **Doctype:** field `Item.is_dynamic_product_bundle` + 5 doctype baru:
   `Dynamic Product Bundle Option` (soft-delete `disabled`, pola sama `Product Bundle`),
-  `Dynamic Product Bundle Item`, `Dynamic Product Bundle Item Group`
+  `Dynamic Product Bundle Item`, `Dynamic Product Bundle Item Group`,
+  `Dynamic Product Bundle Brand`, `Dynamic Product Bundle Hashtag`
+  (ditambah master `Hashtag` dari app yang sama)
 - **Versi API:** `/api/method/...` (API v1) — method whitelisted `frappe.client.*`, `name` dikirim di **body**
 - **Autentikasi:** OAuth 2.0 — Authorization Code + Refresh Token
 - **Format body:** JSON
@@ -41,6 +43,9 @@
 | Daftar item yang boleh dipilih / komponen tetap | doctype **`Dynamic Product Bundle Item`** |
 | `parent` (spec awal) | → **`Dynamic Product Bundle Item.bundle_option`** (Link ke Option; **kosong = komponen tetap**) |
 | Daftar item group yang boleh dipilih | doctype **`Dynamic Product Bundle Item Group`** |
+| Daftar brand yang boleh dipilih (filter tambahan) | doctype **`Dynamic Product Bundle Brand`** |
+| Daftar hashtag yang boleh dipilih (filter tambahan) | doctype **`Dynamic Product Bundle Hashtag`** |
+| Master hashtag produk | doctype **`Hashtag`** — target Link baris hashtag; CRUD & daftar pilihannya di [prd_item.md §4.12f/§6.8](./prd_item.md) |
 
 > ⚠️ **Perbedaan dari `Product Bundle` bawaan ERPNext.** ERPNext sudah punya doctype `Product Bundle`
 > (*static kit*: daftar komposisi tetap + qty, dipotong stoknya saat transaksi) — dibahas terpisah di
@@ -73,6 +78,13 @@
 | 17 | `frappe.client.get_list` | Daftar Item Group (dropdown) + resolve sub-tree (§6.5/§7.3) | `Item Group` | body (filters) |
 | 18 | `frappe.client.get_list` | Daftar Item berdasarkan `item_group` (leaf) (§6.5/§7.4) | `Item` | body (filters) |
 | 19 | `frappe.client.set_value` | Non-aktifkan / aktifkan kembali pilihan (`disabled`, §4.2/§4.5) | `Dynamic Product Bundle Option` | body |
+| 20 | `frappe.client.insert` | Tambah brand filter pilihan (CREATE) | `Dynamic Product Bundle Brand` | body (`doc`) |
+| 21 | `frappe.client.get` / `get_list` / `get_count` | Baca brand filter per pilihan (§6.5/§7.5) | `Dynamic Product Bundle Brand` | body |
+| 22 | `frappe.client.save` / `set_value` / `delete` | Ubah / hapus baris brand | `Dynamic Product Bundle Brand` | body |
+| 23 | `frappe.client.insert` | Tambah hashtag filter pilihan (CREATE) | `Dynamic Product Bundle Hashtag` | body (`doc`) |
+| 24 | `frappe.client.get` / `get_list` / `get_count` | Baca hashtag filter per pilihan (§6.5/§7.5) | `Dynamic Product Bundle Hashtag` | body |
+| 25 | `frappe.client.save` / `set_value` / `delete` | Ubah / hapus baris hashtag | `Dynamic Product Bundle Hashtag` | body |
+| 26 | `frappe.client.get_list` | Daftar master `Hashtag` (dropdown) — juga dipakai `Item.hashtags` (§7.5) | `Hashtag` | body (filters) |
 
 > **Konvensi pemanggilan (penting):** seluruh operasi memakai method whitelisted **`frappe.client.*`**
 > dengan `name` (dan filter) dikirim lewat **body JSON**, bukan di URL path — `name` dapat mengandung
@@ -88,6 +100,9 @@
 | Pilihan isian paket | `tabDynamic Product Bundle Option` |
 | Komponen tetap + item pilihan | `tabDynamic Product Bundle Item` |
 | Item group pilihan | `tabDynamic Product Bundle Item Group` |
+| Brand filter pilihan | `tabDynamic Product Bundle Brand` |
+| Hashtag filter pilihan | `tabDynamic Product Bundle Hashtag` |
+| Master hashtag | `tabHashtag` (doctype `Hashtag`, `name` = hashtag; dipakai bersama `Item.hashtags`) |
 
 > **Scope dokumen ini = pengelolaan master (CRUD) + cara membaca struktur paket untuk kasir.**
 > **Pilihan kasir saat transaksi tidak disimpan di ketiga doctype ini** — mekanisme simpan transaksi &
@@ -117,7 +132,7 @@ Legenda status: 🔴 **WAJIB** · 🟠 **DISARANKAN** · ⚪ **Otomatis / read-o
 |---|---|---|---|
 | 🔴 **WAJIB** | `bundle_item` | Link → Item | Item paket pemilik pilihan ini. **Harus bertanda `is_dynamic_product_bundle = 1`** (backend menolak bila tidak). |
 | 🔴 **WAJIB** | `option_name` | Data | Nama pilihan yang **bebas diisi user** (bukan Item Group). Contoh: `Daging`, `Sayur`, `Mainan`. |
-| 🔴 **WAJIB** | `filter_type` | Select | `Item` = pilihan berupa daftar item; `Item Group` = pilihan berupa daftar item group. Default `Item`. |
+| 🔴 **WAJIB** | `filter_type` | Select | `Item` = pilihan berupa daftar item; `Item Group` = pilihan berupa daftar item group. Default `Item`. **Tidak bertambah** untuk brand/hashtag — keduanya **filter tambahan** di dalam pilihan bertipe `Item Group` (§2.5, §2.6). |
 | 🟠 | `seq` | Int | No urut tampil di kasir. Default `0`. Urutkan list dengan `order_by: "seq asc"`. |
 | 🟠 | `min_qty` | Float | Batas **total qty minimal** yang wajib dipilih kasir dari pilihan ini. `0` = tidak wajib. |
 | 🟠 | `max_qty` | Float | Batas **total qty maksimal** dari pilihan ini. `0` = tanpa batas. |
@@ -145,7 +160,35 @@ Legenda status: 🔴 **WAJIB** · 🟠 **DISARANKAN** · ⚪ **Otomatis / read-o
 | 🔴 **WAJIB** | `item_group` | Link → Item Group | Item group yang item-itemnya boleh dipilih kasir. **Termasuk sub-group turunannya** (§6.5). |
 | ⚪ **Otomatis** | `name` | — | Hash 10 karakter. |
 
-### 2.5 Catatan penting
+### 2.5 `Dynamic Product Bundle Brand` — filter brand pada pilihan
+
+Filter **tambahan** di dalam pilihan bertipe `Item Group` (§2.4 adalah tabel item group-nya) — **bukan**
+tipe filter tersendiri, karena `filter_type` tetap hanya `Item` / `Item Group`.
+
+| Status | Field | Tipe | Keterangan |
+|---|---|---|---|
+| 🔴 **WAJIB** | `bundle_item` | Link → Item | Paket pemilik baris (harus `is_dynamic_product_bundle = 1`). |
+| 🔴 **WAJIB** | `bundle_option` | Link → `Dynamic Product Bundle Option` | Opsi pemilik baris. `option.filter_type` **wajib `Item Group`**, dan `option.bundle_item` harus = `bundle_item`. |
+| 🔴 **WAJIB** | `brand` | Link → Brand | Brand yang item-itemnya boleh dipilih kasir. |
+| ⚪ **Otomatis** | `name` | — | Hash 10 karakter. |
+
+Duplikat (`bundle_option` + `brand` sama) ditolak backend.
+
+### 2.6 `Dynamic Product Bundle Hashtag` — filter hashtag pada pilihan
+
+Sama persis seperti §2.5, tetapi menunjuk master **`Hashtag`** (doctype normal, `name` = hashtag itu
+sendiri). Daftar pilihan & CRUD masternya ada di [prd_item.md §4.12f/§6.8](./prd_item.md).
+
+| Status | Field | Tipe | Keterangan |
+|---|---|---|---|
+| 🔴 **WAJIB** | `bundle_item` | Link → Item | Paket pemilik baris (harus `is_dynamic_product_bundle = 1`). |
+| 🔴 **WAJIB** | `bundle_option` | Link → `Dynamic Product Bundle Option` | Opsi pemilik baris. `option.filter_type` **wajib `Item Group`**, dan `option.bundle_item` harus = `bundle_item`. |
+| 🔴 **WAJIB** | `hashtag` | Link → Hashtag | Hashtag yang item-itemnya boleh dipilih kasir. Nilainya harus **sudah ada di master `Hashtag`**. |
+| ⚪ **Otomatis** | `name` | — | Hash 10 karakter. |
+
+Duplikat (`bundle_option` + `hashtag` sama) ditolak backend.
+
+### 2.7 Catatan penting
 
 1. **Autoname.** `Dynamic Product Bundle Option` → `name = "{option_name} - {bundle_item}"` (contoh:
    `Daging - PAKET-BENTO-ANAK`). Dua option dengan `option_name` + `bundle_item` sama akan **ditolak**
@@ -184,6 +227,23 @@ Legenda status: 🔴 **WAJIB** · 🟠 **DISARANKAN** · ⚪ **Otomatis / read-o
    Dua doctype lain (`Dynamic Product Bundle Item`, `Dynamic Product Bundle Item Group`)
    **tidak punya `disabled`** (tanpa soft-delete). Delete: baris item/item group boleh dihapus;
    Option **diblokir** (`LinkExistsError`) selama masih direferensikan baris (§4.5).
+8. **Gabungan ketiga tabel filter — `Item Group` + `Brand` + `Hashtag` (bagian sisi kasir).** Untuk
+   pilihan bertipe `Item Group`, item yang boleh dipilih dihitung frontend dengan pola:
+
+   ```
+   item group (A OR B) AND brand (C OR D) AND hashtag (E OR F)
+   ```
+
+   - **OR di dalam satu tabel**, **AND antar tabel** (§6.5 langkah 3b-4).
+   - Tabel yang **tidak punya baris** = tidak ada batasan (klausa dihilangkan). Pilihan tanpa baris
+     brand/hashtag berperilaku sama seperti sebelumnya.
+   - Item group tetap diselesaikan dulu ke **leaf** turunannya (§6.5 langkah 3b-2).
+   - Backend **tidak** menjalankan query ini: tidak ada validasi maupun resolusi di sisi server —
+     frontend yang merangkai filter `get_list` (§6.5).
+   - **Terverifikasi di site dev 2026-10-08:** pilihan dengan brand `Zara` + hashtag `promohariini`
+     mengembalikan **hanya** Item yang cocok keduanya (Item ber-brand `Zara` ber-hashtag lain dan
+     Item ber-hashtag `promohariini` ber-brand lain sama-sama tidak ikut); melebarkan filter menjadi
+     `brand in [Zara, X]` + `hashtag in [promohariini, promolain]` mengembalikan ketiga Item uji.
 
 ---
 
@@ -564,7 +624,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
   }'
 ```
 
-### 4.4 CRUD — `Dynamic Product Bundle Item Group`
+### 4.4 CRUD — tabel filter pilihan (`Item Group`, `Brand`, `Hashtag`)
 
 **CREATE** (hanya untuk option bertipe `Item Group`):
 
@@ -599,6 +659,73 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 
 > Duplikat (`bundle_option` + `item_group` sama) ditolak backend. UPDATE/DELETE memakai pola yang sama
 > (`save` / `set_value` / `delete`).
+
+**CREATE — `Dynamic Product Bundle Brand`** (hanya untuk option bertipe `Item Group`):
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Dynamic Product Bundle Brand",
+      "bundle_item": "PAKET-BENTO-ANAK",
+      "bundle_option": "Daging - PAKET-BENTO-ANAK",
+      "brand": "Kentucky"
+    }
+  }'
+```
+
+**CREATE — `Dynamic Product Bundle Hashtag`** (hanya untuk option bertipe `Item Group`):
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Dynamic Product Bundle Hashtag",
+      "bundle_item": "PAKET-BENTO-ANAK",
+      "bundle_option": "Daging - PAKET-BENTO-ANAK",
+      "hashtag": "promohariini"
+    }
+  }'
+```
+
+> `hashtag` harus **sudah ada di master `Hashtag`** — buat dulu lewat `frappe.client.insert` doctype
+> `Hashtag` ([prd_item.md §4.12f](./prd_item.md)); nilai yang belum terdaftar ditolak. Mengirim baris
+> brand/hashtag pada option bertipe `Item` juga ditolak `ValidationError` (§8).
+
+**READ — daftar filter satu pilihan (satu panggilan per tabel):**
+
+```bash
+# brand
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Dynamic Product Bundle Brand",
+    "fields": ["name","brand"],
+    "filters": [["bundle_option","=","Daging - PAKET-BENTO-ANAK"]],
+    "order_by": "brand asc",
+    "limit_page_length": 0
+  }'
+
+# hashtag
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Dynamic Product Bundle Hashtag",
+    "fields": ["name","hashtag"],
+    "filters": [["bundle_option","=","Daging - PAKET-BENTO-ANAK"]],
+    "order_by": "hashtag asc",
+    "limit_page_length": 0
+  }'
+```
+
+> UPDATE / DELETE kedua tabel memakai pola yang sama (`save` / `set_value` / `delete`), sama seperti
+> baris item group.
 
 ### 4.5 Non-aktif (`disabled`) & hapus — aturan & keterbatasan
 
@@ -820,7 +947,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
   }'
 ```
 
-> Filter `["bundle_option","is","not set"]` mencakup **NULL maupun `''`** (§2.5 no. 2).
+> Filter `["bundle_option","is","not set"]` mencakup **NULL maupun `''`** (§2.7 no. 2).
 
 ### 6.4 Langkah 3a — pilihan bertipe `Item`
 
@@ -903,6 +1030,57 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 
 > Tambahkan filter `["is_sales_item","=",1]` bila hanya item jual yang ditampilkan di kasir.
 
+**Langkah 3b-4 — tambahkan filter Brand & Hashtag (bila pilihan memilikinya).**
+Ambil daftar barisnya dulu, lalu gabungkan ke query Item dengan **AND** (§2.7 no. 8). Tabel yang tidak
+punya baris berarti klausanya **dihilangkan**:
+
+```bash
+# (a) brand terdaftar pada pilihan
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Dynamic Product Bundle Brand",
+    "fields": ["brand"],
+    "filters": [["bundle_option","=","Daging - PAKET-BENTO-ANAK"]],
+    "limit_page_length": 0
+  }'
+
+# (b) hashtag terdaftar pada pilihan
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Dynamic Product Bundle Hashtag",
+    "fields": ["hashtag"],
+    "filters": [["bundle_option","=","Daging - PAKET-BENTO-ANAK"]],
+    "limit_page_length": 0
+  }'
+```
+
+```bash
+# (c) query Item final: item group AND brand AND hashtag
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["name","item_name","stock_uom"],
+    "filters": [
+      ["item_group","in",["Daging Sapi","Daging Sapi Potong"]],
+      ["brand","in",["Kentucky","Steak"]],
+      ["hashtags.hashtag","in",["promohariini","promodagingmurah"]],
+      ["disabled","=",0]
+    ],
+    "order_by": "item_name asc",
+    "limit_page_length": 0
+  }'
+```
+
+> - `brand` adalah field biasa di `Item`; `hashtags.hashtag` adalah **child filter** (JOIN) — pakai
+>   operator `in` untuk "salah satu dari", dan **dedupe di frontend** karena satu Item bisa muncul
+>   berulang bila beberapa baris hashtagnya cocok ([prd_item.md §2.8](./prd_item.md)).
+> - **Jangan** memakai dua kondisi `=` pada `hashtags.hashtag` untuk mencari "punya tag A **dan** B" —
+>   Frappe memakai JOIN sehingga hasilnya kosong; selesaikan dengan dua request + `intersect`
+>   ([prd_item.md §2.8](./prd_item.md)).
+
 ### 6.6 Ringkasan alur (diagram)
 
 ```mermaid
@@ -912,7 +1090,9 @@ flowchart TD
     C -->|Item| D["GET Dynamic Product Bundle Item<br/>filters: bundle_option = option"]
     C -->|Item Group| E["GET Dynamic Product Bundle Item Group<br/>filters: bundle_option = option"]
     E --> F["Ambil lft/rgt Item Group<br/>→ semua leaf (is_group=0) di sub-tree"]
-    F --> G["GET Item<br/>filters: item_group in leaf"]
+    E --> J["GET Brand + Hashtag pilihan<br/>Dynamic Product Bundle Brand/Hashtag"]
+    F --> G["GET Item<br/>filters: item_group in leaf<br/>AND brand in [...]<br/>AND hashtags.hashtag in [...],<br/>klausa tabel kosong dihilangkan"]
+    J --> G
     B --> H["GET Dynamic Product Bundle Item<br/>filters: bundle_option is not set<br/>= komponen tetap"]
     D --> I["Tampilkan pilihan ke kasir<br/>+ validasi min/max qty di frontend"]
     G --> I
@@ -928,7 +1108,11 @@ flowchart TD
    (`bundle_option` kosong) dan **item pilihan** (`bundle_option` terisi). Cukup **satu** panggilan
    bila daftar komponen tidak besar.
 4. `Dynamic Product Bundle Item Group` by `bundle_item` — daftar item group sumber.
-5. (Hanya bila ada opsi `Item Group`) resolve leaf + `Item` per leaf (§6.5 langkah 3b-2/3b-3).
+5. (Hanya bila ada opsi `Item Group`) resolve leaf + brand + hashtag, lalu ambil `Item`
+   (§6.5 langkah 3b-2 s.d. 3b-4).
+6. `Hashtag` (master) — hanya untuk mengisi dropdown saat **membuat** baris
+   `Dynamic Product Bundle Hashtag`; daftar yang sama dipakai `Item.hashtags`
+   ([prd_item.md §6.8](./prd_item.md)).
 
 > Panggilan 3 & 4 bisa digabung secara logis: satu `get_list` per doctype dengan filter
 > `bundle_item`, lalu kelompokkan di frontend berdasarkan `bundle_option`.
@@ -1013,6 +1197,33 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > Untuk group **induk**, selesaikan dulu ke daftar **leaf** (§6.5 langkah 3b-2) lalu pakai
 > `["item_group","in",[...]]` — node group tidak menampung Item.
 
+### 7.5 Daftar Brand & Hashtag (dropdown untuk menyusun baris filter)
+
+```bash
+# brand — master ERPNext
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Brand",
+    "fields": ["name"],
+    "order_by": "name asc",
+    "limit_page_length": 0
+  }'
+
+# hashtag — master `Hashtag` (name = hashtag itu sendiri)
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Hashtag",
+    "fields": ["name"],
+    "order_by": "name asc",
+    "limit_page_length": 0
+  }'
+```
+
+> Kirim `name` dari respons sebagai nilai Link `brand` / `hashtag`. Hashtag yang belum ada di master
+> **tidak bisa** dipakai — buat dulu lewat CRUD master ([prd_item.md §4.12f](./prd_item.md)).
+
 ---
 
 ## 8. Penanganan error umum
@@ -1036,6 +1247,11 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 | 417 | Item komponen = item paket itu sendiri | `{"exc_type":"ValidationError","message":"An item cannot be a component of itself."}` |
 | 417 | Option dihapus tapi masih dipakai baris item/item group | `{"exc_type":"LinkExistsError","message":"Cannot delete or cancel because Dynamic Product Bundle Option <b>X</b> is referenced by ..."}` |
 | 417 | Duplikat `name` Option (`option_name` + `bundle_item` sama) | `{"exc_type":"DuplicateEntryError","message":"Daging - PAKET-BENTO-ANAK already exists"}` |
+| 417 | Brand didaftarkan di opsi bertipe `Item` | `{"exc_type":"ValidationError","message":"Pilihan isian <b>X</b> bertipe filter 'Item', sehingga brand tidak boleh didaftarkan di sini."}` |
+| 417 | Hashtag didaftarkan di opsi bertipe `Item` | `{"exc_type":"ValidationError","message":"Pilihan isian <b>X</b> bertipe filter 'Item', sehingga hashtag tidak boleh didaftarkan di sini."}` |
+| 417 | Duplikat baris brand (`bundle_option` + `brand` sama) | `{"exc_type":"ValidationError","message":"Brand <b>Kentucky</b> sudah terdaftar pada pilihan isian <b>Y</b>."}` |
+| 417 | Duplikat baris hashtag (`bundle_option` + `hashtag` sama) | `{"exc_type":"ValidationError","message":"Hashtag <b>promohariini</b> sudah terdaftar pada pilihan isian <b>Y</b>."}` |
+| 417 | `hashtag` tidak ada di master `Hashtag` | `{"exc_type":"LinkValidationError","message":"Could not find Hashtag: X"}` |
 
 > **Catatan:** karena seluruh pemanggilan memakai `/api/method/...`, hasil sukses dibungkus di
 > `message` (bukan `data`). Body error tetap berbentuk
@@ -1060,13 +1276,16 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 >   lengkap, READ, list, count, update, set_value, non-aktif / aktifkan kembali (`disabled`), delete);
 >   CRUD Item (komponen tetap, item pilihan,
 >   READ per paket/per opsi, update, delete); CRUD Item Group (create, READ, update, delete);
->   dropdown UOM per item; dropdown Item Group; resolve leaf sub-tree; Item by item group.
+>   CRUD Brand & Hashtag filter (create, READ per opsi, update, delete);
+>   dropdown UOM per item; dropdown Item Group; dropdown Brand; dropdown Hashtag (master);
+>   resolve leaf sub-tree; Item by item group + brand + hashtag.
 > - **Variabel baru yang disiapkan:** `bundle_item` (mis. `PAKET-BENTO-ANAK`),
 >   `bundle_option_item` (mis. `Mainan - PAKET-BENTO-ANAK`),
 >   `bundle_option_group` (mis. `Daging - PAKET-BENTO-ANAK`),
 >   `bundle_row_id` (name baris `Dynamic Product Bundle Item`),
 >   `bundle_group_row_id` (name baris `Dynamic Product Bundle Item Group`),
 >   `bundle_component_item` (mis. `NASI-PUTIH`), `bundle_item_group` (mis. `Daging Sapi`),
+>   `bundle_brand` (mis. `Kentucky`), `bundle_hashtag` (mis. `promohariini`),
 >   `bundle_uom` (mis. `Nos`).
 > - Test script menyimpan `name` hasil CREATE ke variabel di atas (pola sama seperti folder
 >   `10. Item Group`).
