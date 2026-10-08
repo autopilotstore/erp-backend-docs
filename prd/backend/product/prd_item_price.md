@@ -846,12 +846,12 @@ jika kosong, dipakai `Selling Settings.selling_price_list`, lalu fallback ke `St
 
 | Price List | Field Item | Field Item Price |
 |---|---|---|
-| `Standard Selling` | `valuation_rate` | `price_list_rate` |
-| `Standard Buying` | `standard_rate` | `price_list_rate` |
+| `Standard Selling` | `standard_rate` | `price_list_rate` |
+| `Standard Buying` | `valuation_rate` | `price_list_rate` |
 
 Baris khusus customer/supplier, batch, UOM selain `Item.stock_uom`, atau masa berlaku yang tidak aktif
 tidak dipakai sebagai baris master. Rate positif membuat baris bila belum ada; Item Price Standard Selling
-yang dibuat bawaan ERPNext akan diselaraskan dengan `valuation_rate`. Baris bawaan untuk price list selain
+yang dibuat bawaan ERPNext akan diselaraskan dengan `standard_rate`. Baris bawaan untuk price list selain
 `Standard Selling`/`Standard Buying` tetap dibuat seperti semula dan tidak disinkronkan ke rate Item.
 
 ```json
@@ -877,9 +877,9 @@ yang dibuat bawaan ERPNext akan diselaraskan dengan `valuation_rate`. Baris bawa
 > penyimpanan `item_defaults` saat CREATE Item.
 
 > **Catatan sinkronisasi baseapp:** saat `price_list_rate` pada baris umum dengan UOM stok di
-> `Standard Selling` diedit, `Item.valuation_rate` ikut diperbarui; perubahan di `Standard Buying`
-> memperbarui `Item.standard_rate`. Harga khusus customer/supplier, batch, UOM lain, dan baris
-> kedaluwarsa/tanggal mendatang tidak mengubah rate Item.
+> `Standard Selling` diedit, `Item.standard_rate` (harga jual) ikut diperbarui; perubahan di
+> `Standard Buying` memperbarui `Item.valuation_rate` (harga modal). Harga khusus customer/supplier,
+> batch, UOM lain, dan baris kedaluwarsa/tanggal mendatang tidak mengubah rate Item.
 >
 > Mengubah field rate pada Item yang sudah ada tidak otomatis mengubah Item Price; perubahan rate master
 > dilakukan melalui Item Price (§4.7) atau bulk update (§4.10).

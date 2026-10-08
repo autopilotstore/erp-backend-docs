@@ -65,7 +65,8 @@
 | 🔴 **WAJIB** | `stock_uom` | Link → UOM | Satuan dasar stok (Unit of Measure). Semua qty stok & konversi dihitung relatif ke UOM ini. |
 | 🟠 | `is_stock_item` | Check | `1` = produk stok (dikelola via Stock Ledger, punya `tabBin`). `0` = jasa/non-stok. |
 | 🟠 | `is_dynamic_product_bundle` | Check | `1` = Item ini **paket dinamis** — komponen/isiannya dipilih kasir saat transaksi (berbeda dari `Product Bundle` bawaan ERPNext yang statis — paket statis dibahas di [prd_item_product_bundle.md](./prd_item_product_bundle.md)). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_stock_item`); hanya ada bila app tersebut terpasang. Default `0`. Struktur & CRUD pilihannya: [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md). |
-| 🟠 | `is_product_bundle` | Check | `1` = Item ini **paket statis** — punya **Product Bundle yang aktif** (doctype `Product Bundle`, tabel `tabProduct Bundle`), sehingga ERPNext otomatis memecahnya jadi komponen saat transaksi. **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_dynamic_product_bundle`); hanya ada bila app tersebut terpasang. Default `0`, dan bersifat **`read_only`** di form. **Jangan pernah dikirim frontend** — nilainya disinkronkan backend dari doctype `Product Bundle`, termasuk saat `disabled`-nya diubah (§2.1 no. 9). Detail paket statis: [prd_item_product_bundle.md](./prd_item_product_bundle.md). |
+| 🟠 | `is_product_bundle` | Check | `1` = Item ini **paket statis** (doctype `Product Bundle`, tabel `tabProduct Bundle`) — ERPNext otomatis memecahnya jadi komponen saat transaksi. **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_dynamic_product_bundle`); hanya ada bila app tersebut terpasang. Default `0`, tersedia sebagai **filter standar**, dan **diisi manual oleh user/frontend** — **tidak** diturunkan dari dokumen `Product Bundle` dan **tidak terikat** status aktif/non-aktifnya (§2.1 no. 9). Detail paket statis: [prd_item_product_bundle.md](./prd_item_product_bundle.md). |
+| 🟠 | `is_manufactured_item` | Check | `1` = Item ini **produk manufaktur** (diproduksi sendiri). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_product_bundle`); hanya ada bila app tersebut terpasang. Default `0` dan tersedia sebagai **filter standar**. **Diisi manual oleh user/frontend — bukan turunan dari BOM** (ERPNext tidak menyimpan penanda "manufactured" di Item; yang tersedia hanya `default_bom`, `include_item_in_manufacturing`, dan `is_sub_contracted_item`). |
 | 🟠 | `is_sales_item` | Check | `1` = produk bisa dijual (muncul di Quotation/Sales Order/Sales Invoice/POS). |
 | 🟠 | `min_sales_qty` | Float | Jumlah jual minimum per Item dalam `stock_uom`; default `0` (tanpa batas minimum). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
 | 🟠 | `max_sales_qty` | Float | Jumlah jual maksimum per Item dalam `stock_uom`; default `0` (tanpa batas maksimum). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
@@ -87,11 +88,12 @@
 | 🟠 | `reorder_levels` | Table (child `Item Reorder`) | **Batas stok per (item, warehouse)** — ambang **min & maks**. Baris: `warehouse` (Link→Warehouse, `reqd`); `warehouse_reorder_level` (Float = **nilai ambang minimum**, satuan `stock_uom`); `material_request_type` (`reqd` — Select `Purchase`/`Transfer`/`Material Issue`/`Manufacture`, menentukan cara restock; `Purchase` = beli ke supplier); `warehouse_reorder_qty` (Float, **opsional** — untuk alur pemesanan nanti, PRD stok §9); `max_stock_level` (Float, **opsional** — **custom field dari app `baseapp`**, nilai ambang maksimum, satuan `stock_uom`; hanya ada bila `baseapp` terpasang, lihat §4.1). Hanya relevan untuk item stok (`is_stock_item=1`). Cara simpan: §4.1 (contoh CREATE). |
 | 🟠 | `brand` | Link → Brand | Merek produk (opsional; bisa jadi sumber default via `brand_defaults`). |
 | 🟠 | `description` | TextEditor | Deskripsi produk (HTML). Backend membersihkan HTML bila kosong/rapi. |
-| 🟠 | `_user_tags` | Tags (kolom sistem) | **Tag** produk, dipisah koma (mis. `"best seller,baru"`). Bukan field definisi doctype — kolom sistem yang tersedia di semua tabel (§2.6). |
-| 🟠 | `valuation_rate` | Currency | **Nilai persediaan per unit** (biaya masuk stok; dipakai hitung `stock_value` di `tabBin`). Bisa diisi 0 untuk item baru / zero valuation. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada `Standard Selling`; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini (detail: [prd_item_price.md §4.9](./prd_item_price.md)). |
-| 🟠 | `standard_rate` | Currency | **Standard Rate Item**. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada `Standard Buying`; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini. ERPNext tetap dapat membuat Item Price tambahan dari `standard_rate` pada Price List selling default. Detail: [prd_item_price.md §4.9](./prd_item_price.md). |
+| 🟠 | `hashtags` | Table (child `Item Hashtag`) | **Hashtag produk** — satu baris = satu hashtag, ditulis **tanpa `#`** dan huruf kecil (mis. `promo`, `best-seller`). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `description`); hanya ada bila app tersebut terpasang. **Inilah field untuk tag/hashtag — bukan `_user_tags`.** Berbeda dari `_user_tags` (satu kolom teks dipisah koma), `hashtags` bisa dicari **persis**: filter `= promo` tidak ikut menarik `promo2026`. Format, normalisasi, & cara filter: §2.8. CRUD + pola satu halaman (template & semua varian): §4.12. |
+| ⛔ **Jangan dipakai** | `_user_tags` | Tags (kolom sistem) | Kolom sistem Frappe yang otomatis ada di semua tabel — **bukan tempat menyimpan hashtag produk**, karena isinya satu kolom teks dipisah koma sehingga pencarian persis tidak mungkin (§2.6). Pakai `hashtags` di atas. |
+| 🟠 | `valuation_rate` | Currency | **Nilai persediaan per unit** (harga modal / biaya masuk stok; dipakai hitung `stock_value` di `tabBin`). Bisa diisi 0 untuk item baru / zero valuation. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada **`Standard Buying`**; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini (detail: [prd_item_price.md §4.9](./prd_item_price.md)). |
+| 🟠 | `standard_rate` | Currency | **Standard Selling Rate** — label field ERPNext; ini **harga jual**. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada **`Standard Selling`**; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini. ERPNext sendiri juga membuat Item Price dari `standard_rate` pada Price List selling default (`Item.after_insert → add_price`). Detail: [prd_item_price.md §4.9](./prd_item_price.md). |
 | ⚪ **Otomatis — jangan dikirim** | `name` | — | `name = item_code`. |
-| ⚪ **Dikelola sistem** | `valuation_rate` (stok berjalan), `last_purchase_rate`, `total_projected_qty` | — | Nilai dihitung/di-update dari transaksi stok. Selain itu, hook baseapp menyinkronkan `valuation_rate` dengan Item Price `Standard Selling` sesuai aturan di atas. |
+| ⚪ **Dikelola sistem** | `valuation_rate` (stok berjalan), `last_purchase_rate`, `total_projected_qty` | — | Nilai dihitung/di-update dari transaksi stok. Selain itu, hook baseapp menyinkronkan `valuation_rate` dengan Item Price `Standard Buying` sesuai aturan di atas. |
 | ⚪ **Set saat varian** | `variant_of`, `variant_based_on`, `attributes` | — | Lihat §4.2. |
 | ✖️ **Bukan bagian scope** | `opening_stock`, `taxes`, `item_defaults`, dst. | — | Field lanjutan boleh dipakai, tetapi mekanisme **stok** (opening stock, auto-reorder) dan **price list** didokumentasikan di PRD terpisah (§9). Penyimpanan ambang `reorder_levels` sudah dicakup di dokumen ini (lihat baris `reorder_levels` di atas & §4.1). |
 
@@ -219,16 +221,19 @@
      tetap berjalan — **terverifikasi di site dev 2026-10-03**: mengubah `item_name` ke nama yang
      sudah dipakai Item aktif lewat `set_value` ditolak 417. Yang benar-benar melewati hook
      hanyalah **`frappe.db.set_value`** (level DB, dan tidak dapat dipanggil dari REST).
-9. **Menyaring daftar produk — paket dinamis / paket statis / aset — cukup **satu** panggilan
-   `frappe.client.get_list`.** Ketiga jenis produk adalah kolom **Check** yang bisa difilter langsung:
+9. **Menyaring daftar produk — paket dinamis / paket statis / produk manufaktur / aset — cukup
+   **satu** panggilan `frappe.client.get_list`.** Semuanya kolom **Check** yang bisa difilter
+   langsung:
 
    | Jenis produk | Cara dideteksi |
    |---|---|
-   | Paket dinamis | `is_dynamic_product_bundle = 1` — custom field `baseapp` |
-   | Paket statis (`Product Bundle`) | `is_product_bundle = 1` — custom field `baseapp`, `read_only`, disinkronkan backend |
+   | Paket dinamis | `is_dynamic_product_bundle = 1` — custom field `baseapp`, **diisi manual** |
+   | Paket statis (`Product Bundle`) | `is_product_bundle = 1` — custom field `baseapp`, **diisi manual** |
+   | Produk manufaktur | `is_manufactured_item = 1` — custom field `baseapp`, **diisi manual** (bukan turunan BOM) |
    | Aset tetap | `is_fixed_asset = 1` — field standar ERPNext |
 
-   Karena ketiganya OR, pakai **`filters` + `or_filters`** dalam satu request:
+   Keempatnya kolom **Check**, jadi bisa digabung dengan **`filters` + `or_filters`** dalam satu
+   request (contoh di bawah memakai 3 jenis):
 
    ```bash
    curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
@@ -252,26 +257,26 @@
    **Yang harus dipahami frontend:**
 
    - **`filters` di-AND, `or_filters` di-OR** — hasil OR lalu di-AND dengan `filters`.
-   - **`is_product_bundle` tidak boleh dikirim frontend.** Nilainya dikelola backend dari keberadaan
-     record `Product Bundle`, karena ERPNext sendiri **tidak** menandai Item sebagai bundle:
-     `item.json` tidak punya field bundle sama sekali, dan `product_bundle.py` tidak pernah menulis
-     balik ke Item (`validate_main_item()` hanya membaca `is_stock_item`/`is_fixed_asset` untuk
-     memvalidasi). `is_stock_item = 0` **bukan** pengganti: di site dev ada 12 item non-stok, 11 di
-     antaranya bundle dan 1 bukan.
-   - **Inilah alasan field ini harus ada.** `frappe.client.get_list` **tidak bisa** menjangkau tabel
+   - **`is_product_bundle` diisi manual.** Dulu baseapp menurunkannya dari doctype `Product Bundle`
+     (hook `on_update`/`on_trash`); logika itu sudah **dihapus** — membuat, mengubah,
+     mengaktifkan/menonaktifkan, atau menghapus `Product Bundle` **tidak lagi mengubah** flag ini.
+     Nilainya kini ditentukan user/frontend, jadi field ini **boleh dikirim** saat
+     `insert`/`save`/`set_value` Item, sama seperti `is_dynamic_product_bundle` dan
+     `is_manufactured_item`.
+   - **Kenapa tetap perlu field tersimpan.** `frappe.client.get_list` **tidak bisa** menjangkau tabel
      lain — DSL filter Frappe hanya menyediakan `=`, `!=`, `<`, `>`, `<=`, `>=`, `in`, `not in`,
      `like`, `ilike`, `not like`, `regex`, `between`, `is`, `timespan`
      (`frappe/database/operator_map.py:139-159`), tanpa subquery/join. Jadi "Item yang punya baris di
-     `tabProduct Bundle`" tidak bisa diungkapkan tanpa kolom.
-   - **Ketiganya bisa tumpang tindih.** `is_dynamic_product_bundle` dan `is_product_bundle` diatur dua
-     alur berbeda; jangan mengasumsikan satu produk hanya masuk satu kategori.
-   - **`is_product_bundle` mengikuti definisi bawaan ERPNext.** Yang dihitung hanya Product Bundle
-     yang **aktif** (`disabled = 0`) — persis seperti
-     `erpnext.stock.doctype.packed_item.packed_item.is_product_bundle()`. Jadi menonaktifkan Product
-     Bundle (`frappe.client.set_value disabled=1` pada doctype `Product Bundle`) **langsung** membuat
-     flag Item-nya jadi `0`, dan menghapusnya juga. Karena itu field ini di-guard hook
-     `Product Bundle` dan ditandai `read_only` — **jangan pernah** ikut mengirim nilainya saat
-     `insert`/`save` Item.
+     `tabProduct Bundle`" tidak bisa diungkapkan dari record Product Bundle-nya. ERPNext sendiri juga
+     **tidak** menandai Item sebagai bundle (`item.json` tidak punya field bundle sama sekali, dan
+     `product_bundle.py` tidak pernah menulis balik ke Item — `validate_main_item()` hanya membaca
+     `is_stock_item`/`is_fixed_asset`), dan `is_stock_item = 0` **bukan** pengganti: di site dev ada
+     12 item non-stok, 11 di antaranya bundle dan 1 bukan. Karena itu penandanya disimpan di kolom
+     Item — hanya saja kini **diisi user**, bukan dihitung backend.
+   - **Keempatnya independen.** `is_dynamic_product_bundle`, `is_product_bundle`, dan
+     `is_manufactured_item` diisi manual; `is_fixed_asset` adalah field standar ERPNext. Tidak ada
+     yang dihitung ulang backend, jadi jangan mengasumsikan satu produk hanya masuk satu kategori —
+     dan nilai yang salah **tidak** akan "sembuh sendiri"; perbaiki lewat `save`/`set_value`.
    - **Pagination: kirim `or_filters` juga ke `frappe.client.get_count`.** Parameter itu memang
      **tidak terdaftar** di signature-nya (`frappe/client.py:79` hanya `doctype, filters, debug,
      cache`), tapi tetap dibaca — karena `reportview.get_count()` membaca `frappe.form_dict`, yaitu
@@ -302,9 +307,6 @@
      > Alternatif paling tahan lama: pisah jadi **tiga tab** di UI — tiap tab cuma butuh `filters`
      > biasa, sehingga `frappe.client.get_count` standar sudah akurat tanpa bergantung pada perilaku
      > di atas.
-   - **Paket yang sudah ada diisi lewat backfill.** Field ini diisi saat `Product Bundle` dibuat/
-     dihapus/diubah; untuk bundle yang sudah ada sebelum field ini dipasang, nilainya diisi oleh
-     patch app `baseapp` saat `bench migrate`.
 10. **Mengganti nama template (produk) otomatis mengganti nama semua variannya.**
     Diatur app `baseapp` (hook `Item.on_update` → `baseapp.utils.sync_variant_item_names`). Ini
     **melengkapi** ERPNext, yang sengaja tidak melakukannya: `copy_attributes_to_variant()`
@@ -389,6 +391,7 @@
 | `tabUOM Conversion Factor` | `UOM Conversion Factor` | Master global pasangan konversi antar-UOM (mis. `Gram`→`Kg`) — dipakai `get_uom_conv_factor` (§5). |
 | `tabItem Barcode` | `Item Barcode` | Child table `barcodes` — daftar barcode produk (§2.4, §4.7). |
 | `tabItem Supplier` | `Item Supplier` | Child table `supplier_items` — daftar pemasok untuk Item (§2.7, §4.1/§4.4/§4.6). |
+| `tabItem Hashtag` | `Item Hashtag` | Child table `hashtags` — **hashtag produk**, satu baris per hashtag (kolom `hashtag`, Data + **index**). Dipakai untuk pencarian **persis** (§2.8, §4.12). |
 | `tabFile` | `File` | **Semua attachment** (foto multi produk), ter-link ke Item via `attached_to_doctype` + `attached_to_name` (§4.8). |
 | `tabBin` | `Bin` | **Stok per (item, warehouse)** — `actual_qty`, `projected_qty`, `stock_value`, dsb. (§4.10). |
 | `tabBatch` | `Batch` | Master **nomor batch** — field `batch_id` (nomor yang dibaca user; pada versi terpasang = `name` dokumen, §2.1 no. 12) + `item` pemiliknya. Stok per batch tidak di sini, melainkan di Stock Ledger Entry / Serial and Batch Bundle. |
@@ -436,14 +439,30 @@
   tersebut (`Medium` → `Kaos Polos-Medium`). Detail & contoh: §4.2 Langkah 1.
 - Alur & contoh kasus lengkap: **§4.2**.
 
-### 2.6 `_user_tags` (Tags)
+### 2.6 `_user_tags` (Tags) — ⛔ **bukan** tempat menyimpan hashtag
+
+> **Peringatan.** `_user_tags` **jangan** dipakai untuk menyimpan hashtag/tag produk.
+> Gunakan child table **`hashtags`** (§2.8).
 
 - `_user_tags` adalah **kolom sistem** yang otomatis ada di setiap tabel Frappe (bukan field yang
   didefinisikan di `item.json`). Tipe tersimpan `Data`, isi berupa **tag dipisah koma**, mis.
   `"best seller,baru,diskon"`.
 - Di form Desk dikelola lewat kontrol "Tags"; lewat API cukup dikirim sebagai field biasa pada
   `doc` (CREATE/UPDATE). Tidak ada enumerasi khusus — bebas teks.
-- Dapat dipakai untuk pencarian cepat (filter `like`), namun **tidak wajib** diisi.
+- **Kenapa dilarang untuk hashtag — pencarian persis tidak mungkin.** Semua tag berada di **satu
+  kolom teks** yang digabung koma:
+  - Filter `[["_user_tags","like","%promo%"]]` **ikut menarik `promo2026`** (juga
+    `promo-diskon`, `promoakhir-tahun`, dst.). Padahal kebutuhan user: cari yang bertag
+    **`#promo` saja** — `#promo2026` tidak boleh muncul. Hasilnya salah.
+  - Filter yang benar untuk satu kolom teks gabungan hanya `regex`
+    (mis. `rlike '(^|,| )promo(,| |$)'`), dan **`regex` tidak bisa memakai index** → setiap
+    pencarian memindai **seluruh** tabel Item.
+- Karena itu hashtag disimpan di **child table `hashtags`** (§2.8): satu baris = satu hashtag,
+  sehingga filter **`=`** bisa dipakai, kolomnya **ter-index**, dan hasilnya tepat.
+- `_user_tags` tetap boleh dipakai untuk kebutuhan lain yang tidak menuntut pencarian persis
+  (mis. catatan/label internal yang jarang difilter), tetapi **bukan** untuk fitur hashtag produk.
+- Catatan teknis: setiap nilai di `_user_tags` juga membuat dokumen `Tag` + baris `Tag Link`,
+  jadi menyimpan banyak hashtag di sana menambah dua tabel lain yang harus ikut dibersihkan.
 
 ### 2.7 Pemasok per Item — child table `supplier_items` (`Item Supplier`)
 
@@ -455,6 +474,79 @@
   membuat atau menghapus `Item Supplier` sebagai dokumen mandiri. GET Item mengembalikan seluruh
   baris `supplier_items`; saat UPDATE, kirim daftar lengkap yang ingin dipertahankan (replace-all).
 - Contoh CRUD lengkap: **§4.1, §4.4, dan §4.6**.
+
+### 2.8 Child table `hashtags` — `Item Hashtag` (hashtag produk)
+
+Untuk kebutuhan pencarian yang **persis** (mis. "hanya Item bertag `#promo`", tanpa ikut
+menampilkan `#promo2026`), hashtag disimpan di **child table**, bukan di kolom teks (§2.6).
+**Satu baris = satu hashtag.**
+
+**Bentuk field**
+
+| Field | Tipe | Wajib | Keterangan |
+|---|---|---|---|
+| `hashtag` | Data (`varchar(140)`) + **index** | ya (`reqd=1`) | Isi hashtag **tanpa tanda `#`**, huruf kecil, tanpa spasi. Contoh: `promo`, `best-seller`, `new_arrival`. |
+
+Field pada Item bernama `hashtags` — tipe **Table → `Item Hashtag`**, custom field dari app
+`baseapp` (fieldname tanpa prefix `custom_`, posisi setelah `description`; lihat
+[prd_baseapp.md §4.1/§4.4](../baseapp/prd_baseapp.md)). Yang punya daftar sendiri: **template
+maupun setiap varian**.
+
+**Aturan isi — dirapikan backend otomatis**
+
+Hook `Item.validate` → `baseapp.utils.normalize_item_hashtags` berjalan **sebelum** data
+disimpan, jadi yang tersimpan selalu bentuk kanonik:
+
+| Dikirim frontend | Tersimpan | Catatan |
+|---|---|---|
+| `"#Promo"` / `" Promo "` / `"promo"` | `promo` | tanda `#` dibuang, spasi dipangkas, huruf kecil |
+| `""` atau `"#"` | *(baris dibuang)* | baris kosong tidak disimpan |
+| `"promo"` dikirim 2× | `promo` (1 baris) | duplikat dibuang, yang pertama dipertahankan |
+| `"promo 2026"` / `"promo!"` / `"Promo#2026"` | **ditolak (417)** | nilai valid harus cocok pola `^[a-z0-9_-]{1,50}$` |
+
+Karena itu frontend **boleh** mengirim apa adanya dari input user (dengan/tanpa `#`, huruf besar),
+selama karakternya termasuk yang diizinkan. Contoh pesan error:
+
+```
+ValidationError: Row #1: hashtag promo 2026 is not valid.
+Use lowercase letters, digits, - and _ only (max 50 characters).
+```
+
+Nomor baris pada pesan mengikuti **urutan baris pada payload yang dikirim**, sehingga frontend bisa
+langsung menunjuk baris yang salah.
+
+**Perilaku saat simpan — replace-all**
+
+- Seperti child table lain (`uoms`, `barcodes`), `hashtags` bersifat **replace-all**: kirim
+  **seluruh daftar** yang ingin dipertahankan; baris yang tidak ikut terkirim **terhapus**.
+- Mengirim `"hashtags": []` **menghapus semua** hashtag Item tsb.
+- Menambah/menghapus hashtag **harus lewat dokumen Item** (`frappe.client.save` atau `insert`),
+  karena `frappe.client.set_value` tidak bisa menyentuh child table (§4.6).
+
+**Template & varian — tidak ada pewarisan otomatis**
+
+- Setiap Item (template maupun tiap varian) punya daftar hashtag **sendiri**.
+- **Template tidak mewariskan hashtagnya ke varian.** `copy_attributes_to_variant()` hanya
+  menyalin field `reqd` atau field yang terdaftar di doctype `Variant Field`, dan `hashtags` bukan
+  salah satunya. Hasil uji: template bertag `promo` → varian yang baru dibuat **tetap tanpa
+  hashtag**.
+- **Pewarisan (bila diinginkan) diatur frontend.** Satu halaman yang mengedit template + semua
+  varian cukup memanggil `frappe.client.save` **per dokumen varian** dengan hashtag masing-masing.
+  Pola lengkap baca & tulis: **§4.12**.
+
+**Cara mencari — perilaku filter yang sudah diuji**
+
+| Maksud | Filter | Hasil |
+|---|---|---|
+| Item bertag **persis** `promo` | `[["hashtags.hashtag","=","promo"]]` | hanya Item yang punya baris `promo` — **`promo2026` tidak ikut** ✅ |
+| Item punya salah satu dari beberapa tag | `[["hashtags.hashtag","in",["promo","baru"]]]` | benar, tetapi **satu Item muncul berulang** (1 baris hasil per baris child yang cocok) → dedupe di frontend atau pakai `group_by` |
+| Tag yang **mengandung** `promo` | `[["hashtags.hashtag","like","%promo%"]]` | `promo` **dan** `promo2026` — untuk pencarian persis jangan pakai `like` |
+| Item punya tag `promo` **dan** `baru` | dua filter `=` pada `hashtags.hashtag` | **tidak bisa** — Frappe memakai `JOIN`, bukan `EXISTS`, sehingga dua kondisi pada fieldname yang sama menghasilkan **0 baris**. Lakukan 2 request lalu iris hasilnya di frontend |
+| Jumlah Item bertag `promo` | `frappe.client.get_count` + filter `=` | akurat; **jangan** pakai `in` (baris hasil JOIN dihitung ganda) — contoh di §4.12 |
+| Daftar hashtag unik (autocomplete) | `fields=["hashtags.hashtag"]` + `group_by=hashtags.hashtag` | lihat **§6.8** |
+
+> Contoh request lengkap beserta angkanya: **§4.12** (baca/tulis per Item & per varian) dan
+> **§6.8** (autocomplete).
 
 ---
 
@@ -539,7 +631,10 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
         { "supplier": "PT Distributor Utama", "supplier_part_no": "AQUA-600" }
       ],
       "description": "Air mineral kemasan botol 600ml",
-      "_user_tags": "best seller,baru",
+      "hashtags": [
+        { "hashtag": "promo" },
+        { "hashtag": "best-seller" }
+      ],
       "valuation_rate": 3500,
       "standard_rate": 5000,
       "item_defaults": [
@@ -584,6 +679,10 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
     "supplier_items": [
       { "name": "sup001", "supplier": "PT Distributor Utama", "supplier_part_no": "AQUA-600" }
     ],
+    "hashtags": [
+      { "name": "hsh001", "hashtag": "promo" },
+      { "name": "hsh002", "hashtag": "best-seller" }
+    ],
     "valuation_rate": 3500,
     "standard_rate": 5000,
     "item_defaults": [
@@ -612,12 +711,12 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 
 > **Catatan harga:** saat CREATE, ERPNext dapat membuat Item Price selling dari `standard_rate` pada
 > Price List default selling (`after_insert → add_price`). Selain itu, baseapp menyinkronkan
-> `valuation_rate` ke harga umum UOM stok pada `Standard Selling`, dan `standard_rate` ke harga umum UOM
-> stok pada `Standard Buying`. Perubahan `price_list_rate` pada baris umum yang masih berlaku di kedua
-> daftar tersebut memperbarui field Item terkait. Perubahan `standard_rate` pada Item yang sudah ada
-> tidak otomatis mengubah Item Price. `Standard Selling` dan `Standard Buying` tidak boleh dihapus
-> karena diperlukan sinkronisasi baseapp; nonaktifkan jika tidak ingin dipakai. Detail pengelolaan harga
-> ada di **[prd_item_price.md](./prd_item_price.md)**.
+> `standard_rate` (**harga jual**) ke harga umum UOM stok pada `Standard Selling`, dan `valuation_rate`
+> (**harga modal**) ke harga umum UOM stok pada `Standard Buying`. Perubahan `price_list_rate` pada
+> baris umum yang masih berlaku di kedua daftar tersebut memperbarui field Item terkait. Perubahan
+> `standard_rate` pada Item yang sudah ada tidak otomatis mengubah Item Price. `Standard Selling` dan
+> `Standard Buying` tidak boleh dihapus karena diperlukan sinkronisasi baseapp; nonaktifkan jika tidak
+> ingin dipakai. Detail pengelolaan harga ada di **[prd_item_price.md](./prd_item_price.md)**.
 
 **Varian A — Produk jasa (non-stok, tidak dibeli):**
 
@@ -1219,7 +1318,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > (non-template), `has_variants=1` (template), `variant_of is not set` (item non-varian — item tunggal
 > **dan** template; lihat §4.5.1), `variant_of=<template>` (daftar varian), `item_group=<leaf>`,
 > dan **jenis produk**: `is_dynamic_product_bundle=1` (paket dinamis), `is_product_bundle=1`
-> (paket statis), `is_fixed_asset=1` (aset) — gabungkan ketiganya dengan `or_filters` (§2.1 no. 9).
+> (paket statis), `is_manufactured_item=1` (produk manufaktur), `is_fixed_asset=1` (aset) —
+> gabungkan dengan `or_filters` (§2.1 no. 9).
 
 #### 4.5.1 Daftar item + seluruh variannya (2 request + merge di frontend)
 
@@ -1309,16 +1409,30 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 }
 ```
 
-> **Opsional — nilai atribut varian (mis. Colour: Merah/Biru) tanpa request ketiga.** Karena
-> `attributes` **adalah** child table, request 2 bisa menambahkan nested child query pada `fields`:
+> **Opsional — child table (nilai atribut & hashtag) tanpa request ketiga.** Karena `attributes`
+> dan `hashtags` **keduanya** child table, request 1 maupun request 2 bisa menambahkan nested child
+> query pada `fields` — **boleh lebih dari satu sekaligus**:
 >
 > ```json
 > "fields": ["name","item_name","variant_of","image","standard_rate",
->            { "attributes": ["attribute","attribute_value"] }]
+>            { "attributes": ["attribute","attribute_value"] },
+>            { "hashtags":   ["hashtag"] }]
 > ```
 >
-> → tiap baris varian ikut membawa `"attributes": [ { "attribute": "Colour", "attribute_value": "Merah" } ]`.
-> **Terverifikasi di site dev (Frappe v16, 2026-09-26)** — respons nyata sebuah varian:
+> → tiap baris ikut membawa `"attributes": [ ... ]` **dan** `"hashtags": [ ... ]`.
+> **Terverifikasi di site dev (Frappe v16, 2026-10-08)** — 2 nested child query dalam 1 request:
+>
+> ```json
+> { "name": "2610000034", "item_name": "ZZT HT Template",
+>   "attributes": [ { "attribute": "ZZT HT Color", "attribute_value": null } ],
+>   "hashtags":   [ { "hashtag": "promo" } ] }
+> { "name": "2610000035", "item_name": "ZZT HT Template-Red",
+>   "attributes": [ { "attribute": "ZZT HT Color", "attribute_value": "Red" } ],
+>   "hashtags":   [ { "hashtag": "varian-merah" } ] }
+> ```
+>
+> Karena itu, **satu halaman yang sekaligus menampilkan template + semua varian + hashtag tiap
+> varian tetap cukup 2 request** (§4.12). Contoh respons nyata satu varian (uji 2026-09-26):
 >
 > ```json
 > { "name": "BUB-PB-BLU-BIG", "item_name": "Produk Bervarian - Blue - Big", "variant_of": "BUB-PB",
@@ -1328,10 +1442,14 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 >
 > Catatan: (a) pada baris **template**, `attribute_value` bernilai `null` (§2.5 — template hanya
 > mendaftar atribut); (b) sintaks `{ "<child_table>": [ ... ] }` hanya berlaku untuk **child table
-> asli** — di Item: `attributes`, `uoms`, `barcodes`, `reorder_levels`, `item_defaults`, `taxes`;
-> **tidak** untuk varian (varian bukan child table); (c) alternatif lain: `fields` string bertitik
-> (`"attributes.attribute_value"`) juga jalan, tetapi hasilnya **flat** — satu baris per baris child
-> sehingga item bisa muncul berulang.
+> asli** — di Item: `attributes`, `uoms`, `barcodes`, `reorder_levels`, `item_defaults`, `taxes`,
+> **`hashtags`**; **tidak** untuk varian (varian bukan child table); (c) child table yang belum
+> pernah diisi tidak muncul di respons (mis. `hashtags` tidak ada key-nya); (d) alternatif lain:
+> `fields` string bertitik (`"attributes.attribute_value"`) juga jalan, tetapi hasilnya **flat** —
+> satu baris per baris child sehingga item bisa muncul berulang (perilaku sama seperti
+> `hashtags.hashtag`, §2.8); (e) memperbanyak child query **tidak** menggandakan baris Item selama
+> dipakai sintaks `{ ... }` — pada uji 2026-09-26 varian dengan **2 baris** `attributes` tetap keluar
+> sebagai **1 baris** respons.
 
 > **Merge di frontend** — gabungkan respons request 2 ke respons request 1 dengan `group by variant_of`.
 
@@ -1460,8 +1578,9 @@ curl -X POST https://site-anda.com/api/method/frappe.client.save \
 >   bentrok dengan Item aktif lain, seluruh permintaan ditolak 417 dan tidak ada yang berubah
 >   (§2.1 no. 10).
 > - Ubah `standard_rate` pada Item yang sudah ada **tidak** otomatis mengubah Item Price. Perubahan
->   harga yang akan disinkronkan ke `standard_rate` atau `valuation_rate` dilakukan melalui baris
->   Item Price umum UOM stok pada `Standard Buying` atau `Standard Selling`. Pengelolaan harga:
+>   harga yang akan disinkronkan ke `standard_rate` (harga jual) atau `valuation_rate` (harga modal)
+>   dilakukan melalui baris Item Price umum UOM stok pada `Standard Selling` atau `Standard Buying`.
+>   Pengelolaan harga:
 >   [prd_item_price.md](./prd_item_price.md).
 > - Ubah `item_group` → pindah kategori produk (tidak ada efek samping stok).
 > - Ubah `stock_uom` pada Item ber-stok **ditolak backend**.
@@ -2062,6 +2181,200 @@ curl -X POST https://site-anda.com/api/method/baseapp.api.check_item_name \
 
 ---
 
+### 4.12 Hashtag — CRUD & pola satu halaman (template + semua varian)
+
+Bentuk field & aturannya di **§2.8**. Ringkas: `hashtags` adalah **child table** (satu baris = satu
+hashtag), nilainya dirapikan backend (tanpa `#`, huruf kecil), bersifat **replace-all** saat simpan,
+dan **tidak diwariskan** dari template ke varian.
+
+#### a. Tulis hashtag saat CREATE
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Item",
+      "item_name": "Air Mineral 600ml",
+      "item_group": "Minuman",
+      "stock_uom": "Pcs",
+      "hashtags": [
+        { "hashtag": "promo" },
+        { "hashtag": "best-seller" },
+        { "hashtag": "minuman" }
+      ]
+    }
+  }'
+```
+
+> Frontend **boleh** mengirim apa adanya seperti yang diketik user (`"#Promo"`, `" Promo "`) —
+> backend merapikannya. Yang **tidak boleh**: spasi di tengah, `!`, `#` di tengah, karakter selain
+> `a-z 0-9 - _`, atau lebih dari 50 karakter → ditolak `417` (§7).
+
+#### b. Baca hashtag satu Item
+
+Sudah ikut di respons `frappe.client.get` (§4.4) sebagai key `hashtags`:
+
+```json
+{
+  "message": {
+    "name": "2609000001",
+    "item_name": "Air Mineral 600ml",
+    "hashtags": [
+      { "name": "hsh001", "hashtag": "promo" },
+      { "name": "hsh002", "hashtag": "best-seller" },
+      { "name": "hsh003", "hashtag": "minuman" }
+    ]
+  }
+}
+```
+
+> Urutan baris mengikuti `idx` = **urutan baris yang dikirim saat menyimpan**, jadi frontend boleh
+> mengandalkannya untuk menampilkan urutan hashtag (tidak perlu sort sendiri). **Terverifikasi di
+> site dev (2026-10-08)**: kirim `promo, baru, minuman` → respons `insert`, `frappe.client.get`, dan
+> nested `{ "hashtags": [...] }` pada `get_list` semuanya mengembalikan urutan yang sama.
+
+#### c. Ganti hashtag satu Item (UPDATE)
+
+`hashtags` **replace-all** — kirim seluruh daftar yang ingin dipertahankan (§2.8):
+
+```bash
+# pertahankan hanya "promo", hapus sisanya
+curl -X POST https://site-anda.com/api/method/frappe.client.save \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "name": "2609000001",
+      "doctype": "Item",
+      "hashtags": [ { "hashtag": "promo" } ]
+    }
+  }'
+
+# hapus semua hashtag Item tsb:
+#   "hashtags": []
+```
+
+> **Jangan** pakai `frappe.client.set_value` untuk hashtag — method itu hanya menyentuh field biasa,
+> bukan child table (§4.6). Untuk sekadar **menambah 1 hashtag**, ambil dulu daftar lama (§4.4),
+> tambahkan di frontend, lalu kirim **seluruh** daftar.
+
+#### d. Pola satu halaman: template + semua varian
+
+Skenario: form produk menampilkan **template** beserta **seluruh variannya** dalam satu halaman.
+Hashtag bersifat **per Item** — tiap varian punya daftar sendiri dan **tidak ikut** template (§2.8).
+
+**Baca — cukup 2 request:**
+
+1. **Request 1** — template (1 dokumen penuh, §4.4): `frappe.client.get`
+   `{ "doctype": "Item", "name": "2609000002" }` → `message.hashtags` = hashtag template.
+2. **Request 2** — semua varian **beserta atribut & hashtag-nya, satu request** (§4.5.1):
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["name","item_name","variant_of","stock_uom","image",
+               { "attributes": ["attribute","attribute_value"] },
+               { "hashtags":   ["hashtag"] }],
+    "filters": [["variant_of","=","2609000002"]],
+    "order_by": "name asc",
+    "limit_page_length": 0
+  }'
+```
+
+**Contoh respons (HTTP 200) — tiap varian membawa hashtagnya sendiri:**
+
+```json
+{
+  "message": [
+    { "name": "2609000006", "item_name": "Kaos Polos-Biru", "variant_of": "2609000002",
+      "attributes": [ { "attribute": "Colour", "attribute_value": "Biru" } ],
+      "hashtags":   [ { "hashtag": "promo" }, { "hashtag": "kaos" } ] },
+    { "name": "2609000007", "item_name": "Kaos Polos-Merah", "variant_of": "2609000002",
+      "attributes": [ { "attribute": "Colour", "attribute_value": "Merah" } ],
+      "hashtags":   [ { "hashtag": "kaos" } ] }
+  ]
+}
+```
+
+> Varian yang belum pernah diisi hashtag **tidak punya key `hashtags`** di respons — perlakukan
+> sebagai daftar kosong. Baris **template** juga tidak punya key itu bila belum diisi.
+> **Terverifikasi (2026-10-08):** satu `get_list` dengan **dua** nested child query (`attributes`
+> + `hashtags`) mengembalikan keduanya terisi, tanpa menggandakan baris Item.
+
+**Tulis — N request, satu per dokumen.** Child table tidak bisa disimpan lewat `set_value`, dan
+`save` hanya memproses **satu** dokumen. Jadi halaman yang mengedit template + 2 varian mengirim
+**3** `frappe.client.save`:
+
+```bash
+# 1 dokumen = 1 request; cukup kirim dokumen yang berubah
+curl -X POST https://site-anda.com/api/method/frappe.client.save \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "name": "2609000006",
+      "doctype": "Item",
+      "hashtags": [ { "hashtag": "promo" }, { "hashtag": "kaos" } ]
+    }
+  }'
+# ulangi untuk 2609000007 (varian lain) dan 2609000002 (template)
+```
+
+> **Pewarisan template → varian ditangani frontend.** Backend **tidak** menyalin hashtag template ke
+> varian (§2.8). Bila user ingin varian mewarisi, frontend cukup memanggil `save` untuk **tiap
+> varian** dengan daftar yang diinginkan (mis. hashtag template + tambahan khusus varian) — kirim
+> seluruh daftar, bukan hanya tambahannya.
+>
+> Urutan yang disarankan: **template dulu, baru varian**. Tidak ada transaksi lintas-dokumen di
+> level API — bila salah satu request gagal (`417`), tampilkan error beserta nama Item-nya, dan
+> biarkan user memperbaiki lalu simpan ulang (dokumen lain yang sudah berhasil tetap tersimpan).
+
+#### e. Menyaring daftar Item per hashtag
+
+```bash
+# hanya Item bertag "promo" — "promo2026" TIDAK ikut (inti fiturnya)
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["name","item_name","item_group","image"],
+    "filters": [["hashtags.hashtag","=","promo"],["disabled","=",0]],
+    "order_by": "name asc",
+    "limit_start": 0,
+    "limit_page_length": 50
+  }'
+```
+
+```bash
+# jumlahnya (untuk pagination / lazy loading)
+#   POST frappe.client.get_count
+#   { "doctype":"Item", "filters":[["hashtags.hashtag","=","promo"],["disabled","=",0]] }
+```
+
+**Hasil uji di site dev (2026-10-08)** — 3 Item uji: A = `promo`, B = `promo2026`, C = `promo` + `baru`:
+
+| Filter | Hasil | Catatan |
+|---|---|---|
+| `[["hashtags.hashtag","like","%promo%"]]` | A, B, C | **salah untuk kebutuhan ini** — `promo2026` ikut terbawa |
+| `[["hashtags.hashtag","=","promo"]]` | A, C | **benar** — inilah yang dipakai |
+| `[["hashtags.hashtag","in",["promo","baru"]]]` | A, C — **C muncul 2×** | dedupe di frontend, atau pakai `group_by` |
+| `[["hashtags.hashtag","=","promo"],["hashtags.hashtag","=","baru"]]` | **kosong** | 2 kondisi pada fieldname yang sama **bukan** AND (§2.8) |
+| `frappe.client.get_count` + filter `=` | `2` | akurat |
+
+> **Mencari Item yang punya DUA tag sekaligus** (mis. `promo` **dan** `baru`): jalankan 2 request
+> (masing-masing 1 filter `=`, `fields: ["name"]`), lalu iris (`intersect`) daftar `name`-nya di
+> frontend. Ini konsekuensi dari child table yang di-JOIN (§2.8).
+>
+> **Daftar hashtag yang sudah pernah dipakai** (untuk autocomplete / saran filter): **§6.8**.
+
+---
+
 ## 5. UOM Conversion — contoh kasus & CRUD
 
 ### 5.1 Konsep dua lapis
@@ -2317,6 +2630,57 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > pernah menunjuk node group, hanya leaf. Bila UI memakai tree picker, gunakan pola (b). Detail tree
 > Item Group & aturan leaf: [prd_item_group.md §4 & §5](./prd_item_group.md).
 
+### 6.8 Daftar hashtag yang sudah pernah dipakai (autocomplete)
+
+Untuk mengisi kotak saran hashtag di form produk / saringan katalog: ambil daftar **hashtag unik**
+dari Item, lewat field child-nya + `group_by` (bukan `distinct`, yang tidak tersedia di
+`frappe.client.get_list`).
+
+```bash
+# Semua hashtag yang sudah dipakai (untuk dropdown saran)
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["hashtags.hashtag"],
+    "filters": [["hashtags.hashtag","is","set"]],
+    "group_by": "hashtags.hashtag",
+    "limit_page_length": 50
+  }'
+```
+
+**Contoh respons (HTTP 200) — 5 hashtag unik:**
+
+```json
+{ "message": [
+  { "hashtag": "baru" },
+  { "hashtag": "minuman" },
+  { "hashtag": "promo" },
+  { "hashtag": "promo2026" },
+  { "hashtag": "kaos" }
+] }
+```
+
+```bash
+# Autocomplete saat user mengetik "prom": filter like + group_by (tetap 1 baris per hashtag)
+#   "filters": [["hashtags.hashtag","like","%prom%"]]
+#   "group_by": "hashtags.hashtag"
+```
+
+**Hasil uji di site dev (2026-10-08):**
+
+| Query | Hasil |
+|---|---|
+| `fields=["hashtags.hashtag"]` + `group_by=hashtags.hashtag` + `filters=[["hashtags.hashtag","is","set"]]` | `baru`, `promo`, `promo2026` — tiap nilai muncul **sekali** ✅ |
+| `filters=[["hashtags.hashtag","like","%promo%"]]` + `group_by` | `promo`, `promo2026` — cocok untuk **saran saat mengetik** |
+| `doctype: "Item Hashtag"` (query langsung ke child doctype) | ⛔ **tidak bisa** — `frappe.client.get_list` mengembalikan `name` saja (child doctype tanpa definisi permission → semua field selain `name` dibuang). Pakai `group_by` di atas |
+
+> Di sini `like` **memang** dipakai secara sengaja: untuk saran autocomplete, menarik `promo2026` saat
+> user mengetik `prom` itu diinginkan. Yang memakai `=` persis adalah **saringan katalog** (§4.12e).
+> Hasil saran tetap bisa dibatasi ke hashtag yang benar-benar ada dengan memilih nilainya (bukan
+> mengetik bebas).
+
 ---
 
 ## 7. Penanganan error umum
@@ -2339,6 +2703,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 | 417 | `conversion_factor` stock_uom ≠ 1 / `uoms` duplikat | `{"exc_type":"ValidationError","message":"..."}` (lihat §5.4) |
 | 417 | Hapus Item yang sudah dipakai transaksi/stok | `{"exc_type":"LinkExistsError","message":"Cannot delete because of linked records"}` |
 | 417 | `attributes` kosong saat `has_variants=1` | `{"exc_type":"ValidationError","message":"Attribute table is mandatory"}` |
+| 417 | Hashtag tidak sesuai pola | `{"exc_type":"ValidationError","message":"Row #1: hashtag promo 2026 is not valid. Use lowercase letters, digits, - and _ only (max 50 characters)."}` — nomor baris mengikuti urutan baris pada payload; yang boleh hanya `a-z 0-9 - _` (maks 50 karakter), tanpa `#` dan tanpa spasi (§2.8) |
 
 > **Catatan `item_code` (naming series):** karena `item_code` dibuat backend (§2.1 no. 1), error
 > **`"Item Code is required"`** (`ValidationError` dari `field:item_code` saat kode kosong) **tidak
@@ -2362,7 +2727,7 @@ API ERPNext yang sudah jadi (OAuth 2.0 + Supplier + Customer + Contact + Address
 > ke `12. Stock Reconciliation`; daftar di bawah adalah **rencana** isinya, sudah disesuaikan dengan
 > naming series (§2.1 no. 1).
 
-Folder **`11. Item`** direncanakan berisi **±44 request** yang mencakup:
+Folder **`11. Item`** direncanakan berisi **±52 request** yang mencakup:
 - Pre-check nama Item — `baseapp.api.check_item_name` (§4.11): kasus `ok` / `duplicate_active` /
   `duplicate_inactive` + reaktifasi item lama lewat `set_value` — `11.0`, `11.0b`
 - CREATE (minimum, lengkap, jasa, bahan baku) — `11.1`–`11.3b`. **Tanpa pre-check duplikat
@@ -2384,6 +2749,12 @@ Folder **`11. Item`** direncanakan berisi **±44 request** yang mencakup:
 - Batch (§2.1 no. 12, §4.3): penerimaan 5 roll **tanpa** nomor (auto `BATCH-00001`…), penerimaan
   **dengan** nomor dari user (cek `get_list` → `insert` Batch → kirim `batch_no` di baris), penjualan
   sebagian per batch — `11.37`–`11.40`
+- Hashtag produk (§2.8, §4.12): CREATE dengan hashtag (`"#Promo"` → tersimpan `promo`), UPDATE
+  replace-all (kirim 1 hashtag → sisanya terhapus; kirim `[]` → semua terhapus), hashtag tidak valid
+  → `417` beserta nomor barisnya, filter **`=`** yang **tidak** menarik `promo2026` (dibandingkan
+  `like`), filter `in` yang menduplikasi baris, pencarian **2 tag sekaligus** (2 request + irisan di
+  frontend), hashtag **per varian** (template & varian berbeda) + fetch template & semua varian dalam
+  1 request, dan daftar hashtag unik (autocomplete) — `11.41`–`11.48`
 
 **Variabel yang perlu diisi** (Collection Variables):
 - `item_id` / `item_code` — `name`/`item_code` **hasil CREATE**, diambil dari respons (mis. `2609000001`) — **bukan** dikirim frontend
@@ -2393,6 +2764,7 @@ Folder **`11. Item`** direncanakan berisi **±44 request** yang mencakup:
 - `item_attribute` / `item_attribute_value` — master atribut & nilainya (mis. `Ukuran`, `M`)
 - `item_group` — leaf Item Group (mis. `Minuman`)
 - `item_barcode` — barcode hasil CREATE (default = `item_code`, mis. `2609000001`; atau barcode kiriman frontend, mis. `8991234567891`)
+- `item_hashtag` / `item_hashtag_2` — hashtag untuk uji filter (mis. `promo`, `promo2026`; lihat §2.8/§4.12)
 - `file_name` / `file_url` / `file_id` — foto (dari respons `attach_file` / `insert` File)
 - `stock_reco_id` — name Stock Reconciliation (mis. `MAT-RECO-00001`)
 - `company` / `warehouse` — company & warehouse default (mis. `PT Maju Jaya`, `Toko Cikarang - PTMJ`)
@@ -2433,6 +2805,8 @@ test script.
    > `item_group`/`brand` (dasar `apply_on` pada Pricing Rule).
    > Field Item untuk paket dinamis: `is_dynamic_product_bundle` (custom field `baseapp`) —
    > lihat [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md).
-   > Field Item untuk paket statis: `is_product_bundle` (custom field `baseapp`, disinkronkan dari
-   > doctype `Product Bundle`) — lihat §2.1 no. 9 dan
+   > Field Item untuk paket statis: `is_product_bundle` (custom field `baseapp`, Check, diisi manual
+   > — tidak lagi diturunkan dari doctype `Product Bundle`) — lihat §2.1 no. 9 dan
    > [prd_item_product_bundle.md](./prd_item_product_bundle.md).
+   > Field Item untuk produk manufaktur: `is_manufactured_item` (custom field `baseapp`, Check,
+   > diisi manual — bukan turunan BOM) — lihat §2.1 no. 9.

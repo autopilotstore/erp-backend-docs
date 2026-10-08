@@ -762,8 +762,9 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
    `PT Rapupa Guna Teknologi`): Item Group `Elektronik` (leaf di bawah `Products`), Item `LAPTOP-14INCH`
    & `BACKPACK-CANVAS` (stok, UOM `Nos`), Item `PAKET-LAPTOP-BACKPACK` & `PAKET-LAPTOP-TRAVEL`
    (non-stok), dan 2 Product Bundle dengan kode yang sama.
-3. **File terkait:** Item [prd_item.md](./prd_item.md) (`is_stock_item`, `is_fixed_asset`, `item_code`
-   manual, `_user_tags`) · **paket dinamis** [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md)
+3. **File terkait:** Item [prd_item.md](./prd_item.md) (`is_stock_item`, `is_fixed_asset`,
+   `item_code` dari naming series, **`hashtags`** — child table hashtag produk, lihat
+   [prd_item.md §2.8](./prd_item.md)) · **paket dinamis** [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md)
    · Item Group [prd_item_group.md](./prd_item_group.md) (leaf untuk `item_group`) ·
    Harga [prd_item_price.md](./prd_item_price.md) (`Item Price` item induk = harga paket) ·
    Promo [prd_item_pricing_rule.md](./prd_item_pricing_rule.md) · Warehouse
