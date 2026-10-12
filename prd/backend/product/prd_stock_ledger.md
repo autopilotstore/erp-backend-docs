@@ -50,6 +50,8 @@
 | 7 | `frappe.client.get_count` | Total baris SLE sesuai filter — pagination (§4.7) | body (filters) |
 | 8 | `frappe.client.get_list` | Dropdown pendukung filter: Item / Warehouse / Company (§5) | body (filters) |
 | 9 | `frappe.client.get_list` (Item, lalu SLE) | Menyaring SLE utk produk stok per Item Group — `is_stock_item` + `item_group` (§4.9) | body (filters) |
+| 10 | `frappe.client.get_list` | **Batch** milik 1 item (dropdown batch, §4.10) | body (filters) |
+| 11 | `frappe.client.get_list` / `get` | **Serial and Batch Bundle** + child `Serial and Batch Entry` — rincian batch/serial (§4.10) | body |
 
 > **Konvensi pemanggilan (penting):** seluruh operasi memakai method whitelisted **`frappe.client.*`**
 > dengan `name` (dan filter) dikirim lewat **body JSON**, bukan di URL path (alasan sama dengan
@@ -87,7 +89,7 @@ dibaca).
 | 🟠 **Filter lanjutan** | `company` | Link → Company | Perusahaan. Berguna memisahkan data multi-company (nilai SLE dalam mata uang company ini). |
 | 🟠 **Filter lanjutan** | `voucher_type` | Link → DocType | Jenis transaksi sumber (mis. `Purchase Receipt`, `Delivery Note`, `Stock Entry`, `Stock Reconciliation`). Dipakai utk verifikasi posting 1 dokumen. |
 | 🟠 **Filter lanjutan** | `voucher_no` | Dynamic Link (ke `voucher_type`) | Nomor dokumen sumber. Kombinasi `voucher_type`+`voucher_no` = bukti posting 1 dokumen (§4.3). |
-| 🟠 **Filter lanjutan** | `batch_no` / `serial_no` | Data / Long Text | Hanya utk item ber-*batch*/ber-*serial* (lihat juga `serial_and_batch_bundle`). |
+| 🟠 **Filter lanjutan** | `batch_no` / `serial_no` | Data / Long Text | Hanya utk item ber-*batch*/ber-*serial* (lihat juga `serial_and_batch_bundle`). Contoh pengambilan data batch: §4.10. |
 | ⚪ **Output** | `name` | Data | Dibuat sistem (`MAT-SLE-.YYYY.-.#####`). Tidak dipakai ulang sebagai input (§1). |
 | ⚪ **Output** | `actual_qty` | Float | **Perubahan qty** transaksi ini (+ = masuk, − = keluar). Label desk: *Qty Change*. |
 | ⚪ **Output** | `qty_after_transaction` | Float | **Qty berjalan** item+warehouse **setelah** transaksi ini — inilah "saldo" yang tampil di kartu stok. |
@@ -99,7 +101,7 @@ dibaca).
 | ⚪ **Output** | `posting_datetime` | Datetime | Gabungan `posting_date`+`posting_time` — urutan kronologis sebenarnya. |
 | ⚪ **Output** | `voucher_detail_no` | Data | `name` baris pada dokumen sumber (mis. nama baris item di Stock Reconciliation / Stock Entry) — pencocokan granular. |
 | ⚪ **Output** | `creation` / `modified` | Datetime | Stempel waktu pembuatan baris — dipakai sebagai *tiebreaker* urutan bila `posting_datetime` kembar. |
-| ⚪ **Output (serial/batch)** | `serial_and_batch_bundle`, `serial_no`, `batch_no`, `has_serial_no`, `has_batch_no` | — | Untuk item serial/batch v16, rincian serial tersimpan di **Serial and Batch Bundle** (`serial_and_batch_bundle`) — SLE lama menyimpan teks `serial_no`. |
+| ⚪ **Output (serial/batch)** | `serial_and_batch_bundle`, `batch_no`, `serial_no`, `has_serial_no`, `has_batch_no` | — | Untuk item ber-batch/serial. `batch_no` terisi bila site memakai jalur field sederhana (`Stock Settings → use_serial_batch_fields = 1`); pada jalur bundle (`= 0`) rincian batch/serial ada di **Serial and Batch Bundle** → child `entries` (**Serial and Batch Entry**). Pola baca: §4.10. |
 | ⚪ **Output (internal)** | `fiscal_year`, `project`, `is_adjustment_entry`, `recalculate_rate`, `to_rename`, `stock_queue`, `dependant_sle_voucher_detail_no` | — | Umumnya tidak perlu ditampilkan. `is_adjustment_entry=1` menandai SLE teknis (penyesuaian) yang bukan transaksi user. |
 | 🟠 **Filter (via master Item)** | `item_group` | (field master `Item`) | Grup produk utk menyaring SLE. **Bukan kolom SLE** — SLE tidak menyimpan group; pemakaiannya: *resolve* `item_code` dari master Item lalu `["item_code","in",[...]]` saat baca SLE (§4.9). |
 | 🟠 **Filter (via master Item)** | `is_stock_item` | (field master `Item`) | Hanya produk stok (`1`). **Bukan kolom SLE** — dipakai utk membatasi *resolve* Item / dropdown Item (hanya produk stok yang punya SLE) sebelum baca SLE (§4.9, §5.1). |
@@ -125,10 +127,11 @@ dibaca).
    ada reposting), SLE lama ditandai `is_cancelled = 1`. Tanpa filter ini, kartu stok akan
    menampilkan baris yang sudah "dibatalkan" dan saldo jadi salah. Untuk audit *semua* baris
    (termasuk yang dibatalkan), hilangkan filter ini.
-4. **`qty_after_transaction`/`stock_value` = saldo berjalan.** Nilainya **per kombinasi
-   item+warehouse** (dan per batch/serial bila ada) pada urutan posting, bukan saldo global antar
-   warehouse. Untuk item non serial/batch, baris terakhir (urut `posting_datetime`) = saldo terkini
-   item di warehouse itu.
+4. **`qty_after_transaction`/`stock_value` = saldo berjalan item+warehouse.** Nilainya **per
+   kombinasi item+warehouse** pada urutan posting, bukan saldo global antar warehouse — dan **bukan
+   per batch/serial** (batch hanya memecah pergerakan; angka running di SLE tetap level
+   item+warehouse). Untuk item non serial/batch, baris terakhir (urut `posting_datetime`) = saldo
+   terkini item di warehouse itu; untuk **saldo per batch** lihat §4.10.
 5. **Role baca (v16): `Stock User` atau `Accounts Manager`.** Permission doctype Stock Ledger Entry
    memberikan hak **read/export/report** ke role `Stock User` dan `Accounts Manager` — lebih rendah
    dari `Stock Manager` (yang dibutuhkan Stock Reconciliation). Jadi user operasional gudang yang
@@ -176,7 +179,8 @@ Saat dokumen stok di-cancel, ERPNext **tidak menghapus** SLE lama. Yang terjadi:
 |---|---|---|
 | `tabStock Ledger Entry` | `Stock Ledger Entry` | **Jurnal pergerakan stok** (dokumen ini). Satu baris = satu perubahan qty/nilai item+warehouse dari 1 voucher. `name` via seri `MAT-SLE-.YYYY.-.#####`; kolom kunci: `item_code`, `warehouse`, `posting_datetime`, `actual_qty`, `qty_after_transaction`, `valuation_rate`, `stock_value`, `voucher_type`, `voucher_no`, `is_cancelled`. |
 | `tabBin` | `Bin` | **Saldo stok ringkas per item+warehouse** (`actual_qty`, `stock_value`, `valuation_rate`, `reserved_qty`) — diperbarui mengikuti SLE. Berguna utk *current stock* cepat (bukan riwayat). Pengambilan datanya di luar cakupan dokumen ini (dokumentasi stok/PRD tersendiri). |
-| `tabSerial and Batch Bundle` (+ `tabSerial and Batch Bundle Item`) | `Serial and Batch Bundle` | **Rincian serial/batch** utk SLE item serial/batch v16 (`serial_and_batch_bundle`). Bila UI perlu daftar serial per baris SLE, baca bundle ini. |
+| `tabBatch` | `Batch` | Master **batch** (`batch_id` = `name`, `item`, `batch_qty` = saldo batch **total lintas gudang**, `expiry_date`, `use_batchwise_valuation`). Sumber dropdown & saldo batch (§4.10). |
+| `tabSerial and Batch Bundle` (+ `tabSerial and Batch Entry`) | `Serial and Batch Bundle` (parent) + `Serial and Batch Entry` (child `entries`) | **Rincian serial/batch** utk SLE item serial/batch v16 (`SLE.serial_and_batch_bundle` → bundle). Satu baris `Serial and Batch Entry` = 1 batch/serial (`batch_no`, `serial_no`, `qty`, `warehouse`, `incoming_rate`, `stock_value_difference`). Baca via dokumen bundle (child table tidak di-*list* langsung) — lihat §4.10. |
 | `tabRepost Item Valuation` | `Repost Item Valuation` | Dicatat saat SLE di-*repost* (transaksi backdated / cancel) — indikator bahwa sebagian SLE dihitung ulang di background. Status reposting dapat memengaruhi konsistensi angka saat dibaca. |
 | Voucher sumber (mis. `tabPurchase Receipt`, `tabDelivery Note`, `tabStock Entry`, `tabStock Reconciliation`, dll.) | Purchase Receipt / Delivery Note / Stock Entry / Stock Reconciliation / ... | **Dokumen yang memproduksi SLE**. `voucher_type`+`voucher_no` di SLE menunjuk ke sini. Detail masing-masing ada di PRD terkait (mis. Stock Reconciliation: `[prd_stock_reconciliation.md §2.4](./prd_stock_reconciliation.md)`). |
 
@@ -207,6 +211,8 @@ Detail lengkap setup OAuth Client ada di **[`prd_oauth.md`](../prd_oauth.md)**.
 > 3. Bila perlu detail/satu baris → `get` (§4.4); cek cepat nilai → `get_value` (§4.5); saldo
 >    terkini → baris terakhir (§4.6).
 > 4. Pagination memakai `get_count` + `limit_start` (§4.7).
+> 5. Untuk item ber-**batch** → ikuti pola khusus di **§4.10** (dropdown Batch, kartu stok per batch,
+>    saldo batch, & rincian `Serial and Batch Bundle`).
 >
 > Semua filter bersifat opsional — kombinasi bebas. `message` berisi **array** (list) atau **objek**
 > (single); hasil kosong pada list = `[]` (bukan error).
@@ -306,9 +312,9 @@ berjalan:
 ```
 
 > - `qty_after_transaction` baris terakhir = **saldo item di warehouse tersebut** hingga tanggal tsb.
-> - Bila item memakai batch/serial, filter juga `batch_no`/`serial_no` (atau `serial_and_batch_bundle`)
->   — karena saldo berjalan dihitung per batch/serial. Untuk item non serial/batch, cukup kombinasi
->   item+warehouse.
+> - Bila item memakai batch/serial, filter juga `batch_no`/`serial_no` untuk melihat pergerakan
+>   batch tsb — tetapi **`qty_after_transaction` tetap saldo item+warehouse, bukan saldo batch**.
+>   Saldo & pergerakan per batch dibahas di **§4.10**.
 
 ### 4.3 Verifikasi posting — SLE milik 1 voucher (voucher_type + voucher_no)
 
@@ -615,6 +621,157 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 > - `is_stock_item=1` praktis selalu benar utk SLE (hanya produk stok yang punya SLE) — filter ini
 >   berguna terutama saat me-*resolve* daftar Item di Langkah 1.
 
+### 4.10 Pengambilan data item ber-batch (`batch_no` & `Serial and Batch Bundle`)
+
+Item dengan `Item.has_batch_no = 1` bergerak **per batch**. Dua hal yang perlu dipahami dulu:
+
+- **`SLE.batch_no` terisi** bila site memakai jalur field sederhana (`Stock Settings →
+  use_serial_batch_fields = 1` — kondisi site dev). Bila memakai jalur **bundle**
+  (`use_serial_batch_fields = 0`), `SLE.batch_no` bisa **kosong** dan rincian batch tersimpan di
+  child **`Serial and Batch Entry`** milik dokumen **`Serial and Batch Bundle`**
+  (`SLE.serial_and_batch_bundle` → bundle).
+- **`qty_after_transaction`/`stock_value` pada SLE tetap saldo item+warehouse — BUKAN saldo per
+  batch** (batch hanya memecah pergerakan, tidak memecah angka running di SLE). Untuk **saldo per
+  batch** pakai `Batch.batch_qty` (total lintas gudang) atau jumlahkan pergerakan batch — lihat (c)
+  & (d) di bawah.
+
+**a) Daftar Batch milik 1 item** (dropdown saat memilih batch):
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Batch",
+    "fields": ["name", "batch_id", "item", "batch_qty", "stock_uom", "manufacturing_date", "expiry_date", "use_batchwise_valuation", "disabled"],
+    "filters": [["item", "=", "Air Mineral 600ml"], ["disabled", "=", 0]],
+    "order_by": "creation asc",
+    "limit_page_length": 0
+  }'
+```
+
+**Contoh respons (HTTP 200):**
+
+```json
+{
+  "message": [
+    { "name": "BATCH-00001", "batch_id": "BATCH-00001", "item": "Air Mineral 600ml", "batch_qty": 120, "stock_uom": "Nos", "manufacturing_date": "2026-08-01", "expiry_date": "2027-08-01", "use_batchwise_valuation": 0, "disabled": 0 }
+  ]
+}
+```
+
+> `name` = `batch_id` (pada versi terpasang) — nilai `name` inilah yang dipakai sebagai `batch_no`.
+> `get_list` Batch butuh hak **read** pada doctype `Batch` (default: role **`Item Manager`**; role lain
+> umumnya hanya punya `select` untuk menautkan batch). Bila user hanya ber-role `Stock User`, ambil
+> daftar batch lewat bundle (d) atau minta admin menambah permission read.
+
+**b) Mutasi SLE untuk 1 batch** (kartu stok batch):
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Stock Ledger Entry",
+    "fields": ["name","item_code","warehouse","batch_no","posting_datetime","actual_qty","incoming_rate","valuation_rate","stock_value_difference","voucher_type","voucher_no","is_cancelled"],
+    "filters": [
+      ["item_code", "=", "Air Mineral 600ml"],
+      ["warehouse", "=", "Toko Cikarang - PTMJ"],
+      ["batch_no", "=", "BATCH-00001"],
+      ["is_cancelled", "=", 0]
+    ],
+    "order_by": "posting_datetime asc, creation asc",
+    "limit_page_length": 0
+  }'
+```
+
+> - `actual_qty` = perubahan qty **batch** ini (+ masuk / − keluar). Untuk **saldo berjalan per
+>   batch**, akumulasikan `actual_qty` baris demi baris (jangan pakai `qty_after_transaction` — itu
+>   saldo item+warehouse, lihat catatan di atas).
+> - Filter `batch_no` andal saat `SLE.batch_no` terisi (jalur `use_serial_batch_fields=1`); bila
+>   kosong (jalur bundle), pakai langkah (d).
+
+**c) Saldo batch saat ini** (`Batch.batch_qty` — total lintas gudang):
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.get_value \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Batch",
+    "filters": [["name", "=", "BATCH-00001"]],
+    "fieldname": ["batch_qty", "expiry_date", "use_batchwise_valuation"]
+  }'
+```
+
+**Contoh respons (HTTP 200):**
+
+```json
+{ "message": { "batch_qty": 120, "expiry_date": "2027-08-01", "use_batchwise_valuation": 0 } }
+```
+
+> `batch_qty` **tidak memisah per gudang**. Untuk saldo batch **per gudang**, jumlahkan baris bundle
+> (d) per `warehouse`, atau pakai report *Batch-wise Balance History* di Desk.
+
+**d) Rincian batch/serial dari bundle** (jalur `use_serial_batch_fields=0`, atau saat butuh serial):
+
+Langkah 1 — daftar bundle milik 1 voucher/item:
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Serial and Batch Bundle",
+    "fields": ["name","item_code","warehouse","type_of_transaction","total_qty","voucher_type","voucher_no","posting_datetime","is_cancelled","docstatus"],
+    "filters": [
+      ["item_code", "=", "Air Mineral 600ml"],
+      ["voucher_no", "=", "MAT-RECO-00001-2026"],
+      ["is_cancelled", "=", 0]
+    ],
+    "order_by": "creation asc",
+    "limit_page_length": 0
+  }'
+```
+
+Langkah 2 — baca detail bundle → `message.entries[]` (child `Serial and Batch Entry`):
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.get \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Serial and Batch Bundle",
+    "name": "SABB-00000001"
+  }'
+```
+
+**Contoh respons ringkas (HTTP 200):**
+
+```json
+{
+  "message": {
+    "name": "SABB-00000001",
+    "item_code": "Air Mineral 600ml",
+    "warehouse": "Toko Cikarang - PTMJ",
+    "type_of_transaction": "Inward",
+    "total_qty": 20,
+    "voucher_type": "Stock Reconciliation",
+    "voucher_no": "MAT-RECO-00001-2026",
+    "entries": [
+      { "batch_no": "BATCH-00001", "qty": 20, "warehouse": "Toko Cikarang - PTMJ", "incoming_rate": 4500, "stock_value_difference": 90000 }
+    ]
+  }
+}
+```
+
+> - Satu voucher bisa punya **>1 bundle** (mis. transfer = 1 Outward + 1 Inward), dan satu bundle
+>   bisa punya banyak baris `entries` (satu baris per batch/serial).
+> - Untuk rincian per batch/serial, paling andal membaca lewat **dokumen bundle** (`frappe.client.get`)
+>   karena child `entries` ikut terkirim di `message` — bukan query child table terpisah.
+> - Bila `Batch.use_batchwise_valuation = 1`, nilai/rate dihitung per batch; bila `0`, batch hanya
+>   memecah qty sedangkan nilai mengikuti rata-rata item+warehouse.
+
 ---
 
 ## 5. GET pendukung UI (dropdown filter)
@@ -708,7 +865,7 @@ Seluruh pemanggilan di atas sudah tersedia dalam **satu koleksi Postman** yang s
 ERPNext (OAuth 2.0 + Supplier + Customer + Contact + Address + Lead + Employee + User + Warehouse
 + POS Profile + Item Group + Stock Reconciliation + **Stock Ledger**).
 
-Folder **`13. Stock Ledger`** berisi **11 request** yang mencakup:
+Folder **`13. Stock Ledger`** berisi **15 request** yang mencakup:
 - Daftar SLE periode + company — `13.1`
 - Kartu stok 1 item+warehouse (running balance, ascending) — `13.2`
 - Verifikasi per voucher (`voucher_type`+`voucher_no`) — `13.3`
@@ -716,6 +873,7 @@ Folder **`13. Stock Ledger`** berisi **11 request** yang mencakup:
 - Saldo terkini — baris terakhir (`get_list desc` / `get_last_doc`) — `13.6`
 - Total count (`get_count`) — `13.7`
 - Menyaring SLE per Item Group / `is_stock_item` — 2 langkah (§4.9): `13.8b` (Langkah 1: resolve Item per Item Group) lalu `13.1` / `13.7` (Langkah 2: SLE + count)
+- Item ber-**batch** (§4.10): `13.11` (Batch per item), `13.12` (kartu stok per batch), `13.13`–`13.14` (Serial and Batch Bundle + `entries`)
 - Dropdown pendukung lain: Item (`13.8`), Warehouse (`13.9`), Company (`13.10`)
 
 **Variabel yang perlu diisi** (Collection Variables):
@@ -726,6 +884,8 @@ Folder **`13. Stock Ledger`** berisi **11 request** yang mencakup:
   / `MAT-RECO-00001-2026`)
 - `sle_date_from` / `sle_date_to` — rentang tanggal filter
 - `sle_item_group` — leaf Item Group utk menyaring dropdown Item (`13.8b`, mis. `Minuman`)
+- `sle_batch_no` — nomor Batch utk item ber-batch (`13.11`–`13.12`, mis. `BATCH-00001`)
+- `sle_bundle_name` — `name` Serial and Batch Bundle (`13.14`, mis. `SABB-00000001`)
 - `sle_row_name` — `name` baris SLE (terisi otomatis dari hasil `13.1`/`13.2` lewat test script)
 
 Cara pakai sama dengan folder lain: isi variabel di atas, jalankan folder `0. OAuth 2.0` (atau Get

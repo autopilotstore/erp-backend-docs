@@ -857,7 +857,6 @@ yang dibuat bawaan ERPNext akan diselaraskan dengan `standard_rate`. Baris bawaa
 ```json
 {
   "doctype": "Item",
-  "item_code": "MIN-001",
   "item_name": "Air Mineral 600ml",
   "item_group": "Minuman",
   "stock_uom": "Nos",
@@ -868,6 +867,11 @@ yang dibuat bawaan ERPNext akan diselaraskan dengan `standard_rate`. Baris bawaa
   ]
 }
 ```
+
+> **`item_code` tidak dikirim** — Item memakai naming series `YY.MM.######` (app `baseapp`), jadi kode
+> dibuat backend (mis. `2609000001`) **sebelum** `Item.after_insert` di atas berjalan. Frontend cukup
+> mengirim `item_name` + field lain, lalu memakai **`message.name`** dari respons CREATE sebagai
+> `item_code` untuk semua operasi berikutnya. Detail: [prd_item.md §2.1 no. 1](./prd_item.md).
 
 > Pada contoh di atas `standard_rate: 3500` menghasilkan **1 baris** Item Price di price list `Grosir`
 > (diambil dari `item_defaults.default_price_list`). Backend melakukan *loop* per baris `item_defaults`,

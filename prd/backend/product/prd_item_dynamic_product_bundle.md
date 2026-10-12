@@ -279,6 +279,12 @@ curl -X POST https://site-anda.com/api/method/frappe.client.set_value \
 > Item paket tetap dibuat lewat `frappe.client.insert` seperti biasa (field wajib/dianjurkan lihat
 > **[prd_item.md §2 & §4.1](./prd_item.md)**). Field ini bisa langsung dikirim saat CREATE Item:
 > `"is_dynamic_product_bundle": 1`.
+>
+> **Kode item dibuat backend** (naming series Item `YY.MM.######`, mis. `2609000001`): `item_code` yang
+> dikirim **ditimpa**, jadi pakai **`message.name`** dari respons CREATE sebagai `bundle_item` dan untuk
+> operasi berikutnya (`set_value`, dsb.). Item contoh di dokumen ini (`PAKET-BENTO-ANAK`) adalah **item
+> lama** yang dibuat sebelum aturan itu berlaku, sehingga masih berkode deskriptif — lihat
+> [prd_item.md §2.1 no. 1](./prd_item.md).
 
 **Daftar pilihan paket (dropdown)** — hanya item ber-flag `1` (dan biasanya yang aktif dijual):
 
@@ -799,7 +805,6 @@ dan komponen tetap **1 nasi putih**.
 ```json
 {
   "doctype": "Item",
-  "item_code": "PAKET-BENTO-ANAK",
   "item_name": "Paket Bento Anak",
   "item_group": "Makanan",
   "stock_uom": "Nos",
@@ -808,6 +813,11 @@ dan komponen tetap **1 nasi putih**.
   "is_dynamic_product_bundle": 1
 }
 ```
+
+> **Tanpa `item_code`** — kode dibuat backend (naming series `YY.MM.######`, mis. `2609000001`); simpan
+> **`message.name`** dari respons CREATE dan pakai sebagai `bundle_item` pada langkah 2–5. Contoh di
+> dokumen ini memakai `PAKET-BENTO-ANAK` karena itu **item lama** yang dibuat sebelum aturan naming
+> series berlaku ([prd_item.md §2.1 no. 1](./prd_item.md)).
 
 **Langkah 2 — 3 pilihan isian paket** (buat berurutan, simpan `name` dari tiap respons):
 

@@ -63,46 +63,69 @@
 | 🔴 **WAJIB** | `item_name` | Data | **Nama tampilan produk** — inilah identitas yang dibaca user. Kosong → backend menyalin `item_code`, yang sekarang berupa angka seri (`2609000001`), sehingga **selalu kirim `item_name`**. **Harus unik di antara Item yang aktif** (§2.1 no. 8) — pre-check dulu dengan `baseapp.api.check_item_name` (§4.11). |
 | 🔴 **WAJIB** | `item_group` | Link → Item Group | Grup produk (pilih node **leaf**/daun, `is_group=0`). Detail: [prd_item_group.md §5.2](./prd_item_group.md). |
 | 🔴 **WAJIB** | `stock_uom` | Link → UOM | Satuan dasar stok (Unit of Measure). Semua qty stok & konversi dihitung relatif ke UOM ini. |
-| 🟠 | `is_stock_item` | Check | `1` = produk stok (dikelola via Stock Ledger, punya `tabBin`). `0` = jasa/non-stok. |
-| 🟠 | `is_dynamic_product_bundle` | Check | `1` = Item ini **paket dinamis** — komponen/isiannya dipilih kasir saat transaksi (berbeda dari `Product Bundle` bawaan ERPNext yang statis — paket statis dibahas di [prd_item_product_bundle.md](./prd_item_product_bundle.md)). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_stock_item`); hanya ada bila app tersebut terpasang. Default `0`. Struktur & CRUD pilihannya: [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md). |
-| 🟠 | `is_product_bundle` | Check | `1` = Item ini **paket statis** (doctype `Product Bundle`, tabel `tabProduct Bundle`) — ERPNext otomatis memecahnya jadi komponen saat transaksi. **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_dynamic_product_bundle`); hanya ada bila app tersebut terpasang. Default `0`, tersedia sebagai **filter standar**, dan **diisi manual oleh user/frontend** — **tidak** diturunkan dari dokumen `Product Bundle` dan **tidak terikat** status aktif/non-aktifnya (§2.1 no. 9). Detail paket statis: [prd_item_product_bundle.md](./prd_item_product_bundle.md). |
-| 🟠 | `is_manufactured_item` | Check | `1` = Item ini **produk manufaktur** (diproduksi sendiri). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_product_bundle`); hanya ada bila app tersebut terpasang. Default `0` dan tersedia sebagai **filter standar**. **Diisi manual oleh user/frontend — bukan turunan dari BOM** (ERPNext tidak menyimpan penanda "manufactured" di Item; yang tersedia hanya `default_bom`, `include_item_in_manufacturing`, dan `is_sub_contracted_item`). |
-| 🟠 | `is_sales_item` | Check | `1` = produk bisa dijual (muncul di Quotation/Sales Order/Sales Invoice/POS). |
-| 🟠 | `min_sales_qty` | Float | Jumlah jual minimum per Item dalam `stock_uom`; default `0` (tanpa batas minimum). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
-| 🟠 | `max_sales_qty` | Float | Jumlah jual maksimum per Item dalam `stock_uom`; default `0` (tanpa batas maksimum). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
-| 🟠 | `sales_qty_multiple` | Float | Kelipatan jumlah jual per Item dalam `stock_uom`; default `0` (aturan kelipatan tidak digunakan). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
-| 🟠 | `is_purchase_item` | Check | `1` = produk bisa dibeli (muncul di Request for Quotation/Purchase Order/Purchase Receipt). |
-| 🟠 | `purchase_uom` | Link → UOM | UOM default saat transaksi **beli** (bisa berbeda dari `stock_uom`; faktor konversi di `uoms`, §2.3/§5). |
-| 🟠 | `has_variants` | Check | `1` = Item ini **template** varian (wajib isi `attributes`, §2.5). `0`/kosong = Item tunggal. |
-| 🟠 | `is_fixed_asset` | Check | `1` = Item **aset tetap** (mis. mesin/kendaraan) yang dibeli untuk dikapitalisasi jadi **Asset** (modul Assets; `is_stock_item` ikut jadi `0`, butuh `asset_category`). Default `0` — untuk produk jualan biasa kirim `0`. |
-| 🟠 | `weight_per_unit` | Float | Berat per unit produk (dipakai hitung `total_weight` pada transaksi) -> berat yang digunakan untuk perhitungan logistik/ongkos kirim. |
-| 🟠 | `weight_uom` | Link → UOM | Satuan berat (mis. `Kg`, `Gram`) -> satuan produk yang digunakan untuk perhitungan logistik/ongkos kirim. |
-| 🟠 | `image` | AttachImage | **Foto utama** produk — disimpan sebagai **string URL file** (mis. `/files/kaos.jpg` atau URL lengkap). Foto tambahan (multi) disimpan di `tabFile` (§4.8). |
-| 🟠 | `allow_negative_stock` | Check | `1` = izinkan stok menjadi negatif (transaksi tetap jalan walau stok kurang). Default `0`. |
-| 🟠 | `has_serial_no` | Check | `1` = tiap unit produk punya **nomor seri unik** (dilacak per unit via doctype `Serial No`; hanya untuk item stok). Default `0`. Menjadi **read-only** setelah Item punya riwayat stok (§2.1 no. 3). |
-| 🟠 | `has_batch_no` | Check | `1` = produk dikelola per **Batch** (stok & `batch_no` dilacak per batch; item ber-batch memakai doctype `Batch`). **Wajib diisi `1` jika `has_expiry_date` diisi `1`** — backend menolak bila kedaluwarsa diaktifkan tanpa batch. Menjadi **read-only** setelah Item punya riwayat stok (§2.1 no. 3). |
-| 🟠 | `create_new_batch` | Check | `1` = **setiap baris** transaksi masuk (mis. penerimaan) otomatis **membuat 1 Batch** baru — nomornya di-*generate* dengan pola bawaan `BATCH-00001` (§2.1 no. 12). Dipakai bersama `has_batch_no = 1`. Bila `0` padahal nomor batch belum ditentukan, backend melempar *"Batch ID is mandatory"*. |
-| 🟠 | `batch_number_series` | Data | **Opsional — pola nomor Batch khusus Item ini.** Bila diisi, ia **menang** atas pola `Stock Settings` (mis. `ROLL.-.YY.-.MM.-.#` → `ROLL-26-10-1`). **Kosong = pakai pola bawaan** `BATCH-00001` (§2.1 no. 12). **Jangan pakai placeholder `{...}`** — dokumen `Batch` tidak punya field `item_code`, jadi `{item_code}` menghasilkan kosong. |
-| 🟠 | `has_expiry_date` | Check | `1` = produk punya tanggal kedaluwarsa (per batch). **Jika diisi `1`, `has_batch_no` wajib ikut diisi `1`** (lihat baris `has_batch_no`). Memunculkan field `shelf_life_in_days`. |
-| 🟠 | `shelf_life_in_days` | Int | **Umur simpan dalam hari** — hanya relevan (muncul) saat `has_expiry_date = 1`. Berfungsi sebagai **preset/template**: ketika **Batch baru dibuat** untuk Item ini, `expiry_date` Batch dihitung **otomatis** oleh backend (mis. dari tanggal produksi/manufaktur + `shelf_life_in_days`). |
-| 🟠 | `reorder_levels` | Table (child `Item Reorder`) | **Batas stok per (item, warehouse)** — ambang **min & maks**. Baris: `warehouse` (Link→Warehouse, `reqd`); `warehouse_reorder_level` (Float = **nilai ambang minimum**, satuan `stock_uom`); `material_request_type` (`reqd` — Select `Purchase`/`Transfer`/`Material Issue`/`Manufacture`, menentukan cara restock; `Purchase` = beli ke supplier); `warehouse_reorder_qty` (Float, **opsional** — untuk alur pemesanan nanti, PRD stok §9); `max_stock_level` (Float, **opsional** — **custom field dari app `baseapp`**, nilai ambang maksimum, satuan `stock_uom`; hanya ada bila `baseapp` terpasang, lihat §4.1). Hanya relevan untuk item stok (`is_stock_item=1`). Cara simpan: §4.1 (contoh CREATE). |
-| 🟠 | `brand` | Link → Brand | Merek produk (opsional; bisa jadi sumber default via `brand_defaults`). |
-| 🟠 | `description` | TextEditor | Deskripsi produk (HTML). Backend membersihkan HTML bila kosong/rapi. |
-| 🟠 | `hashtags` | Table (child `Item Hashtag`) | **Hashtag produk** — satu baris = satu hashtag, tiap baris **Link ke master `Hashtag`**, ditulis **tanpa `#`** dan huruf kecil (mis. `promo`, `best-seller`). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `description`); hanya ada bila app tersebut terpasang. **Inilah field untuk tag/hashtag — bukan `_user_tags`.** Berbeda dari `_user_tags` (satu kolom teks dipisah koma), `hashtags` bisa dicari **persis**: filter `= promo` tidak ikut menarik `promo2026`. Nilai yang belum terdaftar di master **ditolak backend**. Master `Hashtag` (daftar pilihan & CRUD): §4.12f. Format, normalisasi, & cara filter: §2.8. CRUD + pola satu halaman (template & semua varian): §4.12. |
+| 🔴 **WAJIB** | `valuation_method` | Select | **Metode penilaian persediaan** — pilihan: `FIFO`, `Moving Average`, `LIFO`. **Selalu kirim untuk item stok** (`is_stock_item = 1`); bila dikosongkan backend memakai `Stock Settings → Valuation Method`, dan bila itu pun kosong → `FIFO`. **Terkunci setelah ada transaksi stok submitted** — perubahan hanya diizinkan **FIFO → Moving Average**, sebaliknya ditolak (§7). |
+| 🟠 **DISARANKAN** | `is_stock_item` | Check | `1` = produk stok (dikelola via Stock Ledger, punya `tabBin`). `0` = jasa/non-stok. |
+| 🟠 **DISARANKAN** | `is_dynamic_product_bundle` | Check | `1` = Item ini **paket dinamis** — komponen/isiannya dipilih kasir saat transaksi (berbeda dari `Product Bundle` bawaan ERPNext yang statis — paket statis dibahas di [prd_item_product_bundle.md](./prd_item_product_bundle.md)). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_stock_item`); hanya ada bila app tersebut terpasang. Default `0`. Struktur & CRUD pilihannya: [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md). |
+| 🟠 **DISARANKAN** | `is_product_bundle` | Check | `1` = Item ini **paket statis** (doctype `Product Bundle`, tabel `tabProduct Bundle`) — ERPNext otomatis memecahnya jadi komponen saat transaksi. **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_dynamic_product_bundle`); hanya ada bila app tersebut terpasang. Default `0`, tersedia sebagai **filter standar**, dan **diisi manual oleh user/frontend** — **tidak** diturunkan dari dokumen `Product Bundle` dan **tidak terikat** status aktif/non-aktifnya (§2.1 no. 9). Detail paket statis: [prd_item_product_bundle.md](./prd_item_product_bundle.md). |
+| 🟠 **DISARANKAN** | `is_manufactured_item` | Check | `1` = Item ini **produk manufaktur** (diproduksi sendiri). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `is_product_bundle`); hanya ada bila app tersebut terpasang. Default `0` dan tersedia sebagai **filter standar**. **Diisi manual oleh user/frontend — bukan turunan dari BOM** (ERPNext tidak menyimpan penanda "manufactured" di Item; yang tersedia hanya `default_bom`, `include_item_in_manufacturing`, dan `is_sub_contracted_item`). |
+| 🟠 **DISARANKAN** | `is_sales_item` | Check | `1` = produk bisa dijual (muncul di Quotation/Sales Order/Sales Invoice/POS). |
+| 🟠 **DISARANKAN** | `min_sales_qty` | Float | Jumlah jual minimum per Item dalam `stock_uom`; default `0` (tanpa batas minimum). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
+| 🟠 **DISARANKAN** | `max_sales_qty` | Float | Jumlah jual maksimum per Item dalam `stock_uom`; default `0` (tanpa batas maksimum). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
+| 🟠 **DISARANKAN** | `sales_qty_multiple` | Float | Kelipatan jumlah jual per Item dalam `stock_uom`; default `0` (aturan kelipatan tidak digunakan). Custom field bawaan app `baseapp`; field tersedia setelah app terpasang. |
+| 🟡 **OPSIONAL** | `max_discount` | Float | **Batas maksimum diskon (%) untuk item ini** — bukan harga, dan **tidak menggantikan/menganulir harga hasil Pricing Rule**. Efeknya memblokir: Pricing Rule `Discount Percentage` yang menyasar item ini dengan diskon di atas nilai ini **gagal disimpan**, dan transaksi penjualan dengan `discount_percentage` baris di atas nilai ini **gagal submit**. Contoh kasusnya: §4.1. |
+| 🟠 **DISARANKAN** | `is_purchase_item` | Check | `1` = produk bisa dibeli (muncul di Request for Quotation/Purchase Order/Purchase Receipt). |
+| 🟠 **DISARANKAN** | `purchase_uom` | Link → UOM | UOM default saat transaksi **beli** (bisa berbeda dari `stock_uom`; faktor konversi di `uoms`, §2.3/§5). |
+| 🟡 **OPSIONAL** | `min_order_qty` | Float | **Jumlah minimum pemesanan** ke supplier, satuan `stock_uom` (mis. `10` = minimal beli 10 Pcs). Default `0`. |
+| 🟡 **OPSIONAL** | `safety_stock` | Float | **Stok cadangan** yang ingin dipertahankan, satuan `stock_uom`. Dipakai menghitung reorder level yang disarankan: `Reorder Level = Safety Stock + (rata-rata pemakaian harian × lead time)`. |
+| 🟡 **OPSIONAL** | `lead_time_days` | Int | **Rata-rata waktu kirim supplier (hari)** — dipakai perhitungan reorder. |
+| 🟡 **OPSIONAL** | `is_customer_provided_item` | Check | `1` = barang **milik pelanggan** (dititipkan; masuk lewat Stock Entry / alur subkontrak). **Bertolak belakang dengan `is_purchase_item`** — item customer-provided tidak dibeli dari supplier, jadi isi salah satu, jangan dua-duanya. Default `0`. |
+| 🟡 **OPSIONAL** | `customer_code` | Small Text | **Kode item menurut pelanggan** (*customer part number*) — hanya dipakai sebagai bahan **pencarian** Item (ikut di `search_fields`). **Bukan input bebas:** backend mengisinya otomatis dari `customer_items[].ref_code` (digabung koma) setiap kali Item disimpan, jadi nilai kiriman frontend **tertimpa** — dan menjadi kosong bila `customer_items` tidak diisi. Field di form bersifat `hidden`. Tipe `Small Text`, jadi panjangnya tidak dibatasi 140 karakter. **Cara mengisinya lewat API: §4.13.** |
+| 🟡 **OPSIONAL** | `delivered_by_supplier` | Check | `1` = **drop ship** — supplier mengirim langsung ke pelanggan tanpa masuk gudang sendiri. Default `0`. |
+| 🟡 **OPSIONAL** | `country_of_origin` | Link → Country | **Negara asal barang** (umumnya untuk produk impor). |
+| 🟡 **OPSIONAL** | `customs_tariff_number` | Link → Customs Tariff Number | **Nomor HS / tarif bea cukai** — harus menunjuk dokumen yang sudah ada di master `Customs Tariff Number`. |
+| 🟡 **OPSIONAL** | `over_delivery_receipt_allowance` | Float | **Toleransi kelebihan kirim/terima (%)** terhadap Sales/Purchase Order untuk item ini (mis. `5` = boleh lebih 5%). Kosong → memakai `Stock Settings`. Di form baru tampil setelah item tersimpan, tetapi **lewat API boleh dikirim saat CREATE**. |
+| 🟡 **OPSIONAL** | `over_billing_allowance` | Float | **Toleransi kelebihan tagih (%)** terhadap Sales/Purchase Order. Kosong → memakai `Accounts Settings`. |
+| 🟠 **DISARANKAN** | `has_variants` | Check | `1` = Item ini **template** varian (wajib isi `attributes`, §2.5). `0`/kosong = Item tunggal. |
+| 🟠 **DISARANKAN** | `is_fixed_asset` | Check | `1` = Item **aset tetap** (mis. mesin/kendaraan) yang dibeli untuk dikapitalisasi jadi **Asset** (modul Assets; `is_stock_item` ikut jadi `0`, butuh `asset_category`). Default `0` — untuk produk jualan biasa kirim `0`. |
+| 🟡 **OPSIONAL** | `include_item_in_manufacturing` | Check | `1` = item ikut disiapkan/di-transfer saat produksi berjalan (bahan baku BOM). **Default `1`** — isi `0` hanya untuk jasa tambahan (mis. "washing"). |
+| 🟡 **OPSIONAL** | `production_capacity` | Int | Kapasitas produksi per siklus (jumlah unit). **Disimpan apa adanya — tidak dibaca logika ERPNext mana pun**; kapasitas yang benar-benar dipakai Job Card berasal dari `production_capacity` pada doctype `Workstation`. Isi hanya bila dibutuhkan untuk pencatatan/UI. |
+| 🟡 **OPSIONAL** | `allow_alternative_item` | Check | `1` = item ini boleh **digantikan item alternatif** dari daftar `Item Alternative` saat stoknya tidak cukup. Default `0`. |
+| 🟡 **OPSIONAL** | `is_sub_contracted_item` | Check | `1` = item ini **dikerjakan vendor lewat subkontrak** — dipakai alur *Subcontracting* (Subcontracting Order/Receipt, Subcontracting BOM, Production Plan). Item **wajib `is_stock_item = 1`**; dokumen subkontrak menolak item yang belum ditandai (*"Row #1: Item X must be a subcontracted item."*). Default `0`. |
+| 🟠 **DISARANKAN** | `weight_per_unit` | Float | Berat per unit produk (dipakai hitung `total_weight` pada transaksi) -> berat yang digunakan untuk perhitungan logistik/ongkos kirim. |
+| 🟠 **DISARANKAN** | `weight_uom` | Link → UOM | Satuan berat (mis. `Kg`, `Gram`) -> satuan produk yang digunakan untuk perhitungan logistik/ongkos kirim. |
+| 🟡 **OPSIONAL** | `warranty_period` | Data | **Masa garansi (dalam hari)** — label ERPNext `Warranty Period (in days)`. Bertipe **teks**, jadi kirim sebagai string (mis. `"365"`), bukan angka. |
+| 🟠 **DISARANKAN** | `image` | AttachImage | **Foto utama** produk — disimpan sebagai **string URL file** (mis. `/files/kaos.jpg` atau URL lengkap). Foto tambahan (multi) disimpan di `tabFile` (§4.8). |
+| 🟠 **DISARANKAN** | `allow_negative_stock` | Check | `1` = izinkan stok menjadi negatif (transaksi tetap jalan walau stok kurang). Default `0`. |
+| 🟠 **DISARANKAN** | `has_serial_no` | Check | `1` = tiap unit produk punya **nomor seri unik** (dilacak per unit via doctype `Serial No`; hanya untuk item stok). Default `0`. Menjadi **read-only** setelah Item punya riwayat stok (§2.1 no. 3). |
+| 🟠 **DISARANKAN** | `serial_no_series` | Data | **Pola nomor seri** untuk membuat `Serial No` otomatis (mis. `BRK-.YY.-.MM.-.#####` → `BRK-26-10-00001`). **Hanya berlaku bila `has_serial_no = 1`** — kalau `has_serial_no = 0`, nilainya **dikosongkan otomatis** backend (tanpa error). Kosongkan bila nomor seri selalu diisi manual di transaksi. Bila memakai `#`, series **wajib** memuat titik (`.`), kalau tidak → error *"Invalid naming series (. missing)"*. |
+| 🟠 **DISARANKAN** | `has_batch_no` | Check | `1` = produk dikelola per **Batch** (stok & `batch_no` dilacak per batch; item ber-batch memakai doctype `Batch`). **Wajib diisi `1` jika `has_expiry_date` diisi `1`** — backend menolak bila kedaluwarsa diaktifkan tanpa batch. Menjadi **read-only** setelah Item punya riwayat stok (§2.1 no. 3). |
+| 🟠 **DISARANKAN** | `create_new_batch` | Check | `1` = **setiap baris** transaksi masuk (mis. penerimaan) otomatis **membuat 1 Batch** baru — nomornya di-*generate* dengan pola bawaan `BATCH-00001` (§2.1 no. 12). Dipakai bersama `has_batch_no = 1`. Bila `0` padahal nomor batch belum ditentukan, backend melempar *"Batch ID is mandatory"*. |
+| 🟠 **DISARANKAN** | `batch_number_series` | Data | **Opsional — pola nomor Batch khusus Item ini.** Bila diisi, ia **menang** atas pola `Stock Settings` (mis. `ROLL.-.YY.-.MM.-.#` → `ROLL-26-10-1`). **Kosong = pakai pola bawaan** `BATCH-00001` (§2.1 no. 12). **Jangan pakai placeholder `{...}`** — dokumen `Batch` tidak punya field `item_code`, jadi `{item_code}` menghasilkan kosong. |
+| 🟠 **DISARANKAN** | `has_expiry_date` | Check | `1` = produk punya tanggal kedaluwarsa (per batch). **Jika diisi `1`, `has_batch_no` wajib ikut diisi `1`** (lihat baris `has_batch_no`). Memunculkan field `shelf_life_in_days`. |
+| 🟠 **DISARANKAN** | `shelf_life_in_days` | Int | **Umur simpan dalam hari** — hanya relevan (muncul) saat `has_expiry_date = 1`. Berfungsi sebagai **preset/template**: ketika **Batch baru dibuat** untuk Item ini, `expiry_date` Batch dihitung **otomatis** oleh backend (mis. dari tanggal produksi/manufaktur + `shelf_life_in_days`). |
+| 🟠 **DISARANKAN** | `reorder_levels` | Table (child `Item Reorder`) | **Batas stok per (item, warehouse)** — ambang **min & maks**. Baris: `warehouse` (Link→Warehouse, `reqd`); `warehouse_reorder_level` (Float = **nilai ambang minimum**, satuan `stock_uom`); `material_request_type` (`reqd` — Select `Purchase`/`Transfer`/`Material Issue`/`Manufacture`, menentukan cara restock; `Purchase` = beli ke supplier); `warehouse_reorder_qty` (Float, **opsional** — untuk alur pemesanan nanti, PRD stok §9); `max_stock_level` (Float, **opsional** — **custom field dari app `baseapp`**, nilai ambang maksimum, satuan `stock_uom`; hanya ada bila `baseapp` terpasang, lihat §4.1). Hanya relevan untuk item stok (`is_stock_item=1`). Cara simpan: §4.1 (contoh CREATE). |
+| 🟠 **DISARANKAN** | `brand` | Link → Brand | Merek produk (opsional; bisa jadi sumber default via `brand_defaults`). |
+| 🟠 **DISARANKAN** | `description` | TextEditor | Deskripsi produk (HTML). Backend membersihkan HTML bila kosong/rapi. |
+| 🟠 **DISARANKAN** | `hashtags` | Table (child `Item Hashtag`) | **Hashtag produk** — satu baris = satu hashtag, tiap baris **Link ke master `Hashtag`**, ditulis **tanpa `#`** dan huruf kecil (mis. `promo`, `best-seller`). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `description`); hanya ada bila app tersebut terpasang. **Inilah field untuk tag/hashtag — bukan `_user_tags`.** Berbeda dari `_user_tags` (satu kolom teks dipisah koma), `hashtags` bisa dicari **persis**: filter `= promo` tidak ikut menarik `promo2026`. Nilai yang belum terdaftar di master **ditolak backend**. Master `Hashtag` (daftar pilihan & CRUD): §4.12f. Format, normalisasi, & cara filter: §2.8. CRUD + pola satu halaman (template & semua varian): §4.12. |
 | ⛔ **Jangan dipakai** | `_user_tags` | Tags (kolom sistem) | Kolom sistem Frappe yang otomatis ada di semua tabel — **bukan tempat menyimpan hashtag produk**, karena isinya satu kolom teks dipisah koma sehingga pencarian persis tidak mungkin (§2.6). Pakai `hashtags` di atas. |
-| 🟠 | `valuation_rate` | Currency | **Nilai persediaan per unit** (harga modal / biaya masuk stok; dipakai hitung `stock_value` di `tabBin`). Bisa diisi 0 untuk item baru / zero valuation. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada **`Standard Buying`**; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini (detail: [prd_item_price.md §4.9](./prd_item_price.md)). |
-| 🟠 | `standard_rate` | Currency | **Standard Selling Rate** — label field ERPNext; ini **harga jual**. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada **`Standard Selling`**; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini. ERPNext sendiri juga membuat Item Price dari `standard_rate` pada Price List selling default (`Item.after_insert → add_price`). Detail: [prd_item_price.md §4.9](./prd_item_price.md). |
+| 🟠 **DISARANKAN** | `valuation_rate` | Currency | **Nilai persediaan per unit** (harga modal / biaya masuk stok; dipakai hitung `stock_value` di `tabBin`). Bisa diisi 0 untuk item baru / zero valuation. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada **`Standard Buying`**; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini (detail: [prd_item_price.md §4.9](./prd_item_price.md)). |
+| 🟠 **DISARANKAN** | `standard_rate` | Currency | **Standard Selling Rate** — label field ERPNext; ini **harga jual**. Saat Item dibuat, baseapp menyinkronkannya ke `price_list_rate` pada **`Standard Selling`**; perubahan harga umum UOM stok di daftar tersebut juga memperbarui field ini. ERPNext sendiri juga membuat Item Price dari `standard_rate` pada Price List selling default (`Item.after_insert → add_price`). Detail: [prd_item_price.md §4.9](./prd_item_price.md). |
 | ⚪ **Otomatis — jangan dikirim** | `name` | — | `name = item_code`. |
 | ⚪ **Dikelola sistem** | `valuation_rate` (stok berjalan), `last_purchase_rate`, `total_projected_qty` | — | Nilai dihitung/di-update dari transaksi stok. Selain itu, hook baseapp menyinkronkan `valuation_rate` dengan Item Price `Standard Buying` sesuai aturan di atas. |
 | ⚪ **Set saat varian** | `variant_of`, `variant_based_on`, `attributes` | — | Lihat §4.2. |
 | ✖️ **Bukan bagian scope** | `opening_stock`, `taxes`, `item_defaults`, dst. | — | Field lanjutan boleh dipakai, tetapi mekanisme **stok** (opening stock, auto-reorder) dan **price list** didokumentasikan di PRD terpisah (§9). Penyimpanan ambang `reorder_levels` sudah dicakup di dokumen ini (lihat baris `reorder_levels` di atas & §4.1). |
 
-> Catatan: daftar di atas adalah **data yang wajib/diperlukan** menurut kebutuhan aplikasi
-> (per permintaan tim produk), bukan seluruh field Item. Field `reqd` sebenarnya oleh doctype hanya
-> `item_group` dan `stock_uom` — `item_code` **dibuat backend** (tidak wajib di form karena
-> `hidden`), sedangkan `item_name` menjadi **praktis wajib** karena kode produk berupa angka seri
-> (§2.1 no. 1). Sisanya opsional di sisi backend, namun **frontend tetap disarankan mengirim**
-> sesuai tabel di atas agar data konsisten.
+> Catatan: kolom **Status** menyatakan kebutuhan **aplikasi**, bukan `reqd` di doctype:
+> 🔴 **WAJIB** = harus dikirim frontend, 🟠 **DISARANKAN** = sebaiknya dikirim agar data konsisten,
+> 🟡 **OPSIONAL** = kirim bila fiturnya dipakai (boleh dibiarkan kosong).
+>
+> Field `reqd` sebenarnya oleh doctype hanya `item_group` dan `stock_uom` — `item_code` **dibuat
+> backend** (tidak wajib di form karena `hidden`), sedangkan `item_name` menjadi **praktis wajib**
+> karena kode produk berupa angka seri (§2.1 no. 1). `valuation_method` ditandai 🔴 **atas keputusan
+> aplikasi** (agar metode penilaian tiap item eksplisit dan tidak bergantung pada default site),
+> walaupun doctype sendiri tidak mewajibkannya.
+> Sisanya opsional di sisi backend, namun **frontend tetap disarankan mengirim** sesuai tabel di atas
+> agar data konsisten.
 
 ### 2.1 Catatan penting
 
@@ -391,7 +414,8 @@
 | `tabUOM Conversion Factor` | `UOM Conversion Factor` | Master global pasangan konversi antar-UOM (mis. `Gram`→`Kg`) — dipakai `get_uom_conv_factor` (§5). |
 | `tabItem Barcode` | `Item Barcode` | Child table `barcodes` — daftar barcode produk (§2.4, §4.7). |
 | `tabItem Supplier` | `Item Supplier` | Child table `supplier_items` — daftar pemasok untuk Item (§2.7, §4.1/§4.4/§4.6). |
-| `tabItem Hashtag` | `Item Hashtag` | Child table `hashtags` — **hashtag produk**, satu baris per hashtag (kolom `hashtag`, **Link → `Hashtag`** + **index**). Dipakai untuk pencarian **persis** (§2.8, §4.12). |
+| `tabItem Customer Detail` | `Item Customer Detail` | Child table `customer_items` — **kode item versi tiap pelanggan** (`ref_code`); inilah sumber nilai `customer_code` (§4.13). |
+| `tabItem Hashtag` | `Item Hashtag` | Child table `hashtags` — **hashtag produk**, satu baris per hashtag (kolom `hashtag`, **Link → `Hashtag`** + **index**). Baris menunjuk Item-nya lewat kolom `parent` (§2.8). Dipakai untuk pencarian **persis** (§2.8, §4.12). |
 | `tabHashtag` | `Hashtag` | **Master hashtag** — `name` = hashtag itu sendiri (mis. `promo`). Sumber dropdown hashtag dan target Link baris `Item Hashtag` serta `Dynamic Product Bundle Hashtag` (§2.8, §4.12f). |
 | `tabFile` | `File` | **Semua attachment** (foto multi produk), ter-link ke Item via `attached_to_doctype` + `attached_to_name` (§4.8). |
 | `tabBin` | `Bin` | **Stok per (item, warehouse)** — `actual_qty`, `projected_qty`, `stock_value`, dsb. (§4.10). |
@@ -399,6 +423,15 @@
 | `tabItem Default` | `Item Default` | Child table `item_defaults` — default per company (`default_warehouse`, akun, dst.). |
 | `tabItem Tax` | `Item Tax` | Child table `taxes` — template pajak default (cross-ref: [prd_item_group.md §2.3](./prd_item_group.md)). |
 | `tabItem Reorder` | `Item Reorder` | Child table `reorder_levels` — batas stok (**min & maks**) per (item, warehouse). Kolom `max_stock_level` adalah **custom field dari `baseapp`**. Cara menyimpan di dokumen ini: §4.1; mekanisme reorder / order otomatis: PRD stok (§9). |
+
+> **Baris child table menunjuk Item lewat kolom `parent`.** Semua tabel `tabItem *` di atas yang
+> merupakan child table Item (`Item Variant Attribute`, `UOM Conversion Detail`, `Item Barcode`,
+> `Item Supplier`, `Item Customer Detail`, `Item Hashtag`, `Item Default`, `Item Tax`,
+> `Item Reorder`) memakai pola baku child table Frappe: **`parent`** = **`name` Item** (= `item_code`),
+> **`parenttype`** = `Item`, **`parentfield`** = nama field child table tsb pada Item
+> (mis. `hashtags`, `uoms`, `barcodes`). Tidak ada kolom `item`/`item_code` khusus, dan kolom-kolom
+> ini **diisi otomatis** oleh backend — frontend tidak pernah mengirimnya. Rincian kolom + contoh
+> data nyata untuk `tabItem Hashtag`: **§2.8**.
 
 > Item Group disimpan di `tabItem Group` (lihat [prd_item_group.md §2.2](./prd_item_group.md));
 > Warehouse di `tabWarehouse` (lihat [prd_warehouse.md](../setup/prd_warehouse.md)).
@@ -492,6 +525,61 @@ Field pada Item bernama `hashtags` — tipe **Table → `Item Hashtag`**, custom
 `baseapp` (fieldname tanpa prefix `custom_`, posisi setelah `description`; lihat
 [prd_baseapp.md §4.1/§4.5](../baseapp/prd_baseapp.md)). Yang punya daftar sendiri: **template
 maupun setiap varian**.
+
+**Relasi ke Item induk — kolom `parent`**
+
+Tabel `tabItem Hashtag` **tidak** punya kolom `item`/`item_code`. Pemilik setiap baris disimpan di
+kolom standar child table Frappe: **`parent`** = `name` Item (= `item_code`), **`parenttype`** =
+`Item`, **`parentfield`** = `hashtags`. Kolom-kolom ini **diisi otomatis** dari dokumen induk —
+frontend tidak pernah mengirimnya.
+
+| Kolom `tabItem Hashtag` | Tipe | Index | Isi |
+|---|---|---|---|
+| `name` | varchar(140) | PK | id baris (hash), mis. `a908outdn4` — **bukan** angka urut |
+| `hashtag` | varchar(140) | MUL | Link → master `Hashtag`, mis. `promo` |
+| **`parent`** | varchar(140) | MUL | **`item_code` Item pemiliknya**, mis. `2610000037` |
+| `parenttype` | varchar(140) | – | selalu `Item` |
+| `parentfield` | varchar(140) | – | selalu `hashtags` |
+| `idx` | int | – | urutan baris (1, 2, 3, …) mengikuti urutan payload |
+| `creation`, `modified`, `modified_by`, `owner`, `docstatus` | – | – | kolom standar Frappe |
+
+Contoh isi nyata (site dev, 2026-10-12) — 3 baris untuk satu Item `2610000037`
+(`item_name` = `AABBCC`, `item_group` = `Non Category`):
+
+```
+name         parent        parenttype   parentfield   idx   hashtag
+a908outdn4   2610000037    Item         hashtags      1     murah
+a90ltsd024   2610000037    Item         hashtags      2     bagus
+a90pn1ldh9   2610000037    Item         hashtags      3     kuat
+```
+
+Bentuk yang sama bila dibaca lewat API dokumen Item (isi `message.hashtags`):
+
+```json
+{
+  "doctype": "Item",
+  "name": "2610000037",
+  "item_name": "AABBCC",
+  "hashtags": [
+    { "name": "a908outdn4", "hashtag": "murah" },
+    { "name": "a90ltsd024", "hashtag": "bagus" },
+    { "name": "a90pn1ldh9", "hashtag": "kuat" }
+  ]
+}
+```
+
+Konsekuensi praktis untuk frontend:
+
+- **Satu baris milik tepat satu Item** — hashtag tidak dibagi antar Item; template dan tiap varian
+  punya barisnya sendiri.
+- `parent` berisi **`item_code`**, bukan `item_name`. Untuk menampilkan nama produk, datanya harus
+  digabung dengan `tabItem`.
+- **Jangan** membaca relasi ini dengan `frappe.client.get_list` ke doctype `Item Hashtag` — hanya
+  kolom `name` yang kembali (jebakan §6.8). Untuk *reverse lookup* "Item mana saja yang bertag X",
+  pakai filter child table pada doctype `Item`: `[["hashtags.hashtag","=","promo"]]`.
+- Kolom `hashtag` dan `parent` dua-duanya **ber-index**, sehingga pencarian dua arah tetap efisien.
+- `idx` menyimpan urutan baris sesuai payload yang dikirim — itu sebabnya urutan hashtag pada
+  respons Item bisa diandalkan (§4.12).
 
 **Master `Hashtag` — sumber daftar nilainya.** `Item Hashtag.hashtag` **bukan** teks bebas lagi,
 melainkan **Link ke master `Hashtag`** (doctype biasa, `name` = hashtag itu sendiri, pola sama
@@ -729,6 +817,10 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 > `shelf_life_in_days`. Setelah Item punya riwayat stok, `has_batch_no` tidak bisa diubah (§2.1 no. 3).
 > Untuk **penomoran Batch saat penerimaan** (otomatis `BATCH-00001` vs input user) lihat **§2.1 no. 12**,
 > dengan contoh lengkap di **§4.3**.
+>
+> Pasangan serupa berlaku untuk serial: `serial_no_series` **hanya berarti bila `has_serial_no = 1`**
+> (kalau `0`, nilainya dikosongkan backend), dan `has_serial_no = 1` **ditolak** untuk item non-stok
+> (`is_stock_item = 0` dan bukan aset tetap) — lihat §2 dan §7.
 
 > **Catatan harga:** saat CREATE, ERPNext dapat membuat Item Price selling dari `standard_rate` pada
 > Price List default selling (`after_insert → add_price`). Selain itu, baseapp menyinkronkan
@@ -768,6 +860,85 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
   "valuation_rate": 15000
 }
 ```
+
+**Varian C — produk dengan pengaturan lanjutan (field 🟡 OPSIONAL + `valuation_method`):**
+
+Melengkapi Varian A/B. Contoh: komponen mesin yang dibeli, dijual, dan dipakai sendiri di
+produksi.
+
+```json
+{
+  "doctype": "Item",
+  "item_name": "Bracket Mesin A",
+  "item_group": "Komponen",
+  "stock_uom": "Pcs",
+  "is_stock_item": 1,
+  "is_sales_item": 1,
+  "is_purchase_item": 1,
+  "valuation_method": "Moving Average",
+  "has_serial_no": 1,
+  "serial_no_series": "BRK-.YY.-.MM.-.#####",
+  "warranty_period": "365",
+  "min_order_qty": 10,
+  "safety_stock": 50,
+  "lead_time_days": 14,
+  "country_of_origin": "China",
+  "customs_tariff_number": "8483.10",
+  "over_delivery_receipt_allowance": 5,
+  "over_billing_allowance": 2,
+  "max_discount": 10,
+  "include_item_in_manufacturing": 1,
+  "production_capacity": 120,
+  "allow_alternative_item": 1,
+  "delivered_by_supplier": 0,
+  "is_customer_provided_item": 0,
+  "is_sub_contracted_item": 0,
+  "customer_code": "CUST-001"
+}
+```
+
+> - `valuation_method` **wajib** untuk item stok — di sini `Moving Average` (pilihan lain: `FIFO`,
+>   `LIFO`). Sekali ada transaksi stok, nilainya terkunci kecuali FIFO → Moving Average.
+> - `serial_no_series` **hanya berlaku karena `has_serial_no = 1`**. Kalau `has_serial_no` dikirim `0`,
+>   backend mengosongkan `serial_no_series` tanpa error. Series wajib memuat titik (`.`) bila memakai `#`.
+> - `is_customer_provided_item` dan `delivered_by_supplier` diisi `0` eksplisit karena item ini memang
+>   dibeli dari supplier. Isi `is_customer_provided_item = 1` bila barang milik pelanggan — saat itu
+>   `is_purchase_item` praktis tidak dipakai (keduanya saling bertolak belakang).
+> - `over_delivery_receipt_allowance` / `over_billing_allowance` di form baru tampil setelah item
+>   tersimpan, tetapi **lewat API boleh dikirim saat CREATE**.
+> - `country_of_origin` (Link → `Country`) dan `customs_tariff_number` (Link → `Customs Tariff
+>   Number`) harus menunjuk nilai master yang sudah ada.
+> - `include_item_in_manufacturing` default `1` — di contoh ditulis eksplisit.
+> - `production_capacity` hanya tercatat; ERPNext tidak memakainya (lihat catatan di bawah).
+> - `is_sub_contracted_item = 0` karena produksinya dikerjakan sendiri. Isi `1` bila item
+>   **dikerjakan vendor** (subkontrak) — wajib `is_stock_item = 1`, dan dokumen alur subkontrak akan
+>   menolak item yang belum ditandai.
+> - `customer_code` **bukan input bebas** — backend mengisinya otomatis dari `customer_items[].ref_code`
+>   (digabung koma) setiap kali Item disimpan, sehingga nilai kiriman frontend **tertimpa** (termasuk
+>   `CUST-001` pada contoh di atas, dan menjadi kosong bila `customer_items` tidak diisi). Untuk
+>   mengendalikannya, isi child table-nya:
+>   `"customer_items": [ { "customer_name": "PT Pelanggan Jaya", "ref_code": "CUST-001" } ]`.
+>   Cara lengkapnya (CREATE, replace-all saat UPDATE, dan pencarian per `ref_code`): **§4.13**.
+
+**Contoh kasus `max_discount` — pembatas diskon, bukan pengganti harga.**
+
+Item `Bracket Mesin A` di atas memakai `max_discount: 10`.
+
+| Skenario | Hasil |
+|---|---|
+| Pricing Rule `Discount Percentage` **10%** untuk item ini | ✅ rule tersimpan; harga jual mengikuti rule tersebut |
+| Pricing Rule `Discount Percentage` **15%** untuk item ini | ❌ rule **ditolak saat disimpan** — *"Max discount allowed for item: BRK-XXXX is 10%"* |
+| Transaksi penjualan dengan `discount_percentage` baris **8%** | ✅ lolos |
+| Transaksi penjualan dengan `discount_percentage` baris **12%** | ❌ **submit ditolak** — *"Maximum discount for Item BRK-XXXX is 10%"* |
+| Pricing Rule bertipe `Rate`, `Discount Amount`, atau *free item* | Cek di **rule** hanya berlaku untuk `rate_or_discount = "Discount Percentage"` yang menyasar baris `items`; tipe lain tidak diuji di sana. Cek di **transaksi** berlaku pada `discount_percentage` baris, apa pun sumbernya |
+
+> Artinya `max_discount` **tidak menimpa/menganulir** harga atau diskon yang dihasilkan Pricing Rule —
+> ia hanya **pagar**: yang melebihi batas ditolak lebih awal, baik di level rule maupun level transaksi.
+
+**Catatan `production_capacity`.** Nilai `120` di atas hanya **tersimpan sebagai catatan**. ERPNext
+tidak membaca `Item.production_capacity` di alur apa pun — kapasitas yang dipakai Job Card untuk
+mendeteksi bentrok jadwal berasal dari `production_capacity` pada doctype `Workstation`. Jadi jangan
+mengandalkan field ini untuk membatasi produksi; isi hanya bila UI memang menampilkannya.
 
 **Simpan batas stok (minimum & maksimum) — `reorder_levels` (per item + warehouse):**
 
@@ -2444,6 +2615,128 @@ curl -X POST https://site-anda.com/api/method/frappe.client.delete \
 
 ---
 
+### 4.13 Kode pelanggan — child table `customer_items` (sumber `customer_code`)
+
+Field **`customer_code`** pada Item **bukan input bebas** (§2). Nilainya dihasilkan backend dari
+child table **`customer_items`** (doctype `Item Customer Detail`, tabel `tabItem Customer Detail`).
+Jadi frontend **tidak menulis ke `customer_code`**, melainkan mengirim baris child table-nya.
+
+**Bentuk baris — satu baris = satu pelanggan:**
+
+| Field | Tipe | Wajib | Keterangan |
+|---|---|---|---|
+| `ref_code` | Data | **ya** (`reqd`) | **Kode item versi pelanggan** — inilah nilai yang disalin ke `customer_code`. Bebas teks (mis. `CUST-001`) |
+| `customer_name` | Link → `Customer` | – | Pelanggan pemilik kode tersebut. Tidak `reqd` di doctype, tetapi **selalu isi** agar kodenya jelas milik siapa |
+| `customer_group` | Link → `Customer Group` | – | Opsional — untuk kode yang berlaku per grup pelanggan, bukan per pelanggan |
+
+**Perilaku yang perlu dipahami frontend** (terverifikasi di site dev, 2026-10-12):
+
+| Perilaku | Hasil uji |
+|---|---|
+| `customer_code` = gabungan semua `ref_code`, dipisah koma | 2 baris `ZZREF-A` + `ZZREF-B` → `"ZZREF-A,ZZREF-B"` |
+| **Urutan tidak dijamin** — backend memakai `set()` (`Item.fill_customer_code`) | input `ZZREF-I2`, `ZZREF-I1`, `ZZREF-I2` → tersimpan `"ZZREF-I1,ZZREF-I2"` |
+| **Duplikat dibuang di `customer_code`, barisnya tetap** | 3 baris (1 duplikat) → `customer_code` 2 nilai, **baris tersimpan tetap 3** |
+| Kirim `customer_code` langsung → **ditimpa** | kirim `"HACK-123"` + 1 baris → tersimpan `"ZZREF-F"` |
+| Kirim `customer_code` tanpa `customer_items` → **dikosongkan** | kirim `"HACK-999"` → tersimpan `""` |
+| Baris `customer_items` **replace-all** saat `save` | 1 baris diganti → `customer_code` ikut berubah; `[]` → `""` |
+| `ref_code` kosong → **error `TypeError` mentah**, bukan 417 rapi | `sequence item 0: expected str instance, NoneType found` (§7) |
+
+> Karena itu **jangan** pernah mengirim `customer_code` dari frontend — kirim `customer_items`-nya.
+
+**a. CREATE — sertakan `customer_items` pada `frappe.client.insert`:**
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Item",
+      "item_name": "Air Mineral 600ml",
+      "item_group": "Minuman",
+      "stock_uom": "Pcs",
+      "customer_items": [
+        { "customer_name": "PT Pelanggan Jaya", "ref_code": "CUST-001" },
+        { "customer_name": "Toko Sinar Abadi", "customer_group": "Retail", "ref_code": "TSA-AQUA-600" }
+      ]
+    }
+  }'
+```
+
+**Contoh respons (HTTP 200) — `customer_code` terisi otomatis:**
+
+```json
+{
+  "message": {
+    "name": "2609000001",
+    "item_name": "Air Mineral 600ml",
+    "customer_code": "CUST-001,TSA-AQUA-600",
+    "customer_items": [
+      { "name": "cst001", "customer_name": "PT Pelanggan Jaya", "customer_group": "", "ref_code": "CUST-001" },
+      { "name": "cst002", "customer_name": "Toko Sinar Abadi", "customer_group": "Retail", "ref_code": "TSA-AQUA-600" }
+    ]
+  }
+}
+```
+
+> - `customer_name` dan `customer_group` adalah **Link** — nilainya harus sudah ada di master
+>   `Customer` / `Customer Group`.
+> - Baris `customer_items` juga ikut terbaca pada `frappe.client.get` (§4.4), dan bisa ikut di
+>   `frappe.client.get_list` lewat nested child query
+>   `{ "customer_items": ["customer_name","ref_code"] }` (§4.5.1).
+
+**b. UPDATE — replace-all lewat `frappe.client.save`:**
+
+`save` mengganti **seluruh** daftar sesuai payload, lalu `customer_code` dihitung ulang.
+
+```json
+{
+  "doc": {
+    "doctype": "Item",
+    "name": "2609000001",
+    "customer_items": [
+      { "customer_name": "PT Pelanggan Jaya", "ref_code": "CUST-001" }
+    ]
+  }
+}
+```
+
+> - Kirim **seluruh** baris yang ingin dipertahankan; baris yang tidak disertakan **terhapus**
+>   beserta `ref_code`-nya dari `customer_code`.
+> - `"customer_items": []` → semua baris hilang dan `customer_code` menjadi `""`.
+> - **`frappe.client.set_value` tidak bisa dipakai** untuk child table — hanya `insert`/`save`.
+> - Menambah **satu** pelanggan = ambil dokumen hasil GET (§4.4), tambahkan barisnya di frontend,
+>   lalu kirim **seluruh** daftar.
+
+**c. Mencari Item dari kode pelanggan:**
+
+| Maksud | Filter | Catatan |
+|---|---|---|
+| Kode pelanggan **persis** | `[["customer_items.ref_code","=","CUST-001"]]` | **Ini yang disarankan** — child filter, kolom `ref_code` ter-index |
+| Kode pelanggan **mengandung** teks | `[["customer_code","like","%CUST-001%"]]` | `customer_code` = kolom teks gabungan (ikut `search_fields`), jadi **wajib `like`** |
+| Gabungan lengkap | `[["customer_code","=","CUST-001,TSA-AQUA-600"]]` | Hanya cocok bila **urutan**-nya kebetulan sama — jangan diandalkan |
+
+```bash
+# contoh: daftar Item yang punya ref_code CUST-001
+curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doctype": "Item",
+    "fields": ["name","item_name","customer_code"],
+    "filters": [["customer_items.ref_code","=","CUST-001"]],
+    "order_by": "name asc",
+    "limit_page_length": 0
+  }'
+```
+
+**Kegunaan selain pencarian.** `ref_code` juga dipakai saat transaksi & cetak — dokumen penjualan
+menampilkan kode versi pelanggan untuk item tersebut (deskripsi resmi doctype `Item Customer
+Detail`: *"...these codes can be used in print formats like Invoices and Delivery Notes"*). Jadi
+mengisi `customer_items` juga menentukan kode yang tercetak pada dokumen pelanggan tersebut.
+
+---
+
 ## 5. UOM Conversion — contoh kasus & CRUD
 
 ### 5.1 Konsep dua lapis
@@ -2761,6 +3054,12 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 | 417 | `conversion_factor` stock_uom ≠ 1 / `uoms` duplikat | `{"exc_type":"ValidationError","message":"..."}` (lihat §5.4) |
 | 417 | Hapus Item yang sudah dipakai transaksi/stok | `{"exc_type":"LinkExistsError","message":"Cannot delete because of linked records"}` |
 | 417 | `attributes` kosong saat `has_variants=1` | `{"exc_type":"ValidationError","message":"Attribute table is mandatory"}` |
+| 500 | Baris `customer_items` tanpa `ref_code` (kosong / `null`) | **Bukan** 417 yang rapi — `Item.fill_customer_code` melempar exception mentah: `TypeError: sequence item 0: expected str instance, NoneType found`. Selalu isi `ref_code` tiap baris (§4.13) |
+| 417 | Diskon Pricing Rule melebihi `max_discount` item | `{"exc_type":"ValidationError","message":"Max discount allowed for item: BRK-XXXX is 10%"}` — rule **gagal disimpan** (§4.1) |
+| 417 | Diskon baris penjualan melebihi `max_discount` item | `{"exc_type":"ValidationError","message":"Maximum discount for Item BRK-XXXX is 10%"}` — **submit transaksi ditolak** (§4.1) |
+| 417 | `serial_no_series` / `batch_number_series` memakai `#` tanpa titik | `{"exc_type":"ValidationError","message":"Invalid naming series (. missing) for <b>Serial Number Series</b>"}` — label field disebut di pesan (§2) |
+| 417 | `has_serial_no = 1` pada item non-stok | `{"exc_type":"ValidationError","message":"'Has Serial No' can not be 'Yes' for non-stock item"}` (§2) |
+| 417 | `valuation_method` diubah padahal sudah ada transaksi stok | `{"exc_type":"ValidationError","message":"As there are existing submitted transactions against item BRK-XXXX, you can not change the value of Valuation Method."}` — hanya **FIFO → Moving Average** yang diizinkan (§2) |
 | 417 | Hashtag tidak sesuai pola | `{"exc_type":"ValidationError","message":"Row #1: hashtag promo 2026 is not valid. Use lowercase letters, digits, - and _ only (max 50 characters)."}` — nomor baris mengikuti urutan baris pada payload; yang boleh hanya `a-z 0-9 - _` (maks 50 karakter), tanpa `#` dan tanpa spasi (§2.8) |
 
 > **Catatan `item_code` (naming series):** karena `item_code` dibuat backend (§2.1 no. 1), error
@@ -2785,11 +3084,12 @@ API ERPNext yang sudah jadi (OAuth 2.0 + Supplier + Customer + Contact + Address
 > ke `12. Stock Reconciliation`; daftar di bawah adalah **rencana** isinya, sudah disesuaikan dengan
 > naming series (§2.1 no. 1).
 
-Folder **`11. Item`** direncanakan berisi **±52 request** yang mencakup:
+Folder **`11. Item`** direncanakan berisi **±56 request** yang mencakup:
 - Pre-check nama Item — `baseapp.api.check_item_name` (§4.11): kasus `ok` / `duplicate_active` /
   `duplicate_inactive` + reaktifasi item lama lewat `set_value` — `11.0`, `11.0b`
-- CREATE (minimum, lengkap, jasa, bahan baku) — `11.1`–`11.3b`. **Tanpa pre-check duplikat
-  `item_code` & tanpa `item_code`** di payload (kode dibuat backend — lihat §2.1 no. 1 dan §4.1)
+- CREATE (minimum, lengkap, jasa, bahan baku, **pengaturan lanjutan / Varian C**) — `11.1`–`11.3c`.
+  **Tanpa pre-check duplikat `item_code` & tanpa `item_code`** di payload (kode dibuat backend —
+  lihat §2.1 no. 1 dan §4.1)
 - CREATE varian: master Item Attribute, template (**tanpa `item_code`**), `create_variant` + simpan,
   pre-check `get_variant`, manual, daftar varian — `11.4`–`11.8`
 - READ single / count / list — `11.9`–`11.11`
@@ -2813,6 +3113,10 @@ Folder **`11. Item`** direncanakan berisi **±52 request** yang mencakup:
   `like`), filter `in` yang menduplikasi baris, pencarian **2 tag sekaligus** (2 request + irisan di
   frontend), hashtag **per varian** (template & varian berbeda) + fetch template & semua varian dalam
   1 request, dan daftar hashtag unik (autocomplete) — `11.41`–`11.48`
+- Kode pelanggan (§4.13): CREATE dengan `customer_items` (`ref_code`) dan verifikasi `customer_code`
+  terisi, UPDATE replace-all (ganti baris → `customer_code` berubah; `[]` → `""`), kirim
+  `customer_code` langsung lalu buktikan ditimpa, cari Item per `customer_items.ref_code`, dan kasus
+  `ref_code` kosong (error mentah) — `11.49`–`11.53`
 
 **Variabel yang perlu diisi** (Collection Variables):
 - `item_id` / `item_code` — `name`/`item_code` **hasil CREATE**, diambil dari respons (mis. `2609000001`) — **bukan** dikirim frontend

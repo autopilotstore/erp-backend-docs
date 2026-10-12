@@ -216,8 +216,10 @@
    Bundle <hash> has already created. Please remove the values from the serial no or batch no fields.` ✅
    **Solusi (dua-duanya terbukti 200 ✅):** (a) submit memakai **respons CREATE apa adanya**; atau
    (b) bila dokumen diambil ulang via GET, **kosongkan `serial_no` + `batch_no`** pada baris sebelum submit.
-4. **Barang ber-`has_batch_no=1` wajib isi batch** saat keluar/masuk:
-   `417 ValidationError: At row 1: Batch No is mandatory for Item AABB` ✅.
+4. **Barang ber-`has_batch_no=1` wajib isi batch** saat keluar/masuk ✅. Pesan errornya bergantung jenis item:
+   - item **batch + serial** (`has_serial_no=1`) → `417 ValidationError: At row 1: Batch No is mandatory for Item AABB`
+   - item **batch saja** (`has_serial_no=0`) → `417 ValidationError: Serial No / Batch No are mandatory for Item SUSU-1L`
+   Contoh payload lengkap kedua varian ada di **§6.7**.
 5. **Jumlah & ketersediaan divalidasi:** qty > stok tersedia di gudang asal →
    `417 ValidationError: For the item AABB, the Available qty 2.0 is less than the Required Qty 5.0 in
    the warehouse ...` ✅.
@@ -1076,9 +1078,13 @@ eksplisit pada baris.
 
 ### 6.7 Serial No & Batch No — contoh lengkap
 
-**Prasyarat ✅:** `Stock Settings.enable_serial_and_batch_no_for_item = 1` (§2.4), item
-`AABB` (`has_batch_no = 1`, `has_serial_no = 1`, `has_expiry_date = 1`), master Batch
-`BATCH-AABB-01` sudah dibuat (§2.4 no. 2).
+**Prasyarat ✅:** `Stock Settings.enable_serial_and_batch_no_for_item = 1` (§2.4), master Batch sudah
+dibuat (§2.4 no. 2), dan item uji:
+
+| Bagian | Item | Sifat item | Batch |
+|---|---|---|---|
+| (1) & (2) | `AABB` | `has_batch_no = 1`, `has_serial_no = 1`, `has_expiry_date = 1` | `BATCH-AABB-01` |
+| (3) | `SUSU-1L` | `has_batch_no = 1`, **`has_serial_no = 0`**, `has_expiry_date = 1`, `shelf_life_in_days = 180` | `BATCH-SUSU-2026-01` |
 
 **(1) Masuk 3 unit dengan 1 batch + 3 serial:**
 
@@ -1137,6 +1143,90 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 `Serial No` SN-AABB-001 & 002 pindah `warehouse`, SN-AABB-003 tetap; dua bundle terbentuk
 (**Outward** dari gudang asal + **Inward** ke gudang tujuan).
 
+**(3) Batch TANPA serial (`has_batch_no=1`, `has_serial_no=0`) — varian paling umum untuk barang
+ber-expiry (susu, makanan, obat).** ✅
+
+Prasyarat: item **`SUSU-1L`** (`is_stock_item=1`, `has_batch_no=1`, `has_serial_no=0`,
+`has_expiry_date=1`, `shelf_life_in_days=180`) sudah ada — pembuatan master Item ada di
+**[`prd_item.md`](./prd_item.md)** — dan **master Batch dibuat dulu** (§2.4 no. 2):
+
+> **Catatan kode Item:** kode Item dibuat backend (naming series `YY.MM.######`) sehingga `item_code`
+> yang dikirim **ditimpa**. Saat diuji, Item dibuat dengan `"item_code": "SUSU-1L"` namun kembali
+> sebagai `2610000047`; kode itu lalu dirapikan dengan `frappe.client.rename_doc` (kosmetik — karena
+> `name` = `item_code`, keduanya ikut berubah). Semua operasi lanjutan memakai **`message.name`**
+> dari respons CREATE. Detail: [`prd_item.md` §2.1 no. 1](./prd_item.md).
+
+```bash
+# Batch master (expiry_date terisi otomatis dari shelf life item)
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{ "doc": { "doctype": "Batch", "batch_id": "BATCH-SUSU-2026-01", "item": "SUSU-1L" } }'
+```
+
+**Respons ✅:** `name = BATCH-SUSU-2026-01`, `item = SUSU-1L`, `batch_qty = 0.0`,
+`expiry_date = 2027-04-10` (otomatis = hari ini + 180 hari).
+
+**(3a) Masuk 12 unit** — perhatikan: **tanpa** field `serial_no`:
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Stock Entry",
+      "stock_entry_type": "Material Receipt",
+      "company": "PT Rapupa Guna Teknologi (Demo)",
+      "set_posting_time": 1, "posting_date": "2020-12-01",
+      "to_warehouse": "Gudang 2 - APSD",
+      "items": [{
+        "item_code": "SUSU-1L", "qty": 12, "uom": "Nos", "conversion_factor": 1,
+        "t_warehouse": "Gudang 2 - APSD", "basic_rate": 18000,
+        "batch_no": "BATCH-SUSU-2026-01"
+      }]
+    }
+  }'
+```
+
+➡️ lanjut **SUBMIT** memakai **respons CREATE apa adanya** (§4.2).
+
+**Hasil ✅:** dokumen `MAT-STE-2026-00025`; `Bin SUSU-1L @ Gudang 2 - APSD = 12`;
+`Batch.batch_qty = 12`; `total_incoming_value = 216000` (12 × 18000); baris `serial_no` tetap `null`
+tetapi `serial_and_batch_bundle` terisi (`105eec25800753c2f82d`); satu bundle **Inward**
+(`total_qty = 12`). **Tidak ada** dokumen `Serial No` yang dibuat untuk item ini ✅.
+
+**(3b) Pindahkan 5 unit ke gudang lain:**
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Stock Entry",
+      "stock_entry_type": "Material Transfer",
+      "company": "PT Rapupa Guna Teknologi (Demo)",
+      "set_posting_time": 1, "posting_date": "2020-12-01",
+      "from_warehouse": "Gudang 2 - APSD",
+      "to_warehouse": "Store Semarang - APSD",
+      "items": [{
+        "item_code": "SUSU-1L", "qty": 5, "uom": "Nos", "conversion_factor": 1,
+        "s_warehouse": "Gudang 2 - APSD", "t_warehouse": "Store Semarang - APSD",
+        "batch_no": "BATCH-SUSU-2026-01"
+      }]
+    }
+  }'
+```
+
+➡️ **SUBMIT** (respons CREATE apa adanya).
+
+**Hasil ✅:** dokumen `MAT-STE-2026-00026`; `Bin`: `Gudang 2 - APSD = 7`, `Store Semarang - APSD = 5`;
+`total_outgoing_value = 90000` (5 × 18000); dua bundle (**Outward** `−5` + **Inward** `+5`).
+
+> **Bila `batch_no` dikosongkan:** INSERT tetap sukses (`200`, `docstatus = 0`) — validasi baru
+> muncul saat **SUBMIT** → `417 ValidationError: Serial No / Batch No are mandatory for Item SUSU-1L` ✅
+> (beda dari item batch+serial yang pesannya *“At row 1: Batch No is mandatory for Item AABB”*
+> — §2.4 no. 4). Kirim `batch_no` yang belum terdaftar → `417 LinkValidationError: Could not find
+> Row #1: Batch No: BATCH-SUSU-999` ✅.
+
 > Untuk **alur 2 tahap**, setiap tahap adalah Stock Entry biasa → pola serial/batch sama; pada tahap 3
 > `make_stock_in_entry` sudah menyalin `serial_no`/`batch_no` dari dokumen keluar ✅.
 
@@ -1183,7 +1273,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 | 417 | UOM tanpa faktor konversi | `{"exc_type":"ValidationError","message":"Row 1: UOM Conversion Factor is mandatory"}` |
 | 417 | Stok kurang (saat submit) | `{"exc_type":"NegativeStockError","message":"<strong>999934.0</strong> units of <a ...>Item SKU010: Camera</a> needed in <a ...>Warehouse Finished Goods - APSD</a> to complete this transaction."}` ✅ |
 | 417 | Serial/batch: qty > ketersediaan | `{"exc_type":"ValidationError","message":"For the item <strong>AABB</strong>, the Available qty <strong>2.0</strong> is less than the Required Qty <strong>5.0</strong> in the warehouse ..."}` ✅ |
-| 417 | Item ber-batch tanpa `batch_no` | `{"exc_type":"ValidationError","message":"At row 1: Batch No is mandatory for Item AABB"}` ✅ |
+| 417 | Item ber-batch tanpa `batch_no` (item batch+serial) | `{"exc_type":"ValidationError","message":"At row 1: Batch No is mandatory for Item AABB"}` ✅ |
+| 417 | Item **batch-only** tanpa `batch_no` (baru gagal saat submit) | `{"exc_type":"ValidationError","message":"Serial No / Batch No are mandatory for Item SUSU-1L"}` ✅ |
 | 417 | `batch_no` belum terdaftar | `{"exc_type":"LinkValidationError","message":"Could not find Row #1: Batch No: BATCH-AABB-01"}` ✅ |
 | 417 | Submit ulang lewat GET saat baris masih berisi `serial_no`/`batch_no` + bundle | `{"exc_type":"ValidationError","message":"At row 1: Serial and Batch Bundle <hash> has already created. Please remove the values from the serial no or batch no fields."}` ✅ (§2.4 no. 3) |
 | 417 | Setting serial/batch belum aktif | `{"exc_type":"ValidationError","message":"Please check the 'Activate Serial / Batch No for Item' checkbox in the <a ...>Stock Settings</a> to make ..."}` ✅ |
@@ -1208,7 +1299,7 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 Seluruh pemanggilan di dokumen ini tersedia di koleksi
 `docs/postman/postman_erpnext_api.json` (Collection v2.1) dalam **dua folder**:
 
-- **`19. Stock Entry`** — 39 request:
+- **`19. Stock Entry`** — 46 request:
   - **Pendukung & CRUD:** 19.1 GET Stock Entry Type, 19.2 GET Stock Settings, 19.3 CREATE draft
     `Material Transfer`, 19.4 SUBMIT, 19.5 READ, 19.6 GET `get_value`, 19.7 `get_list`,
     19.8 `get_count`, 19.9 `set_value` (draft), 19.10 `save` (draft), 19.11 CANCEL,
@@ -1224,6 +1315,9 @@ Seluruh pemanggilan di dokumen ini tersedia di koleksi
   - **Serial/batch:** 19.29 CREATE Batch master, 19.30 CREATE receipt batch+serial,
     19.31 SUBMIT receipt, 19.32 CREATE transfer batch+serial, 19.33 SUBMIT transfer,
     19.34 GET Serial No, 19.35 GET Serial and Batch Bundle
+  - **Batch tanpa serial (batch-only):** 19.40 CREATE Batch master, 19.41 CREATE receipt batch-only,
+    19.42 SUBMIT receipt, 19.43 CREATE transfer batch-only, 19.44 SUBMIT transfer,
+    19.45–19.46 error batch wajib (payload & hasil: §6.7 bagian 3)
   - **Error cases:** 19.36 tanpa gudang tujuan, 19.37 qty > stok, 19.38 gudang asal = tujuan,
     19.39 hapus dokumen submitted
 - **`20. Material Request`** — 12 request:
@@ -1244,6 +1338,10 @@ Seluruh pemanggilan di dokumen ini tersedia di koleksi
 | `se_qty` / `se_qty_2` | `3` / `20` | qty transfer |
 | `se_batch_item` | `AABB` | produk ber-batch & serial |
 | `se_batch_no` | `BATCH-AABB-01` | master batch |
+| `se_batch_item_2` | `SUSU-1L` | produk **batch-only** (`has_serial_no=0`) — §6.7 (3) |
+| `se_batch_no_2` | `BATCH-SUSU-2026-01` | master batch item batch-only |
+| `se_warehouse_batch_in` | `Gudang 2 - APSD` | gudang masuk uji batch-only |
+| `se_qty_3` / `se_qty_4` | `12` / `5` | qty receipt / transfer uji batch-only |
 | `se_serial_no` | `SN-AABB-001\nSN-AABB-002\nSN-AABB-003` | serial, dipisah `\n` |
 | `se_posting_date` | `2020-12-01` | wajib di dalam Fiscal Year aktif (§2.1 no. 3) |
 | `se_expense_account` / `se_cost_center` | `5110.020 - Penyesuaian Stock - APSD` / `Main - APSD` | Material Issue dengan akun eksplisit |
@@ -1251,8 +1349,9 @@ Seluruh pemanggilan di dokumen ini tersedia di koleksi
 | `se_outgoing_stock_entry_id` | (otomatis dari 19.19) | dokumen pengeluaran (tahap 2) |
 | `se_stock_entry_in_id` | (otomatis dari 19.23) | dokumen penerimaan (tahap 3) |
 | `se_serial_batch_entry_id` / `se_serial_transfer_id` | (otomatis dari 19.30 / 19.32) | dokumen uji serial/batch |
+| `se_batch_only_entry_id` / `se_batch_only_transfer_id` / `se_batch_only_draft_id` | (otomatis dari 19.41 / 19.43 / 19.45) | dokumen uji batch-only |
 | `se_material_request_id` | (otomatis dari 20.2) | dokumen pengajuan |
-| `se_doc_full` | (diisi pre-request script) | dokumen utuh untuk 19.4/19.10/19.20/19.24/19.31/19.33 |
+| `se_doc_full` | (diisi pre-request script) | dokumen utuh untuk 19.4/19.10/19.20/19.24/19.31/19.33/19.42/19.44/19.46 |
 
 > **Catatan teknis Postman:** request SUBMIT/SAVE memakai **pre-request script** yang memanggil
 > `frappe.client.get` lalu menyimpan dokumen utuh ke variabel `se_doc_full` dan mengirimkannya

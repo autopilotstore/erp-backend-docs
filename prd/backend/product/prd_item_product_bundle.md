@@ -52,6 +52,10 @@
 > - **`name = new_item_code`** (autoname dari field Link, **bukan** naming series). Jadi **satu Item
 >   hanya boleh punya satu Product Bundle**, dan dokumen `Product Bundle` **tidak** otomatis membuat Item —
 >   Item induk harus dibuat lebih dulu (§2.2).
+> - **Kode item induk dibuat backend** oleh **naming series Item `YY.MM.######`** (mis. `2609000001`).
+>   Frontend membuat Item dulu lalu memakai **`message.name`** dari responsnya sebagai `new_item_code`.
+>   Kode deskriptif seperti `PAKET-LAPTOP-BACKPACK` hanya ada pada **item lama** (dibuat sebelum aturan
+>   itu berlaku) — lihat §2.2.
 > - **Tidak bisa di-rename:** `allow_rename = 0` → `frappe.client.rename_doc` ditolak
 >   (❝Product Bundle not allowed to be renamed❞, §4.4).
 > - **BUTUH role lain:** Product Bundle **bukan** wilayah `Item Manager` — lihat §2.1 no. 5.
@@ -84,7 +88,8 @@
    dengan item induk yang sama akan ditolak (`409 DuplicateEntryError`, §6) — cek duplikat lebih dulu
    lewat §4.1 Langkah 0.
 2. **Tidak ada naming series.** Tidak ada field `naming_series`; jadi frontend tidak perlu mengirim apa pun
-   untuk penomoran. (Beda dengan Item yang punya `naming_series` opsional.)
+   untuk penomoran — `name` selalu = `new_item_code`. (Beda dengan **Item**, yang kini memakai naming
+   series `YY.MM.######` sehingga kodenya dibuat backend: [prd_item.md §2.1 no. 1](./prd_item.md).)
 3. **Doctype non-submittable.** `docstatus` tetap `0`; tidak ada aksi submit/cancel/amend untuk
    Product Bundle itu sendiri.
 4. **Harga paket = harga `Item` induk** (dari `Item Price` seperti item biasa). Field `rate` pada baris
@@ -112,6 +117,17 @@
 
 Product Bundle **hanya menautkan** Item yang sudah ada (tidak membuat Item). Urutan kerja frontend:
 buat Item dulu (lihat **[prd_item.md](./prd_item.md)**), baru buat Product Bundle.
+
+> **Kode item induk tidak dipilih frontend.** Item kini memakai naming series `YY.MM.######` (app
+> `baseapp`), sehingga `item_code` **dibuat backend** dan `item_code` yang dikirim dari frontend
+> **ditimpa**. Alur yang benar:
+> 1. CREATE Item (kirim `item_name`, `is_stock_item: 0`, dst. — **tanpa** berharap kode tertentu)
+>    → baca **`message.name`**;
+> 2. pakai nilai itu sebagai `new_item_code` saat CREATE Product Bundle (→ `name` dokumen = kode tsb).
+>
+> Jadi item induk **tidak** lagi bisa "direncanakan" kodenya seperti `PAKET-LAPTOP-BACKPACK`; kode
+> contoh di dokumen ini adalah **item lama** yang dibuat sebelum aturan naming series berlaku — tetap
+> sah dan tidak diubah. Detail aturan: [prd_item.md §2.1 no. 1](./prd_item.md).
 
 **Item induk (`new_item_code`) — wajib:**
 
@@ -620,6 +636,9 @@ curl -G "https://site-anda.com/api/method/erpnext.selling.doctype.product_bundle
 > - ❗ Method ini **tidak** menyaring `Item.disabled`. Item yang dinon-aktifkan tetap muncul
 >   (uji nyata: item non-stok `disabled=1` muncul di hasil). Frontend sebaiknya menyaring tambahan
 >   `disabled = 0` di sisi UI, atau memakai pola §5.2 dengan filter lengkap.
+> - **Kode hasil pencarian bisa berupa angka seri** (mis. `2609000001`) untuk item yang dibuat setelah
+>   aturan naming series Item berlaku — jadikan pasangan **kedua** (`item_name`) sebagai label di UI,
+>   bukan kodenya. Lihat [prd_item.md §2.1 no. 1](./prd_item.md).
 
 ### 5.2 GET Item (prasyarat induk & daftar komponen) — `frappe.client.get_list`
 
@@ -762,6 +781,10 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
    `PT Rapupa Guna Teknologi`): Item Group `Elektronik` (leaf di bawah `Products`), Item `LAPTOP-14INCH`
    & `BACKPACK-CANVAS` (stok, UOM `Nos`), Item `PAKET-LAPTOP-BACKPACK` & `PAKET-LAPTOP-TRAVEL`
    (non-stok), dan 2 Product Bundle dengan kode yang sama.
+   > Kode-kode di atas dibuat **sebelum** aturan naming series Item berlaku, jadi masih deskriptif.
+   > Item (termasuk item induk paket) yang dibuat **sekarang** akan berkode seri `YY.MM.######`
+   > (mis. `2609000001`) — gunakan `item_name` sebagai label di UI
+   > ([prd_item.md §2.1 no. 1](./prd_item.md)).
 3. **File terkait:** Item [prd_item.md](./prd_item.md) (`is_stock_item`, `is_fixed_asset`,
    `item_code` dari naming series, **`hashtags`** — child table hashtag produk, lihat
    [prd_item.md §2.8](./prd_item.md)) · **paket dinamis** [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md)

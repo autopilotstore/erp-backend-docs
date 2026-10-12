@@ -62,8 +62,8 @@
 >   melalui **submit** (`docstatus` 0 → 1) serta bisa di-**cancel** (`docstatus` 1 → 2). Tidak ada
 >   field `disabled`; "menonaktifkan" efek stok dilakukan lewat cancel (§4.6).
 > - Stock Reconciliation v16 **tidak** punya purpose "Repacking" (sudah dihapus sejak versi lama —
->   repacking kini via **Stock Entry**, purpose `Repack`). Purpose yang tersedia hanya `Stock
->   Reconciliation` dan `Opening Stock` (§2.1 no. 4).
+>   repacking kini via **Stock Entry**, purpose `Repack`). Purpose yang tersedia (v16 terbaru):
+>   `Stock Reconciliation`, `Opening Stock`, dan `Adjustment Entry` (§2.1 no. 4).
 
 > Dokumen ini hanya membahas **satu dokumen Stock Reconciliation** (stock opname / penyesuaian qty &
 > nilai, plus catatan ringkas Opening Stock). Import/export masal (CSV upload) tidak dipakai di
@@ -77,7 +77,7 @@
 | Status | Field | Tipe | Keterangan |
 |---|---|---|---|
 | 🔴 **WAJIB** | `company` | Link → Company | Perusahaan. `reqd: 1`. Menentukan mata uang `valuation_rate` dan akun selisih default. |
-| 🔴 **WAJIB** | `purpose` | Select | `reqd: 1`. Opsi (v16): **`Stock Reconciliation`** (stock opname — alur utama dokumen ini) dan **`Opening Stock`** (stok awal, §4.8). Default UI: `Stock Reconciliation`. |
+| 🔴 **WAJIB** | `purpose` | Select | `reqd: 1`. Opsi (v16 terbaru): **`Stock Reconciliation`** (stock opname — alur utama dokumen ini), **`Opening Stock`** (stok awal, §4.8), dan **`Adjustment Entry`** (penyesuaian/write-off nilai dari Stock Valuation Comparison, §2.1 no. 4). Default UI: `Stock Reconciliation`. |
 | 🔴 **WAJIB** | `posting_date` | Date | Tanggal efektif penyesuaian (default "Today"). Menentukan qty/rate "sebelum" yang dipakai untuk menghitung selisih. |
 | 🔴 **WAJIB** | `posting_time` | Time | Jam efektif (default "Now"). Bersama `posting_date` menjadi acuan urutan di Stock Ledger. |
 | 🔴 **WAJIB** | `items` | Table → Stock Reconciliation Item | Baris penyesuaian — **minimal 1 baris** yang punya perubahan qty/rate (§2.2). |
@@ -114,13 +114,17 @@
    items have any change in quantity or value."*). Artinya CREATE/SAVE sebuah draft yang "kosong"
    (semua baris = kondisi sekarang) akan gagal — baris yang dikirim harus memang menyesuaikan qty,
    rate, atau keduanya.
-4. **`purpose` (v16) hanya dua opsi: `Stock Reconciliation` & `Opening Stock`.**
+4. **`purpose` (v16 terbaru) ada tiga opsi: `Stock Reconciliation`, `Opening Stock`, `Adjustment Entry`.**
    - `Stock Reconciliation` — **stock opname** (alur utama §4). Memperbaiki qty fisik dan/atau
      `valuation_rate`. Akun selisih umumnya `Company → Stock Adjustment Account` (P&L).
    - `Opening Stock` — **stok awal** (mis. perusahaan baru, §4.8). Akun selisih wajib **Asset /
      Liability (Temporary Opening)**, karena entry pembuka tidak boleh lewat P&L
      (`OpeningEntryAccountError` bila P&L dipilih). Biasanya dibuat sistem via tombol "Opening Stock"
      pada Item.
+   - `Adjustment Entry` — **penyesuaian nilai/write-off** tanpa mengubah qty; barisnya diisi dari
+     **Stock Valuation Comparison** (menuliskan selisih nilai stok vs akun ke akun selisih). Di UI
+     barisnya **read-only** dan tidak diedit manual; umumnya tidak dipakai tim UI (cukup diketahui
+     keberadaannya). Backend memakai kelas `AdjustmentEntry` (bukan perhitungan opname biasa).
    - **Tidak ada `Repacking`** di v16 — repacking memakai **Stock Entry** (purpose `Repack`),
      didokumentasikan di PRD Stock Entry (terpisah).
 5. **`expense_account` & `cost_center` terisi otomatis bila kosong.** Saat `validate`, bila
@@ -153,7 +157,7 @@
 | 🟠 **DISARANKAN** | `qty` | Float | Qty fisik baru. Boleh dikosongkan bila hanya ingin mengubah `valuation_rate`. **Tidak boleh negatif**. Bila diisi dan `valuation_rate` kosong → sistem mencoba mengambil rate dari sistem (§2.3). |
 | 🟠 **DISARANKAN** | `valuation_rate` | Currency | Nilai per unit baru. Boleh dikosongkan bila hanya ingin mengubah qty (§2.3). **Tidak boleh negatif**. Mata uang mengikuti `company`. |
 | 🟠 | `allow_zero_valuation_rate` | Check | `1` = izinkan `valuation_rate = 0` (mis. stok awal bernilai 0 / opening tanpa nilai). |
-| 🟠 | `batch_no` / `serial_no` / `use_serial_batch_fields` | — | Untuk produk **berbatch / berseri** (lanjutan). Mengubah qty/rate item serial/batch memakai mekanisme `Serial and Batch Bundle`. Umumnya tidak dipakai untuk alur opname sederhana — abaikan bila item tidak serial/batch. |
+| 🟠 | `batch_no` / `serial_no` / `use_serial_batch_fields` | — | Untuk produk **berbatch / berseri** — lihat **§4.9**. Isi `use_serial_batch_fields = 1` lalu `batch_no` (batch) / `serial_no` (serial); bila memakai jalur bundle, lampirkan `serial_and_batch_bundle`. Abaikan bila item tidak serial/batch. |
 | ⚪ **Read-only (dihitung sistem)** | `current_qty`, `current_valuation_rate`, `current_amount`, `stock_uom` | — | Nilai stok **sebelum** penyesuaian (dari ledger pada `posting_date/time`). `current_*` terisi otomatis saat baris diisi (`item_code`+`warehouse`); jangan dikirim. |
 | ⚪ **Read-only (dihitung sistem)** | `amount` (= `qty * valuation_rate`), `quantity_difference` (= `qty - current_qty`), `amount_difference` (= selisih nilai) | — | Hasil hitung; jangan dikirim. |
 
@@ -196,7 +200,7 @@ ditulis ulang/ dibalik. Tabel berikut yang terlibat:
 | `tabStock Ledger Entry` | `Stock Ledger Entry` | **Bukti posting stok.** Saat submit/cancel, dibuat SLE utk tiap baris yang berubah: `voucher_type = "Stock Reconciliation"`, `voucher_no = <name SR>`, `voucher_detail_no = <row name>`, `actual_qty`/`qty_after_transaction`/`valuation_rate`/`stock_value_difference`, tanda `is_cancelled` (0=aktif, 1=entry pembalik saat cancel). Di sinilah selisih qty/rate **menjadi riwayat** yang dipakai menghitung nilai item+warehouse setelahnya. |
 | `tabGL Entry` | `GL Entry` | **Jurnal selisih nilai** (bila company memakai **perpetual inventory**): debit/kredit akun persediaan berhadapan dengan `expense_account` (Difference Account) + `cost_center`; `voucher_type = "Stock Reconciliation"`. Untuk `purpose = Opening Stock`, akun lawan = Temporary Opening (Asset/Liability). Saat cancel, GL di-*reverse*. |
 | `tabBin` | `Bin` | **Saldo stok per item+warehouse** (`actual_qty`, `stock_value`, `valuation_rate`, `reserved_qty`) — diperbarui otomatis mengikuti SLE. Sumber nilai "sebelum" (`current_qty`/`current_valuation_rate`) dan dasar info stok di UI (`get_list` Bin). |
-| `tabSerial and Batch Bundle` (+ `tabSerial and Batch Bundle Item`) | `Serial and Batch Bundle` | Hanya utk baris item **serial/batch** (bila memakai `serial_and_batch_bundle` / `use_serial_batch_fields`) — bundle stok lama & baru dibuat/dibalik saat submit/cancel (lanjutan, umumnya tidak dipakai di opname sederhana). |
+| `tabSerial and Batch Bundle` (+ `tabSerial and Batch Entry`) | `Serial and Batch Bundle` (parent) + `Serial and Batch Entry` (child `entries`) | Hanya utk baris item **serial/batch** (bila memakai `serial_and_batch_bundle` / `use_serial_batch_fields`) — bundle stok lama & baru dibuat/dibalik saat submit/cancel (lanjutan, umumnya tidak dipakai di opname sederhana). Satu baris `Serial and Batch Entry` = 1 batch/serial (`batch_no`, `serial_no`, `qty`, `warehouse`, `incoming_rate`, `stock_value_difference`); dibaca lewat dokumen bundle (child table tidak di-*list* langsung) — lihat **[prd_stock_ledger.md §4.10](./prd_stock_ledger.md)**. |
 | `tabItem Standard Cost` | `Item Standard Cost` | Khusus item yang memakai metode valuasi **Standard Cost**: saat submit, sistem bisa membuat/memperbarui Item Standard Cost dari `valuation_rate` baris (mis. utk opening/revaluation standard cost). Saat cancel, record terkait dibatalkan. |
 | `tabRepost Item Valuation` | `Repost Item Valuation` | Dibuat & dijalankan (umumnya **background**) bila posting SR menyisakan **transaksi lanjutan** — mis. SR backdated / saat cancel — agar seluruh SLE & GL **setelah** tanggal posting SR dihitung ulang konsisten. Statusnya bisa dipantau lewat dokumen ini (lihat §4.6). |
 
@@ -633,6 +637,71 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 > Company) — frontend cukup meniru pola di atas bila memang perlu via API. **Alur utama aplikasi
 > tetaplah `purpose = "Stock Reconciliation"`** (stock opname berkala).
 
+### 4.9 Item batch / serial (Serial and Batch Bundle) — ringkas
+
+> Endpoint CRUD & siklus `docstatus` **sama** seperti item biasa (§4.1–§4.7). Yang berbeda hanya
+> **payload baris `items`** dan **validasi/penanganan bundle**: item `has_batch_no` / `has_serial_no`
+> memakai mekanisme **Serial and Batch Bundle** (`tabSerial and Batch Bundle`), bukan satu SLE qty
+> biasa.
+
+**Field tambahan pada baris `items` (di luar §2.2):**
+
+| Field | Keterangan |
+|---|---|
+| `batch_no` | Link → Batch. **Wajib** untuk item `has_batch_no=1` bila `use_serial_batch_fields=1` (error *"Please enter Batch No"*). Batch harus **sudah ada** (buat dulu via doctype `Batch` bila belum). |
+| `serial_no` | Long Text, satu serial per baris. **Wajib** untuk item `has_serial_no=1` bila `use_serial_batch_fields=1` (error *"Please enter Serial No"*). `qty` harus = jumlah serial dan **tidak boleh 0** (*"Quantity should not be zero … since serial nos are specified"*). |
+| `use_serial_batch_fields` | `1` = memakai field sederhana `batch_no`/`serial_no` (sistem membangun bundle saat submit). `0` = wajib memakai `serial_and_batch_bundle`. |
+| `serial_and_batch_bundle` | Link → Serial and Batch Bundle (jalur `use_serial_batch_fields=0`). Bila kosong → error *"Row #x: Please add Serial and Batch Bundle for Item …"*. |
+| `reconcile_all_serial_batch` | `1` = sistem menyusun bundle dari **seluruh** batch/serial yang tersedia di warehouse (penyesuaian total/opening); tidak perlu memilih batch satu per satu. |
+| `current_serial_and_batch_bundle`, `current_serial_no` | Read-only — bundle/serial untuk stok **sebelum** penyesuaian (diisi sistem). |
+
+**Aturan penting:**
+1. **Tidak ada cek duplikat item+warehouse** pada item batch/serial bila `batch_no`/`serial_no` berbeda
+   → boleh beberapa baris untuk item & warehouse yang sama, **satu baris per batch** (duplikat baru
+   dianggap error hanya bila batch/serial-nya sama).
+2. `get_items` (§5.1) otomatis mengembalikan **baris per batch**; `get_stock_balance_for` (§5.2)
+   **wajib dikirim `batch_no`** untuk item batch (tanpa itu → `qty: 0`).
+3. Saat **submit**, ERPNext membangun/merapikan bundle (`make_bundle_for_current_qty`,
+   `set_new_serial_and_batch_bundle`, `make_bundle_using_old_serial_batch_fields`) lalu memposting SLE
+   per bundle. Saat **cancel**, bundle yang dibuat otomatis ikut dibersihkan
+   (`delete_auto_created_batches`).
+4. **Batasan reposting:** untuk item serial/batch, perubahan qty **backdated diblokir** bila sudah ada
+   Stock Reconciliation setelahnya (`check_future_entries_exists`) — berbeda dari non-batch yang bisa
+   "mengambang" dan direposting.
+5. `valuation_rate` tetap boleh dikosongkan — pada jalur bundle sistem memakai rate dari bundle/saldo
+   batch tsb.
+
+**Contoh payload — batch (via `batch_no`, paling sederhana):**
+
+```bash
+curl -X POST https://site-anda.com/api/method/frappe.client.insert \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "doc": {
+      "doctype": "Stock Reconciliation",
+      "company": "PT Maju Jaya",
+      "purpose": "Stock Reconciliation",
+      "posting_date": "2026-10-12",
+      "posting_time": "09:00:00",
+      "set_posting_time": 1,
+      "items": [
+        { "item_code": "Air Mineral 600ml", "warehouse": "Toko Cikarang - PTMJ", "batch_no": "BATCH-AIR-001", "use_serial_batch_fields": 1, "qty": 80, "valuation_rate": 4500 },
+        { "item_code": "Air Mineral 600ml", "warehouse": "Toko Cikarang - PTMJ", "batch_no": "BATCH-AIR-002", "use_serial_batch_fields": 1, "qty": 40 }
+      ]
+    }
+  }'
+```
+
+> Dua baris item+warehouse sama dengan `batch_no` berbeda → **valid**. Lanjutkan
+> `frappe.client.submit_doc` seperti §4.2. Untuk **serial**, kirim `serial_no` (dipisah newline) +
+> `use_serial_batch_fields: 1`; `qty` = jumlah serial.
+>
+> **Jalur bundle (opsional, `use_serial_batch_fields=0`):** buat dulu dokumen **Serial and Batch
+> Bundle** (type *Inward*), lalu isi `serial_and_batch_bundle` pada baris. Di UI setara dengan tombol
+> "Add Serial / Batch No". Jalur `batch_no` di atas **disarankan** untuk aplikasi ini karena paling
+> sederhana.
+
 ---
 
 ## 5. GET pendukung UI
@@ -657,6 +726,7 @@ curl -X POST https://site-anda.com/api/method/erpnext.stock.doctype.stock_reconc
 
 > `item_code` opsional (filter 1 item); `ignore_empty_stock=1` → hanya item yang punya stok.
 > `posting_date`/`posting_time` menentukan qty/rate "sebelum" (posisi ledger saat itu).
+> Untuk item **ber-batch**, hasilnya **satu baris per batch** (menyertakan `batch_no`) — lihat §4.9.
 
 **Contoh respons (HTTP 200):**
 
@@ -699,6 +769,10 @@ curl -X POST https://site-anda.com/api/method/erpnext.stock.doctype.stock_reconc
 > Endpoint ini butuh permission **write** Stock Reconciliation (role Stock Manager). Nilai `qty`/
 > `rate` inilah yang dipakai sebagai `current_qty`/`current_valuation_rate` pada baris (`get_stock_balance_for`
 > adalah method yang sama dengan yang dipanggil form Desk saat baris diisi).
+
+> **Item batch:** kirim `batch_no` pada request ini; tanpa `batch_no` backend mengembalikan
+> `qty: 0`/`rate: 0` (tidak cukup informasi). Respons juga menyertakan `use_serial_batch_fields`
+> (dari Stock Settings / baris) yang menentukan cara mengisi baris — lihat §4.9.
 
 ### 5.3 GET akun selisih default — `get_difference_account`
 
@@ -850,7 +924,7 @@ ERPNext (OAuth 2.0 + Supplier + Customer + Contact + Address + Lead + Employee +
 + POS Profile + Item Group + **Stock Reconciliation**).
 
 Folder **`12. Stock Reconciliation`** (nomor `11` di-reserve untuk folder `Item`) berisi
-**20 request** yang mencakup:
+**22 request** yang mencakup:
 - CREATE draft (opname, revaluasi, qty+rate) — `12.1`–`12.3`
 - SUBMIT (`submit_doc`) — `12.4`
 - READ single / list / count — `12.5`–`12.7`
@@ -860,6 +934,8 @@ Folder **`12. Stock Reconciliation`** (nomor `11` di-reserve untuk folder `Item`
 - GET pendukung UI (`get_items`, `get_stock_balance_for`, `get_difference_account`) — `12.13`–`12.15`
 - Dropdown pendukung (Item / Warehouse / Account / Cost Center) — `12.16`–`12.19`
 - Verifikasi Stock Ledger Entry — `12.20`
+- CREATE **batch** (via `batch_no`) — `12.21`
+- CREATE **batch/serial** (via `serial_and_batch_bundle`) — `12.22`
 
 **Variabel yang perlu diisi** (Collection Variables):
 - `stock_reco_id` — `name` hasil CREATE (mis. `MAT-RECO-00001-2026`)
@@ -868,6 +944,7 @@ Folder **`12. Stock Reconciliation`** (nomor `11` di-reserve untuk folder `Item`
 - `stock_reco_item` — `item_code` (mis. `Air Mineral 600ml`)
 - `stock_reco_posting_date` / `stock_reco_posting_time` — tanggal/jam posting
 - `stock_adjustment_account` — akun selisih (mis. `Stock Adjustment - PTMJ`)
+- `stock_reco_batch_no` — nomor batch untuk item batch (mis. `BATCH-AIR-001`, §4.9)
 
 Cara pakai sama dengan folder lain: isi variabel di atas, jalankan folder `0. OAuth 2.0` (atau Get
 New Access Token), lalu jalankan request pada folder `12. Stock Reconciliation`. Request CREATE
