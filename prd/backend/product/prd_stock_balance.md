@@ -778,4 +778,6 @@ berisi rencana request berikut:
 > **Dokumen terkait:** **[prd_stock_entry.md](./prd_stock_entry.md)** — dokumen yang mengubah stok
 > (transfer antar gudang, Material Issue/Receipt; alur 3 tahap pengajuan → pengeluaran →
 > penerimaan), **[prd_stock_ledger.md](./prd_stock_ledger.md)** — kartu stok per dokumen,
-> **[prd_stock_reconciliation.md](./prd_stock_reconciliation.md)** — opname/koreksi saldo.
+> **[prd_stock_reconciliation.md](./prd_stock_reconciliation.md)** — opname/koreksi saldo,
+> **[prd_stock_report.md](./prd_stock_report.md)** — daftar item + **saldo stok saat ini** per gudang
+> (sortir/filter, deteksi kondisi stok min/max).

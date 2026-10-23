@@ -8703,6 +8703,861 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "21. Stock Report",
+      "item": [
+        {
+          "name": "21.1 P1 - fondasi: item terdaftar di gudang + stok (Bin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\"item_code\", \"actual_qty\", \"projected_qty\"],\n  \"filters\": [[\"warehouse\", \"=\", \"{{sr_warehouse}}\"]],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 4.1 / 2.2. P1 = populasi gudang + stok. Test script menyimpan daftar item_code ke sr_bin_codes (dan 50 pertama ke sr_bin_codes_50)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const codes = (json.message || []).map(r => r.item_code);",
+                  "pm.collectionVariables.set('sr_bin_codes', JSON.stringify(codes));",
+                  "pm.collectionVariables.set('sr_bin_codes_50', JSON.stringify(codes.slice(0, 50)));",
+                  "pm.test('P1 berisi minimal 1 item', () => pm.expect(codes.length).to.be.above(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.2 Mode A - daftar item halaman, sortir kolom Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\n    \"name\",\n    \"item_name\",\n    \"has_variants\",\n    \"item_group\",\n    \"item_group.item_group_name\",\n    { \"attributes\": [\"attribute\", \"attribute_value\"] },\n    { \"reorder_levels\": [\"warehouse\", \"warehouse_reorder_level\", \"max_stock_level\"] }\n  ],\n  \"filters\": [\n    [\"is_stock_item\", \"=\", 1],\n    [\"is_product_bundle\", \"=\", 0],\n    [\"is_dynamic_product_bundle\", \"=\", 0],\n    [\"has_variants\", \"=\", 0],\n    [\"is_fixed_asset\", \"=\", 0],\n    [\"disabled\", \"=\", 0],\n    [\"name\", \"in\", {{sr_bin_codes}}]\n  ],\n  \"order_by\": \"{{sr_sort_item}}\",\n  \"limit_start\": 0,\n  \"limit_page_length\": {{sr_page_length}}\n}"
+            },
+            "description": "prd_stock_report.md 4.2 / 2.3. Mode A: Item yang memaginasi; filter wajib + name in [kode P1] (dari 21.1). Ganti sr_sort_item untuk sortir item_name / item_group.item_group_name / name."
+          },
+          "response": []
+        },
+        {
+          "name": "21.3 Mode A - total item (get_count)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_count"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"filters\": [\n    [\"is_stock_item\", \"=\", 1],\n    [\"is_product_bundle\", \"=\", 0],\n    [\"is_dynamic_product_bundle\", \"=\", 0],\n    [\"has_variants\", \"=\", 0],\n    [\"is_fixed_asset\", \"=\", 0],\n    [\"disabled\", \"=\", 0],\n    [\"name\", \"in\", {{sr_bin_codes}}]\n  ]\n}"
+            },
+            "description": "prd_stock_report.md 4.2 / 2.4. filters WAJIB identik dengan 21.2. Angka = jumlah item gudang yang lolos filter."
+          },
+          "response": []
+        },
+        {
+          "name": "21.4 Mode A - sortir item_group_name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\"name\", \"item_name\", \"item_group.item_group_name\"],\n  \"filters\": [\n    [\"is_stock_item\", \"=\", 1],\n    [\"is_product_bundle\", \"=\", 0],\n    [\"is_dynamic_product_bundle\", \"=\", 0],\n    [\"has_variants\", \"=\", 0],\n    [\"is_fixed_asset\", \"=\", 0],\n    [\"disabled\", \"=\", 0],\n    [\"name\", \"in\", {{sr_bin_codes}}]\n  ],\n  \"order_by\": \"item_group.item_group_name asc, name asc\",\n  \"limit_start\": 0,\n  \"limit_page_length\": {{sr_page_length}}\n}"
+            },
+            "description": "prd_stock_report.md 4.3. order_by link field (item_group.item_group_name) diterima server; tiebreaker name asc wajib."
+          },
+          "response": []
+        },
+        {
+          "name": "21.5 Mode A - halaman 2 (limit_start)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\"name\", \"item_name\", \"item_group.item_group_name\"],\n  \"filters\": [\n    [\"is_stock_item\", \"=\", 1],\n    [\"is_product_bundle\", \"=\", 0],\n    [\"is_dynamic_product_bundle\", \"=\", 0],\n    [\"has_variants\", \"=\", 0],\n    [\"is_fixed_asset\", \"=\", 0],\n    [\"disabled\", \"=\", 0],\n    [\"name\", \"in\", {{sr_bin_codes}}]\n  ],\n  \"order_by\": \"{{sr_sort_item}}\",\n  \"limit_start\": 50,\n  \"limit_page_length\": {{sr_page_length}}\n}"
+            },
+            "description": "prd_stock_report.md 4.7. Offset = (page-1) x limit_page_length; total dari 21.3 untuk menghitung total_pages. Pada data dev (9 item, page_length 50) halaman 2 kosong — itu wajar."
+          },
+          "response": []
+        },
+        {
+          "name": "21.6 Mode B langkah 1 - resolve kode yang lolos filter (P4a)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\"name\"],\n  \"filters\": [\n    [\"is_stock_item\", \"=\", 1],\n    [\"is_product_bundle\", \"=\", 0],\n    [\"is_dynamic_product_bundle\", \"=\", 0],\n    [\"has_variants\", \"=\", 0],\n    [\"is_fixed_asset\", \"=\", 0],\n    [\"disabled\", \"=\", 0],\n    [\"item_name\", \"like\", \"%{{sr_item_name_search}}%\"]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 4.4 (P4a) / 2.5. Tanpa paginasi; jalankan sekali per perubahan filter. Test script menyimpan hasil ke sr_filtered_codes untuk 21.7 dan 21.8."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const codes = (json.message || []).map(r => r.name);",
+                  "pm.collectionVariables.set('sr_filtered_codes', JSON.stringify(codes));",
+                  "pm.test('P4a mengembalikan kode', () => pm.expect(codes.length).to.be.above(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.7 Mode B langkah 2 - halaman terurut stok (P4b)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\"item_code\", \"actual_qty\", \"projected_qty\"],\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"item_code\", \"in\", {{sr_filtered_codes}}]\n  ],\n  \"order_by\": \"{{sr_sort_stock}}\",\n  \"limit_start\": 0,\n  \"limit_page_length\": {{sr_page_length}}\n}"
+            },
+            "description": "prd_stock_report.md 4.4 (P4b) / 2.5. Bin yang memaginasi; order_by hanya kolom Bin (actual_qty/projected_qty) + tiebreaker item_code asc. Bila sr_filtered_codes kosong, LEWATI request ini (jangan kirim in [])."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const codes = (json.message || []).map(r => r.item_code);",
+                  "pm.collectionVariables.set('sr_page_codes', JSON.stringify(codes));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.8 Mode B langkah 3 - total (get_count Bin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_count"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"item_code\", \"in\", {{sr_filtered_codes}}]\n  ]\n}"
+            },
+            "description": "prd_stock_report.md 2.6. filters identik dengan 21.7. Karena tabBin unik per item x gudang, angka = jumlah item unik."
+          },
+          "response": []
+        },
+        {
+          "name": "21.9 Mode B - hanya yang ada stok (actual_qty > 0) + sortir asc",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\"item_code\", \"actual_qty\"],\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"item_code\", \"in\", {{sr_filtered_codes}}],\n    [\"actual_qty\", \">\", 0]\n  ],\n  \"order_by\": \"actual_qty asc, item_code asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 4.5. Filter actual_qty > 0 adalah filter Bin (boleh). Untuk minus: actual_qty < 0."
+          },
+          "response": []
+        },
+        {
+          "name": "21.10 Mode C - muat semua item gudang (P6, katalog kecil)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\n    \"name\",\n    \"item_name\",\n    \"has_variants\",\n    \"item_group\",\n    \"item_group.item_group_name\",\n    { \"attributes\": [\"attribute\", \"attribute_value\"] },\n    { \"reorder_levels\": [\"warehouse\", \"warehouse_reorder_level\", \"max_stock_level\"] }\n  ],\n  \"filters\": [\n    [\"is_stock_item\", \"=\", 1],\n    [\"is_product_bundle\", \"=\", 0],\n    [\"is_dynamic_product_bundle\", \"=\", 0],\n    [\"has_variants\", \"=\", 0],\n    [\"is_fixed_asset\", \"=\", 0],\n    [\"disabled\", \"=\", 0],\n    [\"name\", \"in\", {{sr_bin_codes}}],\n    [\"item_name\", \"like\", \"%{{sr_item_name_search}}%\"]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 4.8. Mode C: 21.1 + request ini (2 panggilan), lalu gabungkan per item_code, isi stok dari Bin, sortir & paginasi di frontend. Hanya untuk katalog <= ~2.000 item."
+          },
+          "response": []
+        },
+        {
+          "name": "21.11 Filter pencarian + atribut berpasangan + item group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\"name\", \"item_name\", \"item_group.item_group_name\",\n             { \"attributes\": [\"attribute\", \"attribute_value\"] }],\n  \"filters\": [\n    [\"is_stock_item\", \"=\", 1],\n    [\"is_product_bundle\", \"=\", 0],\n    [\"is_dynamic_product_bundle\", \"=\", 0],\n    [\"has_variants\", \"=\", 0],\n    [\"is_fixed_asset\", \"=\", 0],\n    [\"disabled\", \"=\", 0],\n    [\"name\", \"in\", {{sr_bin_codes}}],\n    [\"item_name\", \"like\", \"%{{sr_item_name_search}}%\"],\n    [\"attributes.attribute\", \"=\", \"{{sr_attribute}}\"],\n    [\"attributes.attribute_value\", \"in\", [\"{{sr_attribute_value}}\"]],\n    [\"item_group.item_group_name\", \"=\", \"{{sr_item_group_name}}\"]\n  ],\n  \"order_by\": \"{{sr_sort_item}}\",\n  \"limit_start\": 0,\n  \"limit_page_length\": {{sr_page_length}}\n}"
+            },
+            "description": "prd_stock_report.md 4.6 / 2.7. Atribut WAJIB berpasangan (attributes.attribute + attributes.attribute_value). item_group_name memakai bentuk bertitik. Pada data dev hasil 0 karena item bervarian tidak punya baris Bin di gudang contoh (lihat prd §5.2); uji pada site Anda."
+          },
+          "response": []
+        },
+        {
+          "name": "21.12 NEGATIF - order_by kolom Bin di Item (harus 417)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\"name\"],\n  \"filters\": [[\"disabled\", \"=\", 0]],\n  \"order_by\": \"actual_qty desc\",\n  \"limit_page_length\": 3\n}"
+            },
+            "description": "prd_stock_report.md 6. Harus 417 PermissionError: You do not have permission to access field: Item.actual_qty. Sortir stok wajib lewat Mode B."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('ditolak 417', () => pm.expect(pm.response.code).to.eql(417));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.13 NEGATIF - order_by nama tabel eksplisit (harus 417)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\"name\"],\n  \"order_by\": \"tabBin.actual_qty desc\",\n  \"limit_page_length\": 3\n}"
+            },
+            "description": "prd_stock_report.md 6. Harus 417 ValidationError: Invalid field format in Order By ... Use 'field', 'link_field.field', or 'child_table.field'."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('ditolak 417', () => pm.expect(pm.response.code).to.eql(417));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.14 NEGATIF - filter Item di doctype Bin (harus 417)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\"item_code\"],\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"is_stock_item\", \"=\", 1]\n  ],\n  \"limit_page_length\": 3\n}"
+            },
+            "description": "prd_stock_report.md 6. Harus 417 DataError: Field not permitted in query: is_stock_item. Filter item hanya berlaku pada doctype Item."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('ditolak 417', () => pm.expect(pm.response.code).to.eql(417));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.15 NEGATIF - attribute_value tanpa pasangan (duplikat)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\"name\", \"item_name\"],\n  \"filters\": [\n    [\"is_stock_item\", \"=\", 1],\n    [\"is_product_bundle\", \"=\", 0],\n    [\"is_dynamic_product_bundle\", \"=\", 0],\n    [\"has_variants\", \"=\", 0],\n    [\"is_fixed_asset\", \"=\", 0],\n    [\"disabled\", \"=\", 0],\n    [\"attributes.attribute_value\", \"in\", [\"Green\", \"Blue\", \"Small\", \"Big\", \"Bulat\"]]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 2.7 / 5.3 no.1. Filter nilai tanpa attributes.attribute menggandakan baris (uji dev: 12 baris untuk 9 item). Test script memastikan duplikat terdeteksi."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const rows = (json.message || []).map(r => r.name);",
+                  "const uniq = new Set(rows);",
+                  "pm.test('baris > item unik (duplikat)', () => pm.expect(rows.length).to.be.above(uniq.size));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.16 NEGATIF - agregat bentuk string (harus 417)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\"item_code\", \"sum(actual_qty) as total_qty\"],\n  \"filters\": [[\"warehouse\", \"=\", \"{{sr_warehouse}}\"]],\n  \"group_by\": \"item_code\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 6. Harus 417 ValidationError: SQL functions are not allowed as strings in SELECT ... Use dict syntax like {'COUNT': '*'}."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('ditolak 417', () => pm.expect(pm.response.code).to.eql(417));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.17 F1 - produk yang stoknya kosong (actual_qty = 0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\"item_code\", \"actual_qty\"],\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"actual_qty\", \"=\", 0]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 2.13 (F1) / 4.10. Cohort F1 dihitung server (filter Bin)."
+          },
+          "response": []
+        },
+        {
+          "name": "21.18 F7 - produk yang stoknya minus (actual_qty < 0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\"item_code\", \"actual_qty\"],\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"actual_qty\", \"<\", 0]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 2.13 (F7) / 4.10. Cohort F7 dihitung server (filter Bin)."
+          },
+          "response": []
+        },
+        {
+          "name": "21.19 F9 - produk yang stoknya berubah hari ini (T agregat)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"fields\": [\"item_code\", { \"SUM\": \"actual_qty\", \"as\": \"qty_today\" }],\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"is_cancelled\", \"=\", 0],\n    [\"posting_date\", \"=\", \"{{sr_today}}\"]\n  ],\n  \"group_by\": \"item_code\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 2.13 (F9) / 4.10. qty_today juga dipakai F4/F5/F6/F8 (opening = Bin.actual_qty - qty_today). Butuh role Stock User/Accounts Manager. Test script menyimpan kode ke sr_changed_codes."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const codes = (json.message || []).map(r => r.item_code);",
+                  "pm.collectionVariables.set('sr_changed_codes', JSON.stringify(codes));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "21.20 R - level min/max per gudang (Item + nested reorder_levels)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Item\",\n  \"fields\": [\"name\",\n             { \"reorder_levels\": [\"warehouse\", \"warehouse_reorder_level\", \"max_stock_level\"] }],\n  \"filters\": [[\"reorder_levels.warehouse\", \"=\", \"{{sr_warehouse}}\"]],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 2.13 (R) / 4.11. Dipakai F2/F3/F5/F6. Nested reorder_levels memuat SEMUA gudang item -> frontend memilih baris warehouse == sr_warehouse. Item tanpa baris reorder dikecualikan; nilai 0 dianggap tidak dikonfigurasi."
+          },
+          "response": []
+        },
+        {
+          "name": "21.21 T (rinci) - aktivitas SLE hari ini dengan qty_after_transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Stock Ledger Entry\",\n  \"fields\": [\"item_code\", \"posting_datetime\", \"qty_after_transaction\", \"actual_qty\"],\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"is_cancelled\", \"=\", 0],\n    [\"posting_date\", \"=\", \"{{sr_today}}\"]\n  ],\n  \"order_by\": \"item_code asc, posting_datetime asc\",\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 2.13. Versi rinci (opsional) hanya untuk menampilkan WAKTU kejadian; perhitungan F4/F5/F6/F8/F9 cukup memakai 21.19 (agregat)."
+          },
+          "response": []
+        },
+        {
+          "name": "21.22 NEGATIF - filter bernilai nama kolom (HTTP 200 tetapi salah)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/frappe.client.get_list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "frappe.client.get_list"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctype\": \"Bin\",\n  \"fields\": [\"item_code\", \"actual_qty\"],\n  \"filters\": [\n    [\"warehouse\", \"=\", \"{{sr_warehouse}}\"],\n    [\"actual_qty\", \"<=\", \"warehouse_reorder_level\"]\n  ],\n  \"limit_page_length\": 0\n}"
+            },
+            "description": "prd_stock_report.md 2.13 catatan 1 / 6. TIDAK error (200): nilai diperlakukan sebagai string, bukan kolom. Perbandingan min/max wajib di frontend (F2/F3/F5/F6)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 200 (tetapi hasil tidak valid)', () => pm.expect(pm.response.code).to.eql(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -8815,6 +9670,22 @@
     { "key": "se_batch_only_entry_id", "value": "" },
     { "key": "se_batch_only_transfer_id", "value": "" },
     { "key": "se_batch_only_draft_id", "value": "" },
-    { "key": "stock_reco_batch_no", "value": "BATCH-AIR-001" }
+    { "key": "stock_reco_batch_no", "value": "BATCH-AIR-001" },
+    {"key": "sr_company", "value": "PT Rapupa Guna Teknologi (Demo)"},
+    {"key": "sr_warehouse", "value": "Finished Goods - APSD"},
+    {"key": "sr_item_name_search", "value": "a"},
+    {"key": "sr_attribute", "value": "Color"},
+    {"key": "sr_attribute_value", "value": "Blue"},
+    {"key": "sr_item_group_name", "value": "Non Category"},
+    {"key": "sr_page_length", "value": "50"},
+    {"key": "sr_limit_start", "value": "0"},
+    {"key": "sr_sort_item", "value": "item_name asc, name asc"},
+    {"key": "sr_sort_stock", "value": "actual_qty desc, item_code asc"},
+    {"key": "sr_today", "value": "2020-12-01"},
+    {"key": "sr_bin_codes", "value": ""},
+    {"key": "sr_bin_codes_50", "value": ""},
+    {"key": "sr_filtered_codes", "value": ""},
+    {"key": "sr_page_codes", "value": ""},
+    {"key": "sr_changed_codes", "value": ""}
   ]
 }

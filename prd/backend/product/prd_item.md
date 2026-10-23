@@ -78,7 +78,8 @@
 | 🟡 **OPSIONAL** | `min_order_qty` | Float | **Jumlah minimum pemesanan** ke supplier, satuan `stock_uom` (mis. `10` = minimal beli 10 Pcs). Default `0`. |
 | 🟡 **OPSIONAL** | `safety_stock` | Float | **Stok cadangan** yang ingin dipertahankan, satuan `stock_uom`. Dipakai menghitung reorder level yang disarankan: `Reorder Level = Safety Stock + (rata-rata pemakaian harian × lead time)`. |
 | 🟡 **OPSIONAL** | `lead_time_days` | Int | **Rata-rata waktu kirim supplier (hari)** — dipakai perhitungan reorder. |
-| 🟡 **OPSIONAL** | `is_customer_provided_item` | Check | `1` = barang **milik pelanggan** (dititipkan; masuk lewat Stock Entry / alur subkontrak). **Bertolak belakang dengan `is_purchase_item`** — item customer-provided tidak dibeli dari supplier, jadi isi salah satu, jangan dua-duanya. Default `0`. |
+| 🟡 **OPSIONAL** | `default_material_request_type` | Select | **Jenis Material Request yang dianggap wajar untuk Item ini** — pilihan: `Purchase` (default), `Material Transfer`, `Material Issue`, `Manufacture`, `Customer Provided`. **Hanya dibaca alur Production Plan** (mengisi tipe pada tabel Material Request Plan Item & tipe Material Request yang dibuat); **tidak** memengaruhi isi baris `reorder_levels`. Boleh tidak dikirim (backend mengisi `Purchase`), nilainya harus **persis** salah satu opsi (peka huruf besar/kecil), dan bila `is_customer_provided_item = 1` nilainya **dipaksa** jadi `Customer Provided`. Detail + tabel efek: §4.1. |
+| 🟡 **OPSIONAL** | `is_customer_provided_item` | Check | `1` = barang **milik pelanggan** (dititipkan; masuk lewat Stock Entry / alur subkontrak). **Bertolak belakang dengan `is_purchase_item`** — dan `is_purchase_item` **default `1`**, jadi saat mengaktifkan flag ini **wajib kirim `is_purchase_item: 0`**, kalau tidak CREATE gagal (*"Customer Provided Item" cannot be Purchase Item also*). Mengaktifkan flag ini juga **memaksa** `default_material_request_type = "Customer Provided"`. Default `0`. |
 | 🟡 **OPSIONAL** | `customer_code` | Small Text | **Kode item menurut pelanggan** (*customer part number*) — hanya dipakai sebagai bahan **pencarian** Item (ikut di `search_fields`). **Bukan input bebas:** backend mengisinya otomatis dari `customer_items[].ref_code` (digabung koma) setiap kali Item disimpan, jadi nilai kiriman frontend **tertimpa** — dan menjadi kosong bila `customer_items` tidak diisi. Field di form bersifat `hidden`. Tipe `Small Text`, jadi panjangnya tidak dibatasi 140 karakter. **Cara mengisinya lewat API: §4.13.** |
 | 🟡 **OPSIONAL** | `delivered_by_supplier` | Check | `1` = **drop ship** — supplier mengirim langsung ke pelanggan tanpa masuk gudang sendiri. Default `0`. |
 | 🟡 **OPSIONAL** | `country_of_origin` | Link → Country | **Negara asal barang** (umumnya untuk produk impor). |
@@ -103,7 +104,7 @@
 | 🟠 **DISARANKAN** | `batch_number_series` | Data | **Opsional — pola nomor Batch khusus Item ini.** Bila diisi, ia **menang** atas pola `Stock Settings` (mis. `ROLL.-.YY.-.MM.-.#` → `ROLL-26-10-1`). **Kosong = pakai pola bawaan** `BATCH-00001` (§2.1 no. 12). **Jangan pakai placeholder `{...}`** — dokumen `Batch` tidak punya field `item_code`, jadi `{item_code}` menghasilkan kosong. |
 | 🟠 **DISARANKAN** | `has_expiry_date` | Check | `1` = produk punya tanggal kedaluwarsa (per batch). **Jika diisi `1`, `has_batch_no` wajib ikut diisi `1`** (lihat baris `has_batch_no`). Memunculkan field `shelf_life_in_days`. |
 | 🟠 **DISARANKAN** | `shelf_life_in_days` | Int | **Umur simpan dalam hari** — hanya relevan (muncul) saat `has_expiry_date = 1`. Berfungsi sebagai **preset/template**: ketika **Batch baru dibuat** untuk Item ini, `expiry_date` Batch dihitung **otomatis** oleh backend (mis. dari tanggal produksi/manufaktur + `shelf_life_in_days`). |
-| 🟠 **DISARANKAN** | `reorder_levels` | Table (child `Item Reorder`) | **Batas stok per (item, warehouse)** — ambang **min & maks**. Baris: `warehouse` (Link→Warehouse, `reqd`); `warehouse_reorder_level` (Float = **nilai ambang minimum**, satuan `stock_uom`); `material_request_type` (`reqd` — Select `Purchase`/`Transfer`/`Material Issue`/`Manufacture`, menentukan cara restock; `Purchase` = beli ke supplier); `warehouse_reorder_qty` (Float, **opsional** — untuk alur pemesanan nanti, PRD stok §9); `max_stock_level` (Float, **opsional** — **custom field dari app `baseapp`**, nilai ambang maksimum, satuan `stock_uom`; hanya ada bila `baseapp` terpasang, lihat §4.1). Hanya relevan untuk item stok (`is_stock_item=1`). Cara simpan: §4.1 (contoh CREATE). |
+| 🟠 **DISARANKAN** | `reorder_levels` | Table (child `Item Reorder`) | **Batas stok per (item, warehouse)** — ambang **min & maks**. Baris: `warehouse` (Link→Warehouse, `reqd`); `warehouse_reorder_level` (Float = **nilai ambang minimum**, satuan `stock_uom`); `material_request_type` (`reqd` — Select `Purchase`/`Transfer`/`Material Issue`/`Manufacture` — **`Transfer`**, bukan `Material Transfer`; menentukan cara restock; `Purchase` = beli ke supplier). **Tidak mengikuti** `default_material_request_type` Item: biarkan field-nya tidak dikirim dan backend mengisi `Purchase`; mengirim `""` justru ditolak `MandatoryError`; `warehouse_reorder_qty` (Float — **wajib bila `warehouse_reorder_level` diisi**, kalau tidak → 417 *Row #1: Please set reorder quantity*; alur pemesanan dibahas di PRD stok §9); `max_stock_level` (Float, **opsional** — **custom field dari app `baseapp`**, nilai ambang maksimum, satuan `stock_uom`; hanya ada bila `baseapp` terpasang, lihat §4.1). Hanya relevan untuk item stok (`is_stock_item=1`). Cara simpan: §4.1 (contoh CREATE). |
 | 🟠 **DISARANKAN** | `brand` | Link → Brand | Merek produk (opsional; bisa jadi sumber default via `brand_defaults`). |
 | 🟠 **DISARANKAN** | `description` | TextEditor | Deskripsi produk (HTML). Backend membersihkan HTML bila kosong/rapi. |
 | 🟠 **DISARANKAN** | `hashtags` | Table (child `Item Hashtag`) | **Hashtag produk** — satu baris = satu hashtag, tiap baris **Link ke master `Hashtag`**, ditulis **tanpa `#`** dan huruf kecil (mis. `promo`, `best-seller`). **Custom field dari app `baseapp`** (fieldname tanpa prefix `custom_`, posisi setelah `description`); hanya ada bila app tersebut terpasang. **Inilah field untuk tag/hashtag — bukan `_user_tags`.** Berbeda dari `_user_tags` (satu kolom teks dipisah koma), `hashtags` bisa dicari **persis**: filter `= promo` tidak ikut menarik `promo2026`. Nilai yang belum terdaftar di master **ditolak backend**. Master `Hashtag` (daftar pilihan & CRUD): §4.12f. Format, normalisasi, & cara filter: §2.8. CRUD + pola satu halaman (template & semua varian): §4.12. |
@@ -882,6 +883,7 @@ produksi.
   "min_order_qty": 10,
   "safety_stock": 50,
   "lead_time_days": 14,
+  "default_material_request_type": "Purchase",
   "country_of_origin": "China",
   "customs_tariff_number": "8483.10",
   "over_delivery_receipt_allowance": 5,
@@ -909,6 +911,9 @@ produksi.
 > - `country_of_origin` (Link → `Country`) dan `customs_tariff_number` (Link → `Customs Tariff
 >   Number`) harus menunjuk nilai master yang sudah ada.
 > - `include_item_in_manufacturing` default `1` — di contoh ditulis eksplisit.
+> - `default_material_request_type` diisi `Purchase` karena item ini memang dibeli. Nilainya
+>   kebetulan sama dengan default, jadi field ini boleh juga tidak dikirim. Penjelasan & efek: blok
+>   di bawah.
 > - `production_capacity` hanya tercatat; ERPNext tidak memakainya (lihat catatan di bawah).
 > - `is_sub_contracted_item = 0` karena produksinya dikerjakan sendiri. Isi `1` bila item
 >   **dikerjakan vendor** (subkontrak) — wajib `is_stock_item = 1`, dan dokumen alur subkontrak akan
@@ -935,6 +940,34 @@ Item `Bracket Mesin A` di atas memakai `max_discount: 10`.
 > Artinya `max_discount` **tidak menimpa/menganulir** harga atau diskon yang dihasilkan Pricing Rule —
 > ia hanya **pagar**: yang melebihi batas ditolak lebih awal, baik di level rule maupun level transaksi.
 
+**`default_material_request_type` — jenis Material Request yang dianggap wajar.**
+
+Item `Bracket Mesin A` di atas memakai `default_material_request_type: "Purchase"`. Field ini
+**tidak** mengubah perilaku transaksi penjualan/pembelian biasa — satu-satunya pembaca adalah alur
+**Production Plan** saat menyusun kebutuhan material dan membuat Material Request.
+
+| Yang terjadi | Peran `default_material_request_type` |
+|---|---|
+| Production Plan mengisi tabel *Material Request Plan Item* | kolom `material_request_type` baris diambil dari field Item ini |
+| Production Plan membuat Material Request dari baris tsb | nilai **baris menang**; field Item dipakai hanya bila barisnya kosong |
+| BOM di-*explode* jadi sub-item (raw material) | hanya item bernilai `Manufacture`/`Purchase` (dan bukan item subkontrak) yang dipecah |
+| Konversi `purchase_uom` pada baris Production Plan | hanya berlaku untuk baris bertipe `Purchase` |
+| Auto reorder stok (`reorder_item`) | **tidak memakai field ini** — yang dibaca `material_request_type` baris `reorder_levels` (lihat bawah) |
+| Form Desk Item saat menambah baris `reorder_levels` | menyalin nilai field ini ke baris (`Material Transfer` dipetakan jadi `Transfer`). **Tidak berlaku lewat API** — kirim eksplisit |
+
+Nilai yang boleh dikirim (peka huruf besar/kecil):
+
+| Dikirim | Hasil |
+|---|---|
+| tidak dikirim saat CREATE | tersimpan sebagai `Purchase` |
+| `"Material Issue"`, `"Manufacture"`, `"Material Transfer"`, `"Customer Provided"` | tersimpan apa adanya |
+| `""` (string kosong) | tersimpan kosong — **hindari**, nilainya jadi tidak terpakai di Production Plan |
+| `"purchase"` (huruf kecil) atau `"Transfer"` | **gagal menyimpan (417)** — *Default Material Request Type cannot be "purchase". It should be one of "Purchase", "Material Transfer", "Material Issue", "Manufacture", "Customer Provided"* |
+| `is_customer_provided_item: 1` + nilai apa pun | nilai **ditimpa** jadi `Customer Provided` — sekaligus wajib `is_purchase_item: 0` (default-nya `1`) |
+
+> Perhatikan bedanya: field **Item** memakai opsi `Material Transfer`, tetapi baris child table
+> **`reorder_levels`** memakai opsi `Transfer` — dua Select yang berbeda, jangan dipertukarkan.
+
 **Catatan `production_capacity`.** Nilai `120` di atas hanya **tersimpan sebagai catatan**. ERPNext
 tidak membaca `Item.production_capacity` di alur apa pun — kapasitas yang dipakai Job Card untuk
 mendeteksi bentrok jadwal berasal dari `production_capacity` pada doctype `Workstation`. Jadi jangan
@@ -959,8 +992,8 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
       "item_group": "Minuman",
       "stock_uom": "Pcs",
       "reorder_levels": [
-        { "warehouse": "Toko Cikarang - PTMJ", "warehouse_reorder_level": 20, "max_stock_level": 120, "material_request_type": "Purchase" },
-        { "warehouse": "Gudang Pusat - PTMJ", "warehouse_reorder_level": 50, "max_stock_level": 300, "material_request_type": "Purchase" }
+        { "warehouse": "Toko Cikarang - PTMJ", "warehouse_reorder_level": 20, "warehouse_reorder_qty": 80, "max_stock_level": 120, "material_request_type": "Purchase" },
+        { "warehouse": "Gudang Pusat - PTMJ", "warehouse_reorder_level": 50, "warehouse_reorder_qty": 200, "max_stock_level": 300, "material_request_type": "Purchase" }
       ]
     }
   }'
@@ -972,9 +1005,14 @@ curl -X POST https://site-anda.com/api/method/frappe.client.insert \
 >   sistem saat stok mencapai ambang (mekanisme auto-reorder, PRD stok §9). Opsi: `Purchase` =
 >   restock lewat **pembelian ke supplier** (cocok untuk item `is_purchase_item=1`, seperti contoh
 >   ini); `Transfer` = pindah gudang; `Material Issue` = pengeluaran material; `Manufacture` =
->   produksi.
-> - `warehouse_reorder_qty` **opsional** — boleh dikosongkan dulu karena jumlah pemesanan dibahas di
->   PRD stok (§9).
+>   produksi. Tulis **`Transfer`**, bukan `Material Transfer` (itu opsi field Item, bukan opsi baris
+>   ini). Bila field ini **tidak dikirim**, backend mengisinya sendiri dengan `Purchase` — nilai itu
+>   **tidak** diambil dari `default_material_request_type` Item. Mengirim `""` justru ditolak
+>   `MandatoryError`.
+> - `warehouse_reorder_qty` — **wajib diisi begitu `warehouse_reorder_level` diisi** (satuan
+>   `stock_uom`), kalau tidak simpan Item gagal: *Row #1: Please set reorder quantity*. Bila
+>   `warehouse_reorder_level` dibiarkan kosong, field ini boleh dikosongkan — aturan lengkap alur
+>   pemesanan ada di PRD stok (§9).
 > - `max_stock_level` **opsional** — **custom field dari app `baseapp`** (bukan field standar
 >   ERPNext): nilai **ambang maksimum** per (item, warehouse), satuan `stock_uom`. Hanya tersedia
 >   bila `baseapp` terpasang & sudah di-`bench migrate`. Murni untuk pencatatan/notifikasi — tidak
@@ -3060,6 +3098,11 @@ curl -X POST https://site-anda.com/api/method/frappe.client.get_list \
 | 417 | `serial_no_series` / `batch_number_series` memakai `#` tanpa titik | `{"exc_type":"ValidationError","message":"Invalid naming series (. missing) for <b>Serial Number Series</b>"}` — label field disebut di pesan (§2) |
 | 417 | `has_serial_no = 1` pada item non-stok | `{"exc_type":"ValidationError","message":"'Has Serial No' can not be 'Yes' for non-stock item"}` (§2) |
 | 417 | `valuation_method` diubah padahal sudah ada transaksi stok | `{"exc_type":"ValidationError","message":"As there are existing submitted transactions against item BRK-XXXX, you can not change the value of Valuation Method."}` — hanya **FIFO → Moving Average** yang diizinkan (§2) |
+| 417 | Nilai `default_material_request_type` di luar opsi (salah huruf / huruf kecil) | `{"exc_type":"ValidationError","message":" Default Material Request Type cannot be \"purchase\". It should be one of \"Purchase\", \"Material Transfer\", \"Material Issue\", \"Manufacture\", \"Customer Provided\""}` — perhatikan `Transfer` & `Material Transfer` **bukan** opsi field ini (§4.1) |
+| 417 | `is_customer_provided_item = 1` tanpa mematikan `is_purchase_item` | `{"exc_type":"ValidationError","message":"\"Customer Provided Item\" cannot be Purchase Item also"}` — `is_purchase_item` default `1`, jadi kirim `is_purchase_item: 0` (§4.1) |
+| 417 | Baris `reorder_levels` diisi `warehouse_reorder_level` tanpa `warehouse_reorder_qty` | `{"exc_type":"ValidationError","message":"Row #1: Please set reorder quantity"}` — jumlah reorder **wajib** bila ambang minimum diisi (§4.1) |
+| 417 | Baris `reorder_levels` mengirim `material_request_type: ""` | `{"exc_type":"MandatoryError","message":"[Item, 2609000001]: material_request_type"}` — biarkan field-nya **tidak dikirim** agar backend mengisi `Purchase` (§4.1) |
+| 417 | Baris `reorder_levels` duplikat (warehouse + tipe sama) | `{"exc_type":"DuplicateReorderRows","message":"Row #2: A reorder entry already exists for warehouse Gudang 1 - APS with reorder type Purchase."}` (§4.1) |
 | 417 | Hashtag tidak sesuai pola | `{"exc_type":"ValidationError","message":"Row #1: hashtag promo 2026 is not valid. Use lowercase letters, digits, - and _ only (max 50 characters)."}` — nomor baris mengikuti urutan baris pada payload; yang boleh hanya `a-z 0-9 - _` (maks 50 karakter), tanpa `#` dan tanpa spasi (§2.8) |
 
 > **Catatan `item_code` (naming series):** karena `item_code` dibuat backend (§2.1 no. 1), error
@@ -3147,21 +3190,25 @@ test script.
      notifikasi re-stock** — termasuk cara mengisi stok awal saat item baru dibuat (`opening_stock` +
      `valuation_rate`, atau via Stock Entry). Di file ini: info baca `tabBin` (§4.10), **alur zero
      stok via Stock Reconciliation saat non-aktif** (§4.9), dan **penyimpanan ambang stok minimum
-     `reorder_levels`** (ringkasan §2 & contoh CREATE §4.1).
+     `reorder_levels`** (ringkasan §2 & contoh CREATE §4.1). Untuk **membaca stok per gudang** dan
+     **mendeteksi item yang menyentuh ambang min/max** (termasuk "hari ini"), lihat
+     [prd_stock_report.md](./prd_stock_report.md).
    - **Price List / Item Price:** **sudah tersedia** → [prd_item_price.md](./prd_item_price.md)
      (doctype `Price List` + `Item Price`): pengelolaan `standard_rate`, harga per Price List
      (selling/buying), harga per UOM, harga khusus customer/supplier, masa berlaku, bulk update, dan
      catatan bahwa `standard_rate` saat CREATE otomatis membuat Item Price (§4.9 file tersebut).
    > Referensi silang pada file ini: **"PRD Price List"** → [prd_item_price.md](./prd_item_price.md)
-   > (sudah ada). **"PRD stok"** → `prd_stock.md` (belum dibuat, folder yang sama) — bagian terkait
-   > belum tersedia.
+   > (sudah ada). **"PRD stok"** → [prd_stock_report.md](./prd_stock_report.md) (sudah ada: daftar
+   > item + stok per gudang, sortir/filter, deteksi ambang min/max); mekanisme **auto-reorder /
+   > notifikasi** masih belum berdokumen.
 2. **File terkait:** **Price List / Item Price [prd_item_price.md](./prd_item_price.md)**,
    **Pricing Rule (diskon & promo) [prd_item_pricing_rule.md](./prd_item_pricing_rule.md)**,
    **Product Bundle (paket statis) [prd_item_product_bundle.md](./prd_item_product_bundle.md)**,
    **Dynamic Product Bundle (paket dengan isian dipilih kasir)
    [prd_item_dynamic_product_bundle.md](./prd_item_dynamic_product_bundle.md)**,
    Item Group [prd_item_group.md](./prd_item_group.md), **Stock Entry (transfer & pemakaian stok)
-   [prd_stock_entry.md](./prd_stock_entry.md)**, Warehouse
+   [prd_stock_entry.md](./prd_stock_entry.md)**, **Stock Report (daftar item + stok per gudang)
+   [prd_stock_report.md](./prd_stock_report.md)**, Warehouse
    [prd_warehouse.md](../setup/prd_warehouse.md), OAuth [prd_oauth.md](../prd_oauth.md).
    > Field Item yang dipakai Pricing Rule: `max_discount` (batas diskon per item) dan
    > `item_group`/`brand` (dasar `apply_on` pada Pricing Rule).
